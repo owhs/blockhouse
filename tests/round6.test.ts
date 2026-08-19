@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import { unzip, checkPackage, sha256Hex } from '../src/core/zip.ts'
-import { frontmatter } from '../plugins/mdsync/index.ts'
+import { frontmatter } from '../../plugins/mdsync/index.ts'
 import { resolvedFeatures } from '../src/render/page.ts'
 
 // build a minimal STORED zip in memory (local headers + central directory + EOCD)

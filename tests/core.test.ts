@@ -155,7 +155,7 @@ test('expr: aggregates over line items', () => {
 })
 
 // ---------- search ranking ----------
-import { rank } from '../plugins/search/index.ts'
+import { rank } from '../../plugins/search/index.ts'
 test('search: ranks title matches highest', () => {
   const entries = [
     { path: '/a', title: 'Dark mode design', excerpt: '', concept: 'post', text: 'dark mode design themes' },

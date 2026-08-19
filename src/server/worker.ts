@@ -15,7 +15,7 @@ import { SecureStore } from '../secure/store.ts'
 import { d1Adapter } from '../secure/sql.ts'
 import { buildEnv, type BlockhouseEnv } from './env.ts'
 import { buildApp } from './app.ts'
-import { builtinPlugins } from '../../plugins/index.ts'
+import { builtinPlugins } from '../../../plugins/index.ts'
 
 let cached: { env: BlockhouseEnv; app: ReturnType<typeof buildApp> } | null = null
 
