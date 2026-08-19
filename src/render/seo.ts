@@ -3,7 +3,7 @@
 // contributions like FAQPage), sitemap.xml and RSS.
 
 import type { ConceptDef, Doc, RenderCtx, SiteConfig } from '../core/types.ts'
-import { escapeAttr, escapeHtml, fillPattern, normalizePath } from '../core/util.ts'
+import { escapeAttr, escapeHtml, fillPattern, normalizePath, walkBlocks } from '../core/util.ts'
 import { mdExcerpt, mdText } from '../core/markdown.ts'
 import { hrefFor } from '../core/urls.ts'
 
@@ -139,6 +139,28 @@ export async function headHtml(ctx: RenderCtx, doc: Doc | null, concept: Concept
       '@type': 'Article', headline: doc.title, datePublished: doc.publishAt || doc.createdAt,
       dateModified: doc.updatedAt, mainEntityOfPage: canonical,
       ...(desc ? { description: desc } : {}), ...(ogImage ? { image: ogImage } : {}),
+    })
+  }
+  if (doc && concept?.seo?.schema === 'product') {
+    // Every spec-list on the page is already clean label/value pairs — reuse
+    // them as Product.additionalProperty instead of asking editors to enter
+    // the same numbers twice. No price/offers: this isn't an ecommerce site
+    // and inventing availability data would be worse than omitting it.
+    const additionalProperty: { '@type': string; name: string; value: string }[] = []
+    walkBlocks(doc.blocks, b => {
+      if (b.type === 'spec-list' && Array.isArray(b.props?.rows)) {
+        for (const r of b.props.rows) {
+          if (r?.label && r?.value) additionalProperty.push({ '@type': 'PropertyValue', name: String(r.label), value: String(r.value) })
+        }
+      }
+    })
+    graph.push({
+      '@type': 'Product', '@id': `${canonical}#product`, url: canonical,
+      name: doc.fields?.name || doc.title,
+      ...(desc || doc.fields?.strapline ? { description: desc || doc.fields.strapline } : {}),
+      ...(ogImage ? { image: ogImage } : {}),
+      ...(org?.name ? { brand: { '@type': 'Brand', name: org.name } } : {}),
+      ...(additionalProperty.length ? { additionalProperty } : {}),
     })
   }
   graph.push(...ctx.collect.jsonld)
