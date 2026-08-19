@@ -4,7 +4,7 @@
 
 import type { BlockDef, RenderCtx, BlockNode } from '../core/types.ts'
 import type { Registry } from '../core/registry.ts'
-import { escapeAttr as ea, escapeHtml as eh } from '../core/util.ts'
+import { escapeAttr as ea, escapeHtml as eh, slugify } from '../core/util.ts'
 import { mdToHtml, mdText } from '../core/markdown.ts'
 import { pictureHtml } from './imgtag.ts'
 import { sanitizeHtml, sanitizeSvg } from '../core/sanitize.ts'
@@ -68,7 +68,12 @@ export function registerNativeBlocks(registry: Registry) {
       defaults: { level: '2', align: 'left' },
       render: (c, n) => {
         const l = ['1', '2', '3', '4'].includes(String(n.props.level)) ? n.props.level : '2'
-        return `<div class="wb-heading"${align(n.props.align)}>${n.props.eyebrow ? `<p class="eyebrow"${wbe(c, 'eyebrow')}>${eh(n.props.eyebrow)}</p>` : ''}<h${l}${wbe(c, 'text')}>${eh(n.props.text)}</h${l}></div>`
+        // A slugged id turns every heading into a deep-link/anchor target for
+        // free — harmless to add (nothing reads it unless a template's own
+        // nav or a manual link opts in), and saves themes from re-deriving
+        // the same slug independently to stay in sync with the rendered id.
+        const id = n.props.text ? ` id="${ea(slugify(String(n.props.text)))}"` : ''
+        return `<div class="wb-heading"${align(n.props.align)}>${n.props.eyebrow ? `<p class="eyebrow"${wbe(c, 'eyebrow')}>${eh(n.props.eyebrow)}</p>` : ''}<h${l}${id}${wbe(c, 'text')}>${eh(n.props.text)}</h${l}></div>`
       },
     },
 
