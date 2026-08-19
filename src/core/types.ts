@@ -93,7 +93,7 @@ export interface ConceptDef {
   feed?: boolean             // emit RSS at `${indexPath}/feed.xml`
   seo?: {
     titlePattern?: string    // "{title} — {site}"
-    schema?: 'article' | 'webpage' | 'none'
+    schema?: 'article' | 'webpage' | 'product' | 'none'
     /** The page template renders the H1 itself, so the SEO check should not
      *  look for one in the block tree. */
     templateH1?: boolean
