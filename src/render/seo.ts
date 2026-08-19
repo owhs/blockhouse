@@ -26,7 +26,11 @@ export async function headHtml(ctx: RenderCtx, doc: Doc | null, concept: Concept
   const site = ctx.site
   const pattern = doc?.seo?.title ? '{title}' : (concept?.seo?.titlePattern || site.seo.titlePattern)
   const baseTitle = opts.titleOverride ?? (doc?.seo?.title || doc?.title || site.name)
-  const title = ctx.path === '/' && !opts.titleOverride
+  // The home page defaults to "{site} — {tagline}" since a page-title pattern
+  // like "{title} - {site}" has nothing meaningful to put in {title} there —
+  // but a doc that explicitly sets its own seo.title (the home doc's SEO tab
+  // exposes exactly this field) means it, and must win over the default.
+  const title = ctx.path === '/' && !opts.titleOverride && !doc?.seo?.title
     ? `${site.name}${site.tagline ? ' — ' + site.tagline : ''}`
     : fillPattern(pattern, { title: baseTitle, site: site.name })
   const desc = (doc ? docDescription(doc) : '') || site.seo.description || ''
