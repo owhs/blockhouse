@@ -167,7 +167,7 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   const consentOn = !!site.plugins?.consent?.enabled
   let consentBanner = ''
   if (consentOn && ctx.mode === 'live' && !ctx.annotate && !ctx.menuDraft && !ctx.bare) {
-    const { consentHtml } = await import('../../plugins/consent/index.ts')
+    const { consentHtml } = await import('../../../plugins/consent/index.ts')
     consentBanner = consentHtml(site.plugins!.consent!.settings || {}, {
       beacon: !!site.plugins?.analytics?.enabled && feats.analyticsBeacon !== false,
     })

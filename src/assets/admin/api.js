@@ -1,8 +1,9 @@
 // Studio API client — CSRF header + friendly errors.
 import { toast } from './ui.js'
 
+const CSRF_PREFIX = 'blockhouse_c='
 function csrf() {
-  return document.cookie.split('; ').find(c => c.startsWith('blockhouse_c='))?.slice(7) || ''
+  return document.cookie.split('; ').find(c => c.startsWith(CSRF_PREFIX))?.slice(CSRF_PREFIX.length) || ''
 }
 
 export async function api(path, opts = {}) {

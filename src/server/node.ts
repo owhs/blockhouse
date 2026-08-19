@@ -11,9 +11,13 @@ import { buildEnv, type BlockhouseEnv } from './env.ts'
 import { buildApp } from './app.ts'
 import { notifyReload } from './api.ts'
 import { randomToken } from '../core/util.ts'
-import { builtinPlugins } from '../../plugins/index.ts'
+import { builtinPlugins } from '../../../plugins/index.ts'
 
 const PKG_ROOT = fileURLToPath(new URL('../..', import.meta.url))
+// templates/ and plugins/ are shareable units, not part of the engine repo —
+// they live one level up, as siblings of the package root (PKG_ROOT), same as
+// sites/. SHARED_ROOT is the parent both are resolved from.
+const SHARED_ROOT = join(PKG_ROOT, '..')
 
 export async function createNodeEnv(projectDir: string, opts: { dev?: boolean; envName?: string } = {}): Promise<BlockhouseEnv> {
   const stateDir = join(projectDir, '.blockhouse')
@@ -57,7 +61,7 @@ export async function createNodeEnv(projectDir: string, opts: { dev?: boolean; e
     mode: 'node',
     dev: opts.dev,
     driver: new FsDriver(projectDir),
-    templatesDriver: new FsDriver(join(PKG_ROOT, 'templates')),
+    templatesDriver: new FsDriver(join(SHARED_ROOT, 'templates')),
     appAssets: new FsDriver(join(PKG_ROOT, 'src', 'assets')),
     secure,
     secret,
@@ -106,7 +110,7 @@ export async function serve(projectDir: string, opts: { port?: number; dev?: boo
     }
     try {
       watch(projectDir, { recursive: true }, onChange)
-      watch(join(PKG_ROOT, 'templates'), { recursive: true }, onChange)
+      watch(join(SHARED_ROOT, 'templates'), { recursive: true }, onChange)
     } catch { console.warn('[blockhouse] recursive fs.watch unavailable — live reload off') }
   }
 

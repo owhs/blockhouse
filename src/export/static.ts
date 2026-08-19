@@ -77,7 +77,7 @@ export async function exportStatic(env: BlockhouseEnv, opts: { outDir: string; s
   // static search index (when the search plugin is enabled)
   if (site.plugins?.search?.enabled && site.build?.generateSearchIndex !== false) {
     try {
-      const { rank } = await import('../../plugins/search/index.ts')
+      const { rank } = await import('../../../plugins/search/index.ts')
       void rank
       const entries: any[] = []
       for (const d of docs) {

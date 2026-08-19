@@ -52,6 +52,14 @@ export function toast(message, kind = 'info', ms = 3200) {
 // ---------- dialogs ----------
 
 export function dialog({ title, body, actions = [], width, onClose, headerExtra }) {
+  // Each call appends a fresh native <dialog> and calls showModal() on it —
+  // nothing closed the previous one first. Two dialogs opened in quick
+  // succession (e.g. clicking a second content link before dismissing the
+  // first "what is this" popup) stacked as two separate top-layer elements;
+  // only the newest reliably receives clicks, so buttons on the older one
+  // could look present but do nothing when pressed.
+  document.querySelectorAll('dialog.dlg[open]').forEach(d => { try { d.close() } catch {} d.remove() })
+
   const dlg = h('dialog.dlg', { style: width ? { width } : {} })
   const close = val => { dlg.close(); dlg.remove(); onClose?.(val) }
   dlg.addEventListener('cancel', e => { e.preventDefault(); close(undefined) })

@@ -76,6 +76,31 @@
   document.addEventListener('click', e => {
     if (e.target.isContentEditable || e.target.closest('[contenteditable="true"], [contenteditable="plaintext-only"]')) return
     if (e.target.closest('.wb-toolbar')) return
+
+    // Overlays a theme's own runtime script bolts onto <body> (an enlarged
+    // image viewer, in practice) are app chrome, not page content — leave
+    // them alone entirely. Without this, clicking anywhere inside one
+    // (including its own close button) got intercepted here first: this
+    // handler doesn't know the element, so it fell into the "what is this"
+    // dialog below instead of ever reaching the overlay's own close logic —
+    // an overlay you could open but never dismiss.
+    if (e.target.closest('.sm-lb, .lightbox-overlay')) return
+
+    // Purely visual, non-navigating controls — a tab switch, an accordion
+    // opening — are let through instead of swallowed. Nothing about them
+    // leaves the page or loses content, they're just how you reach content
+    // that's hidden until you interact with it, and an editor where you can't
+    // see what's in the second tab isn't very useful. The containing block
+    // still gets selected, so the inspector stays in sync; everything else
+    // (real links, nav, submit buttons) keeps the normal "select, don't
+    // activate" rule below.
+    const safeControl = e.target.closest('[role="tab"], summary')
+    if (safeControl) {
+      const block = safeControl.closest('[data-wb]')
+      if (block) select(block, true)
+      return
+    }
+
     const el = e.target.closest('[data-wb]')
     e.preventDefault()
     e.stopPropagation()
