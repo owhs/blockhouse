@@ -1,0 +1,12 @@
+
+<article class="container" style="padding-block: clamp(2rem, 5vw, 3.5rem); max-width: var(--container-narrow)">
+  <header class="post-header">
+    {% if fields.sector %}<p class="eyebrow">{{ fields.sector | escape }}{% if fields.location %} · {{ fields.location | escape }}{% endif %}</p>{% endif %}
+    <h1 class="post-title">{{ doc.title | escape }}</h1>
+    {% if fields.lede %}<p class="post-lede">{{ fields.lede | escape }}</p>{% endif %}
+  </header>
+  {% if fields.cover %}<div style="margin-top: 1.6rem">{{ fields.cover | img: width: 1280 }}</div>{% endif %}
+  <div class="prose" style="margin-top: 2rem">
+    {% region 'content' %}
+  </div>
+</article>

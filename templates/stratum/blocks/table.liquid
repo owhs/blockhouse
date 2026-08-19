@@ -1,0 +1,24 @@
+{% comment %}
+  Replaces the native table so each table can choose its own small-screen
+  behaviour. "split" needs the column name on every cell; the runtime copies it
+  from the header row into data-label rather than repeating it in the markup.
+{% endcomment %}
+{% assign head = props.data | first %}
+<div class="wb-table{% if props.striped %} striped{% endif %}{% if props.compact %} compact{% endif %} m-{{ props.mobile | default: 'scroll' }}"
+     data-table-mobile="{{ props.mobile | default: 'scroll' }}">
+  <table>
+    {% if props.caption %}<caption>{{ props.caption | escape }}</caption>{% endif %}
+    {% if props.headerRow %}
+      <thead><tr>{% for c in head %}<th scope="col">{{ c | md | replace: '<p>', '' | replace: '</p>', '' }}</th>{% endfor %}</tr></thead>
+    {% endif %}
+    <tbody>
+      {% assign rowno = 0 %}
+      {% for row in props.data %}
+        {% assign rowno = rowno | plus: 1 %}
+        {% if props.headerRow == false or rowno > 1 %}
+          <tr>{% for cell in row %}<td>{{ cell | md | replace: '<p>', '' | replace: '</p>', '' }}</td>{% endfor %}</tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

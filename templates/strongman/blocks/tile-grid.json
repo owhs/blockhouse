@@ -1,0 +1,33 @@
+{
+  "type": "tile-grid",
+  "label": "Image tiles",
+  "group": "Strongman",
+  "icon": "layers",
+  "description": "Wide photo tiles with a frosted panel of copy and a button — the range signposts on the home page.",
+  "fields": [
+    {
+      "key": "tiles",
+      "type": "list",
+      "label": "Tiles",
+      "item": [
+        { "key": "image", "type": "image", "label": "Image" },
+        { "key": "title", "type": "text", "label": "Title" },
+        { "key": "text", "type": "richtext", "label": "Description" },
+        { "key": "buttonLabel", "type": "text", "label": "Button label", "default": "View Range", "width": "half" },
+        { "key": "buttonHref", "type": "link", "label": "Button link", "width": "half" }
+      ]
+    },
+    {
+      "key": "columns",
+      "type": "select",
+      "label": "Columns",
+      "default": "1",
+      "width": "half",
+      "options": [
+        { "value": "1", "label": "One per row (full width)" },
+        { "value": "2", "label": "Two per row" }
+      ]
+    }
+  ],
+  "defaults": { "tiles": [], "columns": "1" }
+}

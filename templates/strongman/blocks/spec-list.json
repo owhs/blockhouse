@@ -1,0 +1,21 @@
+{
+  "type": "spec-list",
+  "label": "Specification list",
+  "group": "Strongman",
+  "icon": "table",
+  "description": "Two-column technical data. Put a metric and imperial pair in one cell as \"3200 kg (7050 lb)\" and the two halves split onto their own lines so the figures stay aligned down the column.",
+  "fields": [
+    { "key": "title", "type": "text", "label": "Title" },
+    {
+      "key": "rows",
+      "type": "list",
+      "label": "Rows",
+      "item": [
+        { "key": "label", "type": "text", "label": "Label" },
+        { "key": "value", "type": "text", "label": "Value" }
+      ]
+    },
+    { "key": "note", "type": "text", "label": "Footnote", "help": "e.g. 'Indicative figures — confirmed at survey.'" }
+  ],
+  "defaults": { "rows": [] }
+}

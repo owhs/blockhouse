@@ -1,0 +1,5 @@
+<nav class="link-row align-{{ props.align | default: 'center' }} grid-wide" aria-label="Models in this range">
+  {% for l in props.links %}
+    <a href="{{ l.href }}"{% if l.title %} title="{{ l.title | escape }}"{% endif %}>{{ l.label | escape }}</a>
+  {% endfor %}
+</nav>

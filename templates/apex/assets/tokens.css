@@ -1,0 +1,73 @@
+/* Apex design tokens — OKLCH, petrol-blue primary + warm amber secondary.
+   Default is LIGHT. Dark mode engages only when [data-theme="dark"] is set
+   (via the header toggle), so visitors always land light regardless of OS.
+   Sites override any token via site.json → theme.tokens. */
+
+:root {
+  color-scheme: light;
+
+  --hue: 205;
+  --accent-chroma: 0.15;
+  --accent2-chroma: 0.16;
+
+  /* --- primary: deep petrol blue --- */
+  --accent: light-dark(oklch(52% var(--accent-chroma) 235), oklch(70% var(--accent-chroma) 220));
+  --accent-strong: light-dark(oklch(43% calc(var(--accent-chroma) + 0.03) 240), oklch(78% calc(var(--accent-chroma) + 0.02) 215));
+  --accent-soft: light-dark(oklch(94.5% 0.028 230), oklch(26% 0.06 225));
+  --accent-contrast: light-dark(oklch(99% 0.006 210), oklch(16% 0.03 230));
+
+  /* --- secondary: warm amber (luxe accent for CTAs, stats, tags) --- */
+  --accent2: light-dark(oklch(66% var(--accent2-chroma) 72), oklch(78% var(--accent2-chroma) 72));
+  --accent2-strong: light-dark(oklch(55% calc(var(--accent2-chroma) + 0.02) 70), oklch(84% calc(var(--accent2-chroma) + 0.02) 74));
+  --accent2-soft: light-dark(oklch(95% 0.035 82), oklch(27% 0.06 78));
+
+  /* --- neutrals with a faint cool undertone --- */
+  --bg: light-dark(oklch(98.6% 0.006 210), oklch(15.5% 0.02 235));
+  --bg-subtle: light-dark(oklch(95.8% 0.01 210), oklch(19% 0.022 235));
+  --bg-raise: light-dark(#ffffff, oklch(22% 0.024 235));
+  --bg-contrast: light-dark(oklch(15% 0.03 235), oklch(96.5% 0.008 210));
+
+  --ink: light-dark(oklch(20% 0.02 230), oklch(95% 0.01 215));
+  --ink-mute: light-dark(oklch(44% 0.022 230), oklch(74% 0.015 220));
+  --ink-faint: light-dark(oklch(58% 0.02 230), oklch(55% 0.018 220));
+  --ink-contrast: light-dark(oklch(97% 0.006 210), oklch(19% 0.03 235));
+
+  --line: light-dark(oklch(88% 0.014 220), oklch(30% 0.022 235));
+  --line-soft: light-dark(oklch(92.5% 0.011 220), oklch(25% 0.02 235));
+
+  --shadow-1: 0 1px 2px oklch(15% 0.03 235 / 0.08), 0 4px 16px oklch(15% 0.03 235 / 0.08);
+  --shadow-2: 0 2px 6px oklch(15% 0.03 235 / 0.1), 0 22px 58px oklch(15% 0.04 235 / 0.18);
+
+  --radius: 10px;
+  --radius-s: 6px;
+
+  --font-body: var(--font-body-custom, "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --font-display: var(--font-display-custom, "Sora", "Inter", ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-mono-custom, "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace);
+
+  /* fluid type scale — bold but refined */
+  --text-s: clamp(0.82rem, 0.79rem + 0.15vw, 0.89rem);
+  --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.06rem);
+  --text-l: clamp(1.15rem, 1.07rem + 0.4vw, 1.3rem);
+  --text-xl: clamp(1.5rem, 1.32rem + 0.9vw, 1.95rem);
+  --text-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
+  --text-hero: clamp(2.6rem, 1.75rem + 4.2vw, 4.9rem);
+
+  --space: clamp(1rem, 0.9rem + 0.5vw, 1.4rem);
+  --container: 76rem;
+  --container-narrow: 46rem;
+
+  --display-tracking: -0.02em;
+  --display-weight: 760;
+}
+
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+
+/* Load the display face if present (graceful fallback otherwise) */
+@supports (font-variation-settings: normal) {
+  @font-face {
+    font-family: "Sora";
+    src: local("Sora");
+  }
+}

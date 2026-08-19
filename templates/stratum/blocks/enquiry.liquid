@@ -1,0 +1,18 @@
+<div class="sb-enquiry">
+  <div class="enq-copy">
+    {% if props.eyebrow %}<p class="eyebrow">{{ props.eyebrow | escape }}</p>{% endif %}
+    <h2>{{ props.title | escape }}</h2>
+    {% if props.text %}<p>{{ props.text | escape }}</p>{% endif %}
+    <p class="enq-actions">
+      <a class="btn btn-primary btn-large" href="{{ props.primaryHref | default: '/contact' }}">{{ props.primaryLabel | default: 'Request a quote' | escape }}</a>
+      {% if props.secondaryLabel %}<a class="btn btn-ghost btn-large" href="{{ props.secondaryHref | default: '/systems' }}">{{ props.secondaryLabel | escape }}</a>{% endif %}
+    </p>
+  </div>
+  <div class="enq-facts">
+    {% if site.vars.phone %}<div class="enq-row"><span class="enq-k">Phone</span><span class="enq-v"><a href="tel:{{ site.vars.phoneHref | default: site.vars.phone }}">{{ site.vars.phone }}</a></span></div>{% endif %}
+    {% if site.vars.email %}<div class="enq-row"><span class="enq-k">Email</span><span class="enq-v"><a href="mailto:{{ site.vars.email }}">{{ site.vars.email }}</a></span></div>{% endif %}
+    {% if site.vars.hours %}<div class="enq-row"><span class="enq-k">Hours</span><span class="enq-v">{{ site.vars.hours | escape }}</span></div>{% endif %}
+    {% if site.vars.address %}<div class="enq-row"><span class="enq-k">Works</span><span class="enq-v">{{ site.vars.address | escape }}</span></div>{% endif %}
+    {% if site.vars.coverage %}<div class="enq-row"><span class="enq-k">Coverage</span><span class="enq-v">{{ site.vars.coverage | escape }}</span></div>{% endif %}
+  </div>
+</div>

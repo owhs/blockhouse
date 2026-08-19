@@ -1,0 +1,76 @@
+{
+  "type": "category-nav",
+  "label": "Category nav",
+  "group": "Industrial",
+  "icon": "layout",
+  "description": "Quick category navigation cards",
+  "fields": [
+    {
+      "key": "items",
+      "type": "list",
+      "label": "Categories",
+      "item": [
+        {
+          "key": "icon",
+          "type": "select",
+          "label": "Icon",
+          "default": "layers",
+          "options": [
+            {
+              "value": "layers",
+              "label": "layers"
+            },
+            {
+              "value": "bolt",
+              "label": "bolt"
+            },
+            {
+              "value": "shield",
+              "label": "shield"
+            },
+            {
+              "value": "gear",
+              "label": "gear"
+            },
+            {
+              "value": "star",
+              "label": "star"
+            },
+            {
+              "value": "building",
+              "label": "building"
+            },
+            {
+              "value": "rocket",
+              "label": "rocket"
+            },
+            {
+              "value": "lock",
+              "label": "lock"
+            },
+            {
+              "value": "chart",
+              "label": "chart"
+            }
+          ]
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": "Title",
+          "required": true
+        },
+        {
+          "key": "text",
+          "type": "text",
+          "label": "Short description"
+        },
+        {
+          "key": "link",
+          "type": "link",
+          "label": "Link"
+        }
+      ]
+    }
+  ]
+}

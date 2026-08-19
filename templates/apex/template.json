@@ -1,0 +1,19 @@
+{
+  "name": "apex",
+  "label": "Apex",
+  "description": "Premium automatic-parking showcase — deep petrol-blue, warm amber accent, clean modern catalogue, JLR-style mega menu, spec-sheet precision, light-first with full dark.",
+  "slots": [
+    "header.announce",
+    "header.after",
+    "footer.before",
+    "footer.social"
+  ],
+  "tokens": [
+    { "key": "hue", "label": "Accent hue", "type": "range", "min": 0, "max": 360, "default": "205" },
+    { "key": "accent-chroma", "label": "Accent intensity", "type": "range", "min": 0, "max": 0.3, "default": "0.15" },
+    { "key": "accent2-chroma", "label": "Amber intensity", "type": "range", "min": 0, "max": 0.3, "default": "0.16" },
+    { "key": "radius", "label": "Corner radius", "type": "text", "default": "10px" },
+    { "key": "font-body", "label": "Body font stack", "type": "text", "default": "" },
+    { "key": "font-display", "label": "Display font stack", "type": "text", "default": "" }
+  ]
+}

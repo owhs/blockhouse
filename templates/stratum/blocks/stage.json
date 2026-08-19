@@ -1,0 +1,130 @@
+{
+  "type": "stage",
+  "label": "Stage (cinematic hero)",
+  "group": "Stratum",
+  "icon": "mountain",
+  "description": "Full-bleed dark opening plate: micro-label, oversized headline, schematic artwork and a key-figure strip.",
+  "fields": [
+    {
+      "key": "eyebrow",
+      "type": "text",
+      "label": "Micro-label",
+      "help": "Small mono label above the headline"
+    },
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Headline",
+      "required": true
+    },
+    {
+      "key": "titleThin",
+      "type": "text",
+      "label": "Headline — second line",
+      "help": "Rendered lighter, under the headline"
+    },
+    {
+      "key": "text",
+      "type": "textarea",
+      "label": "Intro",
+      "rows": 3
+    },
+    {
+      "key": "image",
+      "type": "image",
+      "label": "Artwork",
+      "help": "A system schematic reads best here"
+    },
+    {
+      "key": "layout",
+      "type": "select",
+      "label": "Layout",
+      "options": [
+        {
+          "value": "split"
+        },
+        {
+          "value": "center"
+        }
+      ],
+      "default": "split",
+      "width": "half"
+    },
+    {
+      "key": "height",
+      "type": "select",
+      "label": "Height",
+      "options": [
+        {
+          "value": "normal"
+        },
+        {
+          "value": "tall"
+        }
+      ],
+      "default": "normal",
+      "width": "half"
+    },
+    {
+      "key": "caption",
+      "type": "text",
+      "label": "Drawing caption",
+      "help": "Shown under the artwork plate, e.g. 'Fig. 01 — tower arrangement'"
+    },
+    {
+      "key": "buttons",
+      "type": "list",
+      "label": "Buttons",
+      "item": [
+        {
+          "key": "label",
+          "type": "text",
+          "label": "Label"
+        },
+        {
+          "key": "href",
+          "type": "text",
+          "label": "Link"
+        },
+        {
+          "key": "style",
+          "type": "select",
+          "label": "Style",
+          "options": [
+            {
+              "value": "primary"
+            },
+            {
+              "value": "ghost"
+            }
+          ],
+          "default": "primary"
+        }
+      ]
+    },
+    {
+      "key": "meta",
+      "type": "list",
+      "label": "Key figures",
+      "item": [
+        {
+          "key": "k",
+          "type": "text",
+          "label": "Label"
+        },
+        {
+          "key": "v",
+          "type": "text",
+          "label": "Value"
+        }
+      ]
+    }
+  ],
+  "defaults": {
+    "layout": "split",
+    "height": "normal",
+    "buttons": [],
+    "meta": []
+  },
+  "providesH1": true
+}

@@ -1,0 +1,51 @@
+/* Console — product & documentation: cool neutral surfaces, compact rhythm,
+   crisp UI blue-teal accent, strong code affordances. */
+
+:root {
+  color-scheme: light dark;
+
+  --hue: 215;
+  --accent-chroma: 0.13;
+
+  --accent: oklch(56% var(--accent-chroma) var(--hue));
+  --accent-strong: oklch(48% var(--accent-chroma) var(--hue));
+  --accent-soft: light-dark(oklch(95% 0.03 var(--hue)), oklch(28% 0.06 var(--hue)));
+  --accent-contrast: oklch(99% 0.01 var(--hue));
+
+  --bg: light-dark(oklch(99% 0.002 var(--hue)), oklch(18% 0.012 var(--hue)));
+  --bg-subtle: light-dark(oklch(96.5% 0.006 var(--hue)), oklch(21% 0.014 var(--hue)));
+  --bg-raise: light-dark(oklch(100% 0 0), oklch(23% 0.015 var(--hue)));
+  --bg-contrast: light-dark(oklch(21% 0.014 var(--hue)), oklch(96% 0.006 var(--hue)));
+
+  --ink: light-dark(oklch(22% 0.012 var(--hue)), oklch(94% 0.006 var(--hue)));
+  --ink-mute: light-dark(oklch(46% 0.012 var(--hue)), oklch(72% 0.008 var(--hue)));
+  --ink-faint: light-dark(oklch(60% 0.01 var(--hue)), oklch(56% 0.008 var(--hue)));
+  --ink-contrast: light-dark(oklch(97% 0.004 var(--hue)), oklch(21% 0.014 var(--hue)));
+
+  --line: light-dark(oklch(90% 0.008 var(--hue)), oklch(29% 0.012 var(--hue)));
+  --line-soft: light-dark(oklch(94% 0.006 var(--hue)), oklch(25% 0.01 var(--hue)));
+
+  --shadow-1: 0 1px 2px oklch(30% 0.02 var(--hue) / 0.05);
+  --shadow-2: 0 4px 24px oklch(30% 0.02 var(--hue) / 0.10);
+
+  --radius: 8px;
+  --radius-s: 6px;
+
+  --font-body: var(--font-body-custom, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --font-display: var(--font-display-custom, var(--font-body));
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --text-s: clamp(0.82rem, 0.8rem + 0.1vw, 0.88rem);
+  --text-base: clamp(0.97rem, 0.94rem + 0.15vw, 1.03rem);
+  --text-l: clamp(1.1rem, 1.05rem + 0.3vw, 1.22rem);
+  --text-xl: clamp(1.35rem, 1.2rem + 0.7vw, 1.7rem);
+  --text-2xl: clamp(1.75rem, 1.5rem + 1.2vw, 2.4rem);
+  --text-hero: clamp(2.2rem, 1.7rem + 2.4vw, 3.4rem);
+
+  --space: clamp(0.9rem, 0.8rem + 0.4vw, 1.2rem);
+  --container: 76rem;
+  --container-narrow: 48rem;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }

@@ -1,0 +1,94 @@
+{
+  "type": "photo-row",
+  "label": "Photo row",
+  "group": "Strongman",
+  "icon": "copy",
+  "description": "A row of photographs that can break out of the reading column. Choose how many across, how wide the row runs, and how each shot sits in its frame.",
+  "fields": [
+    {
+      "key": "images",
+      "type": "list",
+      "label": "Images",
+      "item": [
+        { "key": "mediaId", "type": "image", "label": "Image" },
+        { "key": "alt", "type": "text", "label": "Alt text" },
+        { "key": "caption", "type": "text", "label": "Caption" }
+      ]
+    },
+    {
+      "key": "columns",
+      "type": "select",
+      "label": "Columns",
+      "default": "2",
+      "width": "half",
+      "options": [
+        { "value": "auto", "label": "Auto — fit as many as will sit comfortably" },
+        { "value": "1" },
+        { "value": "2" },
+        { "value": "3" },
+        { "value": "4" }
+      ]
+    },
+    {
+      "key": "width",
+      "type": "select",
+      "label": "Row width",
+      "default": "entry",
+      "width": "half",
+      "options": [
+        { "value": "entry", "label": "Reading column" },
+        { "value": "wide", "label": "Wide" },
+        { "value": "page", "label": "Full page width" },
+        { "value": "full", "label": "Edge to edge" }
+      ]
+    },
+    {
+      "key": "fit",
+      "type": "select",
+      "label": "How images fill their frame",
+      "default": "cover",
+      "width": "half",
+      "help": "Crop fills the frame and may trim edges. Fit shows the whole image and pads the gap. Natural lets each image keep its own shape.",
+      "options": [
+        { "value": "cover", "label": "Crop to fill (uniform rows)" },
+        { "value": "contain", "label": "Fit whole image (no cropping)" },
+        { "value": "natural", "label": "Natural — keep each image's shape" },
+        { "value": "masonry", "label": "Masonry — natural heights, packed columns" }
+      ]
+    },
+    {
+      "key": "ratio",
+      "type": "select",
+      "label": "Frame shape",
+      "default": "4-3",
+      "width": "half",
+      "help": "Ignored when fit is Natural or Masonry",
+      "options": [
+        { "value": "16-9", "label": "Wide 16:9" },
+        { "value": "3-2", "label": "Photo 3:2" },
+        { "value": "4-3", "label": "Classic 4:3" },
+        { "value": "1-1", "label": "Square" },
+        { "value": "3-4", "label": "Portrait 3:4" },
+        { "value": "slim", "label": "Slim band" }
+      ]
+    },
+    { "key": "gap", "type": "select", "label": "Spacing", "default": "normal", "width": "half", "options": [
+      { "value": "none", "label": "Flush" },
+      { "value": "tight" },
+      { "value": "normal" },
+      { "value": "loose" }
+    ] },
+    { "key": "rounded", "type": "boolean", "label": "Rounded corners", "default": true, "width": "half" },
+    { "key": "lightbox", "type": "boolean", "label": "Click to enlarge", "default": true, "width": "half" }
+  ],
+  "defaults": {
+    "images": [],
+    "columns": "2",
+    "width": "entry",
+    "fit": "cover",
+    "ratio": "4-3",
+    "gap": "normal",
+    "rounded": true,
+    "lightbox": true
+  }
+}

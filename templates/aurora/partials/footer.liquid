@@ -1,0 +1,15 @@
+{% slot 'footer.before' %}
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a class="site-brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">{{ site.name | escape }}</span></a>
+      {% if site.tagline %}<p class="footer-tagline">{{ site.tagline | escape }}</p>{% endif %}
+      <div class="footer-social">{% slot 'footer.social' %}</div>
+    </div>
+    <div class="footer-menu">{% menu 'footer' %}</div>
+  </div>
+  <div class="container footer-meta">
+    <p>© {{ 'now' | date: '%Y' }} {{ site.name | escape }}</p>
+    <p class="footer-blockhouse">Woven with <a href="https://github.com/blockhouse" rel="noopener">Blockhouse</a></p>
+  </div>
+</footer>

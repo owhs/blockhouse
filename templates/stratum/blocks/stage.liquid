@@ -1,0 +1,26 @@
+<section class="sb-stage layout-{{ props.layout | default: 'split' }} h-{{ props.height | default: 'normal' }}">
+  <span class="stage-grid-lines" aria-hidden="true"></span>
+  <div class="stage-inner">
+    <div class="stage-copy">
+      {% if props.eyebrow %}<p class="eyebrow">{{ props.eyebrow | escape }}</p>{% endif %}
+      <h1>{{ props.title | escape }}{% if props.titleThin %}<span class="thin">{{ props.titleThin | escape }}</span>{% endif %}</h1>
+      {% if props.text %}<p class="stage-text">{{ props.text | escape }}</p>{% endif %}
+      {% if props.buttons %}
+        <p class="stage-actions">
+          {% for b in props.buttons %}<a class="btn btn-{{ b.style | default: 'primary' }} btn-large" href="{{ b.href | default: '#' }}">{{ b.label | escape }}</a>{% endfor %}
+        </p>
+      {% endif %}
+      {% if props.meta %}
+        <div class="stage-meta">
+          {% for m in props.meta %}<span class="sm-cell"><span class="sm-k">{{ m.k | escape }}</span><span class="sm-v">{{ m.v | escape }}</span></span>{% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% if props.image %}
+      <div class="stage-media art-plate on-plate">
+        {{ props.image | img: width: 1400, sizes: '(max-width: 960px) 92vw, 720px' }}
+        {% if props.caption %}<span class="art-cap">{{ props.caption | escape }}</span>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</section>

@@ -1,0 +1,27 @@
+<div class="tpl-product">
+  {% if fields.cover %}
+    <div class="tp-hero">{{ fields.cover | img: width: 2000, priority: true }}</div>
+  {% endif %}
+  <header class="tp-head container w-normal">
+    <p class="eyebrow">
+      {% if fields.brand %}<span class="tp-brand">{{ fields.brand | escape }}</span>{% endif %}
+      {% if fields.category %}<span class="tp-cat">{{ fields.category | escape }}</span>{% endif %}
+    </p>
+    <h1>{{ doc.title | escape }}</h1>
+    {% if fields.tagline %}<p class="tp-tagline">{{ fields.tagline | escape }}</p>{% endif %}
+    {% if fields.capacity or fields.liftingHeight or fields.drive or fields.construction %}
+    <dl class="tp-specstrip">
+      {% if fields.capacity %}<div class="tps-cell"><dt>Capacity</dt><dd>{{ fields.capacity | escape }}</dd></div>{% endif %}
+      {% if fields.liftingHeight %}<div class="tps-cell"><dt>Height</dt><dd>{{ fields.liftingHeight | escape }}</dd></div>{% endif %}
+      {% if fields.drive %}<div class="tps-cell"><dt>Drive</dt><dd>{{ fields.drive | escape }}</dd></div>{% endif %}
+      {% if fields.construction %}<div class="tps-cell"><dt>Construction</dt><dd>{{ fields.construction | escape }}</dd></div>{% endif %}
+    </dl>
+    {% endif %}
+    <div class="tp-meta">
+      {% if fields.evCharging %}<span class="tp-badge ev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg> EV charging ready</span>{% endif %}
+      <a class="btn btn-primary" href="/contact#quote">Request a quote</a>
+      <a class="btn btn-ghost" href="/contact#enquiry">Speak to an engineer</a>
+    </div>
+  </header>
+  {% region 'content' %}
+</div>

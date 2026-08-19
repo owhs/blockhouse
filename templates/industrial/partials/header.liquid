@@ -1,0 +1,40 @@
+<div class="announce-bar" data-blockhouse="announce">
+  <div class="container announce-bar-inner">
+    {% slot 'header.announce' %}
+  </div>
+</div>
+<header class="site-header" data-blockhouse="header">
+  <div class="container header-bar">
+    <a class="site-brand" href="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="7" y="3" width="18" height="26" rx="1.5" stroke-width="1.6" opacity="0.4"/>
+          <line x1="11" y1="9" x2="21" y2="9" stroke-width="2.5"/>
+          <line x1="11" y1="23" x2="21" y2="23" stroke-width="2.5"/>
+          <rect x="10" y="11" width="12" height="9" rx="1" stroke-width="1.8" fill="none" opacity="0.7"/>
+          <circle cx="13" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="19" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+          <line x1="16" y1="3" x2="16" y2="29" stroke-width="1" opacity="0.25" stroke-dasharray="2 2"/>
+        </svg>
+      </span>
+      <span class="brand-name">{{ site.name | escape }}</span>
+    </a>
+    {% menu 'main' %}
+    <div class="header-actions">
+      {% slot 'header.after' %}
+      <a class="header-phone" href="tel:{{ brand.phoneHref | default: '+441926298800' | escape }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>{{ brand.phone | default: '+44 1926 298800' | escape }}</span>
+      </a>
+      {% if show_theme_toggle %}<button class="theme-toggle" data-blockhouse="theme" aria-label="Switch color theme" title="Theme">
+        <svg class="i-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.3 4.3L6 6M18 18l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.3 19.7L6 18M18 6l1.7-1.7"/></svg>
+        <svg class="i-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      </button>{% endif %}
+      <a class="btn btn-primary header-cta" href="/contact">Get a quote</a>
+      <button class="nav-burger" data-blockhouse="burger" aria-label="Menu" aria-expanded="false">
+        <span class="nb-box" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="nb-label">Menu</span>
+      </button>
+    </div>
+  </div>
+</header>

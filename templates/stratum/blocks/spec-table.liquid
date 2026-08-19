@@ -1,0 +1,9 @@
+<div class="sb-spec">
+  {% if props.title %}<h3 class="spec-title">{{ props.title | escape }}</h3>{% endif %}
+  <dl class="spec-list">
+    {% for r in props.rows %}
+      <div class="spec-row"><dt>{{ r.label | escape }}</dt><dd>{{ r.value | escape }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% if props.note %}<p class="spec-note">{{ props.note | escape }}</p>{% endif %}
+</div>

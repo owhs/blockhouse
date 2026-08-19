@@ -1,0 +1,12 @@
+{% comment %}
+  Resolves fields.category (a machine value) to a human label + one-line
+  descriptor. Included partials share scope, so cat_label / cat_note are
+  available to the caller afterwards.
+{% endcomment %}
+{% assign cat_label = 'Parking system' %}
+{% assign cat_note = 'Vehicle storage and handling equipment' %}
+{% if fields.category == 'automated' %}{% assign cat_label = 'Fully automatic system' %}{% assign cat_note = 'Driver leaves the vehicle in a transfer cabin; the system does the rest' %}{% endif %}
+{% if fields.category == 'semi-automatic' %}{% assign cat_label = 'Semi-automatic system' %}{% assign cat_note = 'Independent access with powered platforms — no attendant, no shuffling' %}{% endif %}
+{% if fields.category == 'mechanical' %}{% assign cat_label = 'Mechanical parking system' %}{% assign cat_note = 'Stackers and pit lifts that double or triple a bay' %}{% endif %}
+{% if fields.category == 'car-elevator' %}{% assign cat_label = 'Car elevator' %}{% assign cat_note = 'Vertical vehicle transport in place of a ramp' %}{% endif %}
+{% if fields.category == 'accessory' %}{% assign cat_label = 'Platform &amp; accessory' %}{% assign cat_note = 'Turntables, sliders and the parts that finish a scheme' %}{% endif %}

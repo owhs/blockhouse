@@ -1,0 +1,53 @@
+<section class="wb-section pad-normal"><div class="container w-normal">
+  <header class="list-header">
+    <p class="eyebrow">The full range</p>
+    <h1>{{ concept.labelPlural | default: concept.label | escape }}</h1>
+    <p class="list-intro">Every automatic parking system we supply — engineered by Sanpark and Stolzer, and designed, installed and serviced across the UK by Strongman Lifts.</p>
+  </header>
+
+  <div class="cat-filters" data-blockhouse="filters">
+    <button class="cf-btn active" data-filter="all">All systems <span class="cf-count">{{ docs | size }}</span></button>
+  </div>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="sanpark">Sanpark <span class="cat-brand-tag">Turkish engineering · “More Parking in Less Places”</span></h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.brand == "Sanpark" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.category | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.capacity %}<span class="product-card-price">{{ d.fields.capacity | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="stolzer">Stolzer <span class="cat-brand-tag">German precision · “more parking spaces on less area”</span></h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.brand == "Stolzer" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.category | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.capacity %}<span class="product-card-price">{{ d.fields.capacity | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  {% if pages > 1 %}
+  <nav class="pagination" aria-label="Pages">
+    {% if prevUrl %}<a class="btn btn-ghost" href="{{ prevUrl }}">← Newer</a>{% endif %}
+    <span class="page-of">Page {{ page }} of {{ pages }}</span>
+    {% if nextUrl %}<a class="btn btn-ghost" href="{{ nextUrl }}">Older →</a>{% endif %}
+  </nav>
+  {% endif %}
+</div></section>

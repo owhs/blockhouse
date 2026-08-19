@@ -1,0 +1,28 @@
+{
+  "type": "link-row",
+  "label": "Link row",
+  "group": "Strongman",
+  "icon": "link",
+  "description": "A centred row of pill buttons — the quick index of models at the top of a range page.",
+  "fields": [
+    {
+      "key": "links",
+      "type": "list",
+      "label": "Links",
+      "item": [
+        { "key": "label", "type": "text", "label": "Label" },
+        { "key": "href", "type": "text", "label": "URL" },
+        { "key": "title", "type": "text", "label": "Title attribute" }
+      ]
+    },
+    {
+      "key": "align",
+      "type": "select",
+      "label": "Alignment",
+      "default": "center",
+      "width": "half",
+      "options": [{ "value": "center" }, { "value": "left" }]
+    }
+  ],
+  "defaults": { "links": [], "align": "center" }
+}

@@ -1,0 +1,20 @@
+{
+  "type": "sectors",
+  "label": "Application strip",
+  "group": "Stratum",
+  "icon": "layers",
+  "description": "Where the equipment goes — a ruled strip of sectors with icons.",
+  "fields": [
+    { "key": "items", "type": "list", "label": "Sectors", "item": [
+      { "key": "icon", "type": "select", "label": "Icon", "default": "building", "options": [
+        { "value": "building" }, { "value": "layers" }, { "value": "electric" }, { "value": "star" },
+        { "value": "users" }, { "value": "globe" }, { "value": "key" }, { "value": "clock" },
+        { "value": "shield" }, { "value": "leaf" }, { "value": "cart" }, { "value": "location" }
+      ] },
+      { "key": "name", "type": "text", "label": "Sector" },
+      { "key": "text", "type": "textarea", "label": "Text", "rows": 2 },
+      { "key": "href", "type": "text", "label": "Link" }
+    ] }
+  ],
+  "defaults": { "items": [] }
+}

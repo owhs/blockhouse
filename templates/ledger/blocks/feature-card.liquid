@@ -1,0 +1,6 @@
+{% assign tag = 'div' %}{% if props.link.href %}{% assign tag = 'a' %}{% endif %}
+<{{ tag }} class="feature-card"{% if props.link.href %} href="{{ props.link.href }}"{% endif %}>
+  <span class="feature-icon" aria-hidden="true">{{ props.icon | icon: 24 }}</span>
+  <h3>{{ props.title | escape }}</h3>
+  {% if props.text %}<p>{{ props.text | escape }}</p>{% endif %}
+</{{ tag }}>

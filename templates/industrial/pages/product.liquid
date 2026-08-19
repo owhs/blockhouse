@@ -1,0 +1,66 @@
+<div class="tpl-product">
+  <section class="tp-hero">
+    <div class="tp-hero-bg" aria-hidden="true">
+          {% if fields.cover %}{{ fields.cover | img: width: 1600, sizes: '100vw', class: 'tp-hero-img' }}{% else %}
+          <svg class="tp-hero-silhouette" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="350" y="60" width="500" height="500" rx="3" stroke-opacity="0.1"/>
+            <line x1="350" y1="190" x2="850" y2="190" stroke-opacity="0.1" stroke-dasharray="6 4"/>
+            <line x1="350" y1="310" x2="850" y2="310" stroke-opacity="0.1" stroke-dasharray="6 4"/>
+            <line x1="350" y1="430" x2="850" y2="430" stroke-opacity="0.1" stroke-dasharray="6 4"/>
+            <rect x="380" y="200" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <rect x="640" y="200" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <rect x="380" y="320" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <rect x="640" y="320" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <rect x="380" y="440" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <rect x="640" y="440" width="180" height="100" rx="2" stroke-width="1.5" stroke-opacity="0.12"/>
+            <line x1="600" y1="60" x2="600" y2="560" stroke-opacity="0.06" stroke-dasharray="3 6"/>
+            <circle cx="600" cy="250" r="2" fill="currentColor" stroke="none" opacity="0.15"/>
+            <circle cx="600" cy="370" r="2" fill="currentColor" stroke="none" opacity="0.15"/>
+          </svg>
+          {% endif %}
+        </div>
+    <div class="container tp-hero-content">
+      <div class="tp-hero-copy">
+        {% if fields.brand %}<p class="tp-hero-brand">{{ fields.brand | upcase | escape }}</p>{% endif %}
+        {% if fields.category %}<p class="tp-hero-cat">{{ fields.category | upcase | escape }} SYSTEM</p>{% endif %}
+        <h1>{{ page.title | escape }}</h1>
+        {% if fields.tagline %}<p class="tp-hero-tagline">{{ fields.tagline | escape }}</p>{% endif %}
+        {% if fields.capacity or fields.liftingHeight %}
+        <div class="tp-hero-specs">
+          {% if fields.capacity %}<div class="tp-spec"><span class="tp-spec-label">Capacity</span><span class="tp-spec-value">{{ fields.capacity | escape }}</span></div>{% endif %}
+          {% if fields.liftingHeight %}<div class="tp-spec"><span class="tp-spec-label">Height</span><span class="tp-spec-value">{{ fields.liftingHeight | escape }}</span></div>{% endif %}
+          {% if fields.drive %}<div class="tp-spec"><span class="tp-spec-label">Drive</span><span class="tp-spec-value">{{ fields.drive | escape }}</span></div>{% endif %}
+        </div>
+        {% endif %}
+        <div class="tp-hero-actions">
+          <a class="btn btn-primary btn-large" href="/contact">Enquire about this system</a>
+          <a class="btn btn-ghost btn-large" href="/products">View all products</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% region 'content' %}
+</div>
+<style>
+  .tp-hero { position: relative; min-height: 28rem; display: flex; align-items: center; background: oklch(12% 0.02 var(--hue)); color: oklch(96% 0.01 var(--hue)); overflow: hidden; }
+  .tp-hero-bg { position: absolute; inset: 0; z-index: 0; opacity: 0.5; color: oklch(60% 0.05 var(--hue)); }
+  .tp-hero-bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, oklch(10% 0.02 var(--hue)) 30%, oklch(12% 0.02 var(--hue) / 0.7) 60%, transparent); }
+  .tp-hero-silhouette { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .tp-hero-bg .tp-hero-img, .tp-hero-bg picture { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .tp-hero-bg .tp-hero-img img { width: 100%; height: 100%; object-fit: cover; }
+  .tp-hero-content { position: relative; z-index: 1; padding-block: clamp(2.5rem, 6vw, 5rem); }
+  .tp-hero-copy { max-width: 42rem; }
+  .tp-hero-brand { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; color: oklch(72% 0.1 var(--hue)); margin-bottom: 0.4rem; }
+  .tp-hero-cat { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; color: oklch(60% 0.08 var(--hue)); margin-bottom: 0.8rem; }
+  .tp-hero-copy h1 { font-size: clamp(2rem, 1.5rem + 3vw, 3.6rem); font-weight: 780; letter-spacing: -0.025em; line-height: 1.1; text-shadow: 0 2px 30px oklch(0% 0 0 / 0.4); }
+  .tp-hero-tagline { font-size: clamp(1.05rem, 1rem + 0.3vw, 1.25rem); margin-top: 0.9rem; opacity: 0.85; line-height: 1.5; text-wrap: pretty; }
+  .tp-hero-specs { display: flex; flex-wrap: wrap; gap: 0; margin-top: 1.8rem; border: 1px solid color-mix(in oklch, oklch(96% 0.01 var(--hue)) 15%, transparent); border-radius: var(--radius); overflow: hidden; }
+  .tp-spec { padding: 0.8rem 1.2rem; border-right: 1px solid color-mix(in oklch, oklch(96% 0.01 var(--hue)) 12%, transparent); }
+  .tp-spec:last-child { border-right: 0; }
+  .tp-spec-label { display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(60% 0.08 var(--hue)); }
+  .tp-spec-value { display: block; font-size: 1.1rem; font-weight: 680; margin-top: 0.15rem; }
+  .tp-hero-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 1.8rem; }
+  .tp-hero-actions .btn-primary { background: color-mix(in oklch, var(--accent) 90%, white 5%); }
+  .tp-hero-actions .btn-ghost { color: oklch(96% 0.01 var(--hue)); border-color: color-mix(in oklch, oklch(96% 0.01 var(--hue)) 35%, transparent); }
+  .tp-hero-actions .btn-ghost:hover { background: color-mix(in oklch, oklch(96% 0.01 var(--hue)) 10%, transparent); }
+</style>

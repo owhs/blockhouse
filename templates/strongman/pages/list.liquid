@@ -1,0 +1,35 @@
+{% comment %}
+  Concept index (e.g. /projects). A plain card grid — the range pages do the
+  richer, curated version of this with the range-grid block.
+{% endcomment %}
+<section class="section">
+  <div class="wrapper">
+    <header class="section__header anim-hidden">
+      <h1 class="section__title">{{ concept.labelPlural | default: concept.label }}</h1>
+    </header>
+
+    <div class="cards-grid">
+      {% for d in docs %}
+        <article class="card anim-hidden">
+          <a href="{{ d.path }}" class="card">
+            {% if d.fields.cover %}
+              <figure class="card__image">{{ d.fields.cover | img: width: 640, sizes: '(max-width: 640px) 100vw, 380px' }}</figure>
+            {% endif %}
+            <div class="card__content">
+              <h2 class="card__title">{{ d.title | escape }}</h2>
+              {% if d.fields.lede %}<p class="card__entry">{{ d.fields.lede | escape }}</p>{% endif %}
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if prevUrl or nextUrl %}
+      <nav class="pagination" aria-label="Pagination">
+        {% if prevUrl %}<a class="btn btn--light" href="{{ prevUrl }}">← Newer</a>{% endif %}
+        <span>Page {{ page }} of {{ pages }}</span>
+        {% if nextUrl %}<a class="btn btn--light" href="{{ nextUrl }}">Older →</a>{% endif %}
+      </nav>
+    {% endif %}
+  </div>
+</section>

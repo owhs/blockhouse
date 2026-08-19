@@ -1,0 +1,12 @@
+<div class="section-intro grid md:gap-6 md:grid-cols-2">
+  <header class="section__header anim-hidden">
+    {% case props.level %}
+      {% when '1' %}<h1 class="section__title">{{ props.title | escape }}</h1>
+      {% when '3' %}<h3 class="section__title">{{ props.title | escape }}</h3>
+      {% else %}<h2 class="section__title">{{ props.title | escape }}</h2>
+    {% endcase %}
+  </header>
+  {% if props.text %}
+    <div class="section-intro__body prose anim-hidden{% if props.justify %} justify{% endif %}">{{ props.text | md }}</div>
+  {% endif %}
+</div>

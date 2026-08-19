@@ -1,0 +1,36 @@
+{% comment %}
+  The width class is read by the content grid in base.css — `grid-full` and
+  `grid-wide` claim the outer tracks, anything else stays in the reading
+  column. The sizes hint follows the column count so a four-up row does not
+  download four full-width files.
+
+  data-gallery marks the row as one lightbox set, so arrow keys and the
+  next/prev controls step through it rather than treating each shot as an
+  island.
+{% endcomment %}
+{% assign w = props.width | default: 'entry' %}
+{% assign cols = props.columns | default: '2' %}
+{% assign fit = props.fit | default: 'cover' %}
+
+{% if w == 'full' %}{% assign wcls = ' grid-full' %}
+{% elsif w == 'page' %}{% assign wcls = ' grid-full is-contained' %}
+{% elsif w == 'wide' %}{% assign wcls = ' grid-wide' %}
+{% else %}{% assign wcls = '' %}{% endif %}
+
+<div class="wb-gallery cols-{{ cols }} fit-{{ fit }} ratio-{{ props.ratio | default: '4-3' }} gap-{{ props.gap | default: 'normal' }}{% unless props.rounded == false %} is-rounded{% endunless %}{{ wcls }}"
+     {% if props.lightbox %}data-gallery{% endif %}>
+  {% for i in props.images %}
+    {% if i.mediaId %}
+      <figure{% if props.lightbox %} data-lightbox="1"{% endif %}>
+        {% if cols == '1' %}
+          {{ i.mediaId | img: alt: i.alt, width: 1366, sizes: '(max-width: 640px) 100vw, 90vw' }}
+        {% elsif cols == '2' %}
+          {{ i.mediaId | img: alt: i.alt, width: 1024, sizes: '(max-width: 640px) 100vw, 45vw' }}
+        {% else %}
+          {{ i.mediaId | img: alt: i.alt, width: 768, sizes: '(max-width: 640px) 50vw, 30vw' }}
+        {% endif %}
+        {% if i.caption %}<figcaption>{{ i.caption | escape }}</figcaption>{% endif %}
+      </figure>
+    {% endif %}
+  {% endfor %}
+</div>

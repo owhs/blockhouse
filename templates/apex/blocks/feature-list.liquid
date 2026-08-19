@@ -1,0 +1,11 @@
+<div class="wb-feature-list">
+  {% for item in props.items %}
+    <div class="feature-list-item">
+      <span class="feature-icon" aria-hidden="true">{{ item.icon | icon: 22 }}</span>
+      <div>
+        <h3>{{ item.title | escape }}</h3>
+        {% if item.text %}<p>{{ item.text | escape }}</p>{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>

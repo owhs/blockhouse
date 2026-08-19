@@ -1,0 +1,15 @@
+{% comment %}
+  A case study. Same furniture as a product page — the scope/client/service/
+  location bar is a block in the region rather than template chrome, because
+  not every project fills in all four.
+{% endcomment %}
+<article class="content post tpl-project">
+  <header class="content__header content__narrow anim-hidden">
+    
+    <h1 class="content__title">{{ doc.title | escape }}</h1>
+  </header>
+
+  <div class="content__body">
+    {% region 'content' %}
+  </div>
+</article>

@@ -1,0 +1,17 @@
+{
+  "type": "partners",
+  "label": "Partner lockups",
+  "group": "Stratum",
+  "icon": "building",
+  "description": "Who makes what: manufacturer cards with role, blurb and a link.",
+  "fields": [
+    { "key": "items", "type": "list", "label": "Partners", "item": [
+      { "key": "name", "type": "text", "label": "Name" },
+      { "key": "role", "type": "text", "label": "Role" },
+      { "key": "text", "type": "textarea", "label": "Text", "rows": 3 },
+      { "key": "href", "type": "text", "label": "Link" },
+      { "key": "linkLabel", "type": "text", "label": "Link label" }
+    ] }
+  ],
+  "defaults": { "items": [] }
+}

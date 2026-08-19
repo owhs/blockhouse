@@ -1,0 +1,12 @@
+{% comment %}
+  The oversized wordmark banner above the header. Purely decorative — the
+  header carries the real home link — so it is hidden from assistive tech
+  rather than announced twice. Sites without a banner image simply skip it.
+{% endcomment %}
+{% if site.vars.brandingBanner %}
+  <div class="site-branding" aria-hidden="true">
+    <a href="/" tabindex="-1">
+      <img src="{{ site.vars.brandingBanner }}" alt="" loading="eager" decoding="async">
+    </a>
+  </div>
+{% endif %}

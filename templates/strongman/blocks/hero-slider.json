@@ -1,0 +1,22 @@
+{
+  "type": "hero-slider",
+  "label": "Hero slider",
+  "group": "Strongman",
+  "icon": "image",
+  "description": "Full-bleed cross-fading photo hero with a caption over each slide. One slide is fine — the controls disappear.",
+  "fields": [
+    {
+      "key": "slides",
+      "type": "list",
+      "label": "Slides",
+      "item": [
+        { "key": "image", "type": "image", "label": "Image" },
+        { "key": "heading", "type": "text", "label": "Heading" },
+        { "key": "caption", "type": "richtext", "label": "Caption", "help": "Small line under the heading — links are fine" }
+      ]
+    },
+    { "key": "interval", "type": "number", "label": "Seconds per slide", "default": 6, "width": "half" },
+    { "key": "dots", "type": "boolean", "label": "Show slide dots", "default": false, "width": "half" }
+  ],
+  "defaults": { "slides": [], "interval": 6, "dots": false }
+}

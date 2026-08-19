@@ -1,0 +1,11 @@
+<div class="wb-category-nav">
+  {% for item in props.items %}
+    {% assign tag = 'div' %}
+    {% if item.link.href %}{% assign tag = 'a' %}{% endif %}
+    <{{ tag }} class="category-nav-card"{% if item.link.href %} href="{{ item.link.href }}"{% endif %}>
+      <span class="feature-icon" aria-hidden="true">{{ item.icon | icon: 22 }}</span>
+      <h3>{{ item.title | escape }}</h3>
+      {% if item.text %}<p>{{ item.text | escape }}</p>{% endif %}
+    </{{ tag }}>
+  {% endfor %}
+</div>

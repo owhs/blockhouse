@@ -1,0 +1,76 @@
+{% comment %}
+  Product data sheet. fields: code · brand · category · tagline · cover ·
+  keySpecs[] · features[] · datasheet · capacity/liftingHeight/drive…
+{% endcomment %}
+{% include 'partials/cat' %}
+<article class="tpl-product">
+
+  <header class="pdp-head">
+    <div class="pdp-inner">
+      <div class="pdp-copy">
+        <p class="pdp-crumb">
+          <a href="/systems">Systems</a> <span aria-hidden="true">/</span>
+          <span>{{ cat_label }}</span>
+          {% if fields.brand %}<span aria-hidden="true">/</span> <span>{{ fields.brand | upcase }}</span>{% endif %}
+        </p>
+        {% if fields.code %}<p class="pdp-codeline"><span class="pdp-code">{{ fields.code }}</span> <span class="pdp-series">{{ fields.series }} series</span></p>{% endif %}
+        <h1 class="pdp-title">{{ doc.title | escape }}</h1>
+        {% if fields.tagline %}<p class="pdp-lede">{{ fields.tagline | escape }}</p>{% endif %}
+        <p class="pdp-actions">
+          <a class="btn btn-primary" href="{{ site.vars.quoteHref | default: '/contact' }}">Request a quote</a>
+          {% if fields.datasheet.href %}<a class="btn btn-ghost" href="{{ fields.datasheet.href }}">Data sheet</a>{% endif %}
+        </p>
+      </div>
+      {% if fields.cover %}
+        <div class="pdp-media art-plate on-plate">
+          {{ fields.cover | img: width: 1100, sizes: '(max-width: 960px) 92vw, 620px' }}
+          <span class="art-cap">Fig. 01 — {{ fields.code | default: doc.title }} · schematic arrangement</span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if fields.keySpecs %}
+      <div class="pdp-specbar">
+        <div class="container">
+          {% for s in fields.keySpecs %}
+            <div class="pdp-spec"><span class="k">{{ s.label | escape }}</span><span class="v">{{ s.value | escape }}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </header>
+
+  {% if fields.features %}
+    <section class="wb-section pad-normal">
+      <div class="container w-normal">
+        <div class="wb-heading"><p class="eyebrow">Why this system</p><h2>Engineering highlights</h2></div>
+        <div class="pdp-features">
+          {% for f in fields.features %}
+            <div class="pdp-feature">
+              <span class="pf-ico">{{ f.icon | default: 'star' | icon: 22 }}</span>
+              <h3>{{ f.title | escape }}</h3>
+              {% if f.text %}<p>{{ f.text | escape }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% region 'content' %}
+
+  <section class="wb-section pad-normal bg-subtle">
+    <div class="container w-normal">
+      <div class="wb-cta">
+        <div class="cta-body">
+          <h2>Specify {{ doc.title | escape }}</h2>
+          <p>Send us the bay dimensions, headroom and the number of spaces you need. We will come back with a layout, a capacity figure and a budget cost.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="btn btn-primary btn-large" href="{{ site.vars.quoteHref | default: '/contact' }}">Request a quote</a>
+          <a class="btn btn-ghost btn-large" href="/systems">All systems</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</article>

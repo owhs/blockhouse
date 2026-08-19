@@ -1,0 +1,15 @@
+{
+  "type": "keyfigures",
+  "label": "Key figures rail",
+  "group": "Stratum",
+  "icon": "chart",
+  "description": "A ruled rail of numbers — capacity, cycle time, footprint. Mono labels, tabular figures.",
+  "fields": [
+    { "key": "items", "type": "list", "label": "Figures", "item": [
+      { "key": "k", "type": "text", "label": "Label" },
+      { "key": "v", "type": "text", "label": "Value" },
+      { "key": "n", "type": "text", "label": "Note" }
+    ] }
+  ],
+  "defaults": { "items": [] }
+}

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="{{ lang }}" class="{{ site.template }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% comment %}
+    Light is the default scheme. Stamping data-theme before first paint keeps
+    the toggle working in both directions even when the OS prefers dark, and
+    avoids a flash of the wrong palette. Nothing here hides content — the
+    reveal animation only arms itself once its observer is running.
+  {% endcomment %}
+  <script>try{var t=localStorage.getItem('blockhouse-theme');document.documentElement.dataset.theme=(t==='dark'||t==='light')?t:'light';var z=localStorage.getItem('blockhouse-textsize');if(z==='l'||z==='xl')document.documentElement.dataset.textsize=z}catch(e){document.documentElement.dataset.theme='light'}</script>
+  {{ head }}
+  <link rel="stylesheet" href="{{ 'tokens.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'base.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'components.css' | asset }}">
+</head>
+<body {{ body_attrs }}>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="site-container">
+    {% include 'partials/branding' %}
+    {% include 'partials/header' %}
+
+    <main id="main">
+      {{ main }}
+    </main>
+
+    {% include 'partials/footer' %}
+
+    <button id="backToTop" class="footer__bttop" aria-label="Back to top" title="Back to top">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="nav-scrim" aria-hidden="true"></div>
+
+  <div class="search-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Search">
+    <button class="search-overlay__close" type="button" aria-label="Close search">&times;</button>
+    <div class="search-overlay__wrapper">
+      <h3>Search</h3>
+      <form action="/search" class="search__form" role="search">
+        <input class="search__input" type="search" name="q" placeholder="Search…" aria-label="Search" required>
+        <button class="btn btn--primary" type="submit">Go</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  /* -------------------------------------------------------------------------
+     Theme chrome only. The site runtime already owns the colour toggle, the
+     burger, the nav drill-down and the gallery lightbox — everything here is
+     what the runtime does not do, and each block no-ops when its hooks are
+     absent.
+  ------------------------------------------------------------------------- */
+  (function () {
+    var root = document.documentElement
+
+    /* --- search overlay --------------------------------------------------- */
+    var overlay = document.querySelector('.search-overlay')
+    function toggleSearch(open) {
+      if (!overlay) return
+      overlay.classList.toggle('is-open', open)
+      overlay.setAttribute('aria-hidden', String(!open))
+      if (open) { var i = overlay.querySelector('input'); if (i) i.focus() }
+    }
+    document.querySelectorAll('.search-toggle').forEach(function (b) {
+      b.addEventListener('click', function () { toggleSearch(true) })
+    })
+    var closeSearch = document.querySelector('.search-overlay__close')
+    if (closeSearch) closeSearch.addEventListener('click', function () { toggleSearch(false) })
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') toggleSearch(false)
+    })
+
+    /* --- desktop mega panel: modal page state ------------------------------
+       The site runtime toggles `.open` on the nav item but tells the rest of
+       the page nothing, so the theme mirrors it onto <body>. That one class
+       drives hiding the wordmark banner, locking the scroll behind the panel
+       and letting the panel run to the bottom of the window.
+
+       --header-h is measured rather than assumed: until the visitor scrolls
+       past the banner the header is a long way down the viewport, and a fixed
+       panel pinned to a guessed offset would either overlap the nav or float
+       below it. */
+    ;(function () {
+      var header = document.querySelector('.site-header')
+      if (!header) return
+      var items = document.querySelectorAll('.site-header .nav-item.has-mega')
+      if (!items.length) return
+
+      function sync() {
+        var open = document.querySelector('.site-header .nav-item.has-mega.open')
+        var desktop = !matchMedia('(max-width: 1000px)').matches
+        var on = !!open && desktop
+        document.body.classList.toggle('mega-open', on)
+        // Measure *after* the class lands: opening the panel hides the wordmark
+        // banner, which lifts the header several hundred pixels. Measuring
+        // first would pin the panel to where the header used to be and leave a
+        // band of page showing through above it.
+        //
+        // Reading getBoundingClientRect here forces the pending layout to flush
+        // synchronously, so this sees the post-hide position. Deliberately not
+        // requestAnimationFrame: that never fires in a background or
+        // non-compositing tab, which would leave the panel pinned to a stale
+        // offset for as long as the tab stayed hidden.
+        if (on) root.style.setProperty('--header-h', Math.round(header.getBoundingClientRect().bottom) + 'px')
+      }
+
+      var mo = new MutationObserver(sync)
+      items.forEach(function (i) { mo.observe(i, { attributes: true, attributeFilter: ['class'] }) })
+      addEventListener('resize', sync)
+      sync()
+    })()
+
+    /* --- close the mobile nav when the sheet's scrim is tapped ------------ */
+    var scrim = document.querySelector('.nav-scrim')
+    if (scrim) scrim.addEventListener('click', function () {
+      document.body.classList.remove('nav-open')
+      var b = document.querySelector('[data-blockhouse="burger"]')
+      if (b) b.setAttribute('aria-expanded', 'false')
+    })
+
+    /* --- back to top ------------------------------------------------------ */
+    var toTop = document.getElementById('backToTop')
+    if (toTop) {
+      toTop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }) })
+      var onScroll = function () { toTop.classList.toggle('is-visible', window.scrollY > 600) }
+      addEventListener('scroll', onScroll, { passive: true })
+      onScroll()
+    }
+
+    /* --- reveal on scroll -------------------------------------------------
+       The runtime's reveal enhancer only switches on for pages whose blocks
+       ask for it, and this is page chrome rather than a block — so the theme
+       runs its own observer. Elements are unobserved once shown, so a long
+       catalogue page stops paying for them. */
+    var hidden = document.querySelectorAll('.anim-hidden')
+    if (hidden.length && 'IntersectionObserver' in window) {
+      // Only now is it safe for CSS to hide anything — see base.css.
+      root.classList.add('reveal-on')
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return
+          entry.target.classList.add('is-in')
+          io.unobserve(entry.target)
+        })
+      }, { rootMargin: '0px 0px -8% 0px' })
+      hidden.forEach(function (el) { io.observe(el) })
+    } else {
+      hidden.forEach(function (el) { el.classList.add('is-in') })
+    }
+
+    /* --- hero slider -------------------------------------------------------
+       Cross-fade between stacked slides. Autoplay pauses while the tab is
+       hidden and while a pointer rests on the hero, and never starts at all
+       for visitors who asked for reduced motion. */
+    document.querySelectorAll('[data-hero-slider]').forEach(function (hero) {
+      var slides = [].slice.call(hero.querySelectorAll('.hero__slide'))
+      if (!slides.length) return
+      if (slides.length < 2) { slides[0].classList.add('is-active'); return }
+
+      var dots = [].slice.call(hero.querySelectorAll('.hero__dots button'))
+      var interval = parseInt(hero.dataset.heroInterval, 10) || 6000
+      var i = 0, paused = false
+      var still = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      function show(n) {
+        i = (n + slides.length) % slides.length
+        slides.forEach(function (s, x) { s.classList.toggle('is-active', x === i) })
+        dots.forEach(function (d, x) { d.setAttribute('aria-current', String(x === i)) })
+      }
+      dots.forEach(function (d, x) { d.addEventListener('click', function () { show(x) }) })
+
+      /* Deliberately no pause-on-hover: the hero fills the top of the page, so
+         a cursor merely resting there would stop the rotation for good and the
+         slider would look broken. (The old site's autoplay behaved the same —
+         stopOnMouseEnter was off.) Autoplay only yields while the tab is
+         hidden, or while a drag is in progress. */
+      document.addEventListener('visibilitychange', function () { paused = document.hidden })
+
+      /* Drag / swipe. The slides cross-fade rather than slide, so a drag is
+         read as a gesture and committed on release instead of tracking the
+         pointer 1:1 — nothing to move under the finger. A short drag is a
+         click on whatever link sits under it, so the threshold is what
+         separates "swiped" from "tapped a link in the caption". */
+      var view = hero.querySelector('.hero__viewport') || hero
+      var startX = 0, startY = 0, dragging = false, decided = false
+
+      /* Pressing an <img> starts the browser's own image-drag, which swallows
+         the pointerup that would have ended our gesture. Suppressing it is
+         what makes the drag work at all — and it is also why autoplay used to
+         die: `paused` was set on pointerdown and only cleared on a pointerup
+         that never arrived. */
+      view.addEventListener('dragstart', function (e) { e.preventDefault() })
+
+      view.addEventListener('pointerdown', function (e) {
+        if (e.button !== undefined && e.button !== 0) return
+        startX = e.clientX; startY = e.clientY
+        dragging = true; decided = false
+        paused = true
+        // Feedback on press, not after the 12px threshold — waiting for the
+        // gesture to be *classified* before acknowledging it reads as a dead
+        // control for the first few pixels.
+        view.classList.add('is-pressed')
+        // keep receiving move/up even if the pointer leaves the element
+        try { view.setPointerCapture(e.pointerId) } catch (err) {}
+      })
+      view.addEventListener('pointermove', function (e) {
+        if (!dragging || decided) return
+        var dx = e.clientX - startX
+        var dy = e.clientY - startY
+        // vertical intent belongs to the page, not the slider
+        if (Math.abs(dy) > Math.abs(dx)) { dragging = false; paused = false; return }
+        if (Math.abs(dx) > 12) { decided = true; view.classList.add('is-dragging') }
+      })
+
+      function endDrag(e) {
+        view.classList.remove('is-dragging', 'is-pressed')
+        if (!dragging) { paused = false; return }
+        var dx = ((e && e.clientX) || startX) - startX
+        dragging = false
+        if (Math.abs(dx) > 60) show(dx < 0 ? i + 1 : i - 1)
+        paused = false
+      }
+
+      /* Bound on window as well as the element: if anything cancels the
+         gesture out from under us, `paused` still gets cleared and the
+         rotation resumes. A slider that silently stops for good is a far worse
+         failure than one that advances a beat early. */
+      view.addEventListener('pointerup', endDrag)
+      view.addEventListener('pointercancel', endDrag)
+      addEventListener('pointerup', endDrag)
+      addEventListener('pointercancel', endDrag)
+      addEventListener('blur', function () { dragging = false; paused = false; view.classList.remove('is-dragging', 'is-pressed') })
+
+      // a committed drag must not also follow the link it finished on
+      view.addEventListener('click', function (e) {
+        if (decided) { e.preventDefault(); e.stopPropagation(); decided = false }
+      }, true)
+
+      show(0)
+      if (!still) setInterval(function () { if (!paused) show(i + 1) }, interval)
+    })
+
+    /* --- gallery lightbox --------------------------------------------------
+       The site runtime ships a one-shot viewer: click a figure, get that one
+       image, click again to close. A row of workshop photographs wants to be
+       walked through, so this takes over for [data-gallery] rows and adds
+       next/prev, arrow keys, a counter and the caption. Capture phase and
+       stopPropagation keep the two from both firing on the same click. */
+    document.addEventListener('click', function (e) {
+      var fig = e.target.closest && e.target.closest('[data-gallery] [data-lightbox]')
+      if (!fig) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      var figures = [].slice.call(fig.closest('[data-gallery]').querySelectorAll('[data-lightbox]'))
+      var at = figures.indexOf(fig)
+
+      var box = document.createElement('div')
+      box.className = 'sm-lb'
+      box.setAttribute('role', 'dialog')
+      box.setAttribute('aria-modal', 'true')
+      box.setAttribute('aria-label', 'Image viewer')
+      box.innerHTML =
+        '<button class="sm-lb-close" type="button" aria-label="Close">&times;</button>' +
+        '<button class="sm-lb-prev" type="button" aria-label="Previous image">&#8249;</button>' +
+        '<figure class="sm-lb-stage"><img alt=""><figcaption></figcaption></figure>' +
+        '<button class="sm-lb-next" type="button" aria-label="Next image">&#8250;</button>' +
+        '<p class="sm-lb-count" aria-live="polite"></p>'
+
+      var img = box.querySelector('img')
+      var cap = box.querySelector('figcaption')
+      var count = box.querySelector('.sm-lb-count')
+      var many = figures.length > 1
+
+      box.querySelector('.sm-lb-prev').hidden = !many
+      box.querySelector('.sm-lb-next').hidden = !many
+
+      function show(n) {
+        at = (n + figures.length) % figures.length
+        var src = figures[at].querySelector('img')
+        if (!src) return
+        img.src = src.currentSrc || src.src
+        img.alt = src.alt || ''
+        var c = figures[at].querySelector('figcaption')
+        cap.textContent = c ? c.textContent : ''
+        cap.hidden = !cap.textContent
+        count.textContent = many ? (at + 1) + ' / ' + figures.length : ''
+        resetZoom()   // a new image always starts unzoomed and re-centred
+      }
+      function close() {
+        box.remove()
+        document.removeEventListener('keydown', onKey)
+        document.body.style.overflow = ''
+      }
+      function onKey(ev) {
+        if (ev.key === 'Escape') close()
+        else if (ev.key === 'ArrowRight' && many) show(at + 1)
+        else if (ev.key === 'ArrowLeft' && many) show(at - 1)
+      }
+
+      box.querySelector('.sm-lb-close').addEventListener('click', close)
+      box.querySelector('.sm-lb-prev').addEventListener('click', function (ev) { ev.stopPropagation(); show(at - 1) })
+      box.querySelector('.sm-lb-next').addEventListener('click', function (ev) { ev.stopPropagation(); show(at + 1) })
+      box.addEventListener('click', function (ev) { if (ev.target === box) close() })
+      document.addEventListener('keydown', onKey)
+
+      /* --- zoom ------------------------------------------------------------
+         Click (or wheel) to zoom, then drag to pan. The transform origin is
+         set from the pointer position so zooming goes *into* the spot you
+         pointed at rather than the centre of the image, which is what makes
+         inspecting one corner of a wide workshop shot actually work. */
+      var zoom = 1, panX = 0, panY = 0, panning = false, px = 0, py = 0
+
+      function applyZoom() {
+        img.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')'
+        img.style.cursor = zoom > 1 ? 'grab' : 'zoom-in'
+        box.classList.toggle('is-zoomed', zoom > 1)
+      }
+      function resetZoom() { zoom = 1; panX = 0; panY = 0; applyZoom() }
+      function setZoom(next, originEvent) {
+        var prev = zoom
+        zoom = Math.min(5, Math.max(1, next))
+        if (zoom === 1) { panX = 0; panY = 0 }
+        else if (originEvent) {
+          // keep the pointed-at point stationary across the scale change
+          var r = img.getBoundingClientRect()
+          var ox = originEvent.clientX - (r.left + r.width / 2)
+          var oy = originEvent.clientY - (r.top + r.height / 2)
+          var k = zoom / prev
+          panX = panX - ox * (k - 1)
+          panY = panY - oy * (k - 1)
+        }
+        applyZoom()
+      }
+
+      img.addEventListener('click', function (ev) {
+        ev.stopPropagation()
+        setZoom(zoom > 1 ? 1 : 2.5, ev)
+      })
+      img.addEventListener('dblclick', function (ev) { ev.preventDefault(); resetZoom() })
+      box.addEventListener('wheel', function (ev) {
+        ev.preventDefault()
+        setZoom(zoom * (ev.deltaY < 0 ? 1.2 : 1 / 1.2), ev)
+      }, { passive: false })
+
+      img.addEventListener('pointerdown', function (ev) {
+        if (zoom <= 1) return
+        panning = true; px = ev.clientX; py = ev.clientY
+        img.style.cursor = 'grabbing'
+        ev.preventDefault()
+      })
+      addEventListener('pointermove', function (ev) {
+        if (!panning) return
+        panX += ev.clientX - px; panY += ev.clientY - py
+        px = ev.clientX; py = ev.clientY
+        applyZoom()
+      })
+      addEventListener('pointerup', function () {
+        if (!panning) return
+        panning = false
+        img.style.cursor = 'grab'
+      })
+
+      applyZoom()
+
+      show(at)
+      document.body.style.overflow = 'hidden'
+      document.body.appendChild(box)
+      box.querySelector('.sm-lb-close').focus()
+    }, true)
+  })()
+  </script>
+</body>
+</html>

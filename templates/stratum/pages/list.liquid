@@ -1,0 +1,53 @@
+{% comment %}
+  Catalogue index — every system, grouped by how much of the work the machine
+  does. Category order mirrors the mega menu so the two never disagree.
+{% endcomment %}
+<section class="wb-section pad-normal">
+  <div class="container w-normal">
+    <header class="list-header">
+      <p class="eyebrow">Catalogue</p>
+      <h1>{{ concept.labelPlural | default: concept.label | escape }}</h1>
+      <p class="cat-desc">Every system {{ site.vars.company | default: site.name | escape }} supplies, grouped by how much of the work the machine does. All of them can be surveyed, quoted, installed and maintained by one team.</p>
+      <div class="cat-bar">
+        <a class="cat-chip" href="#automated">Fully automatic</a>
+        <a class="cat-chip" href="#semi-automatic">Semi-automatic</a>
+        <a class="cat-chip" href="#mechanical">Mechanical</a>
+        <a class="cat-chip" href="#car-elevator">Car elevators</a>
+        <a class="cat-chip" href="#accessory">Platforms</a>
+      </div>
+    </header>
+
+    {% assign cat_key = 'automated' %}
+    {% assign cat_name = 'Fully automatic' %}
+    {% assign cat_desc = 'The driver stops in a transfer cabin and walks away. Shuttles, lifts and pallets do the parking — the highest density per square metre, and no one ever walks in the parking area.' %}
+    {% include 'partials/cat-group' %}
+
+    {% assign cat_key = 'semi-automatic' %}
+    {% assign cat_name = 'Semi-automatic' %}
+    {% assign cat_desc = 'Powered platforms that move sideways and vertically so every car keeps independent access. Two to four levels, above ground or over a pit.' %}
+    {% include 'partials/cat-group' %}
+
+    {% assign cat_key = 'mechanical' %}
+    {% assign cat_name = 'Mechanical parkers' %}
+    {% assign cat_desc = 'Stackers and pit lifts that double or triple an existing bay. The quickest capacity you can buy — often installed in a day.' %}
+    {% include 'partials/cat-group' %}
+
+    {% assign cat_key = 'car-elevator' %}
+    {% assign cat_name = 'Car elevators' %}
+    {% assign cat_desc = 'Vertical transport instead of a ramp: scissor, column and rail types, from a single-level shuttle to a ten-metre shaft with a cabin.' %}
+    {% include 'partials/cat-group' %}
+
+    {% assign cat_key = 'accessory' %}
+    {% assign cat_name = 'Platforms &amp; accessories' %}
+    {% assign cat_desc = 'Turntables, sliding platforms and the charging provisions that finish a scheme.' %}
+    {% include 'partials/cat-group' %}
+
+    {% if pages > 1 %}
+      <nav class="pagination" aria-label="Pages">
+        {% if prevUrl %}<a class="btn btn-ghost" href="{{ prevUrl }}">← Previous</a>{% endif %}
+        <span class="page-of">Page {{ page }} of {{ pages }}</span>
+        {% if nextUrl %}<a class="btn btn-ghost" href="{{ nextUrl }}">Next →</a>{% endif %}
+      </nav>
+    {% endif %}
+  </div>
+</section>

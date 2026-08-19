@@ -1,0 +1,9 @@
+<div class="sb-rail" style="--n:{{ props.items | size }}">
+  {% for f in props.items %}
+    <div class="rail-cell">
+      <span class="rail-k">{{ f.k | escape }}</span>
+      <span class="rail-v">{{ f.v | escape }}</span>
+      {% if f.n %}<span class="rail-n">{{ f.n | escape }}</span>{% endif %}
+    </div>
+  {% endfor %}
+</div>

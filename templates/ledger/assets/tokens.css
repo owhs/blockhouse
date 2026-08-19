@@ -1,0 +1,58 @@
+/* Ledger tokens — warm paper, ink, a single restrained accent. Serif display. */
+
+:root {
+  color-scheme: light dark;
+
+  --hue: 28;                 /* warm amber accent */
+  --accent-chroma: 0.11;
+  --paper-hue: 70;           /* cream paper base */
+
+  --accent: oklch(52% var(--accent-chroma) var(--hue));
+  --accent-strong: oklch(44% calc(var(--accent-chroma) + 0.01) var(--hue));
+  --accent-soft: light-dark(oklch(94% 0.03 var(--hue)), oklch(30% 0.05 var(--hue)));
+  --accent-contrast: oklch(99% 0.01 var(--hue));
+
+  --bg: light-dark(oklch(98% 0.008 var(--paper-hue)), oklch(19% 0.008 var(--paper-hue)));
+  --bg-subtle: light-dark(oklch(96% 0.013 var(--paper-hue)), oklch(22% 0.01 var(--paper-hue)));
+  --bg-raise: light-dark(oklch(99.2% 0.006 var(--paper-hue)), oklch(24% 0.011 var(--paper-hue)));
+  --bg-contrast: light-dark(oklch(24% 0.012 var(--paper-hue)), oklch(95% 0.01 var(--paper-hue)));
+
+  --ink: light-dark(oklch(26% 0.012 var(--paper-hue)), oklch(92% 0.008 var(--paper-hue)));
+  --ink-mute: light-dark(oklch(45% 0.014 var(--paper-hue)), oklch(72% 0.01 var(--paper-hue)));
+  --ink-faint: light-dark(oklch(58% 0.012 var(--paper-hue)), oklch(56% 0.01 var(--paper-hue)));
+  --ink-contrast: light-dark(oklch(97% 0.006 var(--paper-hue)), oklch(24% 0.012 var(--paper-hue)));
+
+  --line: light-dark(oklch(85% 0.012 var(--paper-hue)), oklch(32% 0.012 var(--paper-hue)));
+  --line-soft: light-dark(oklch(90% 0.01 var(--paper-hue)), oklch(27% 0.01 var(--paper-hue)));
+
+  --shadow-1: 0 1px 2px oklch(30% 0.02 var(--paper-hue) / 0.05), 0 3px 14px oklch(30% 0.02 var(--paper-hue) / 0.05);
+  --shadow-2: 0 2px 8px oklch(30% 0.02 var(--paper-hue) / 0.08), 0 14px 40px oklch(30% 0.02 var(--paper-hue) / 0.12);
+
+  --radius: 3px;
+  --radius-s: 2px;
+
+  --font-body: var(--font-body-custom, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif);
+  --font-display: var(--font-display-custom, "Iowan Old Style", "Palatino Linotype", Georgia, serif);
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --text-s: clamp(0.84rem, 0.82rem + 0.12vw, 0.92rem);
+  --text-base: clamp(1.05rem, 1rem + 0.22vw, 1.18rem);
+  --text-l: clamp(1.2rem, 1.1rem + 0.45vw, 1.4rem);
+  --text-xl: clamp(1.5rem, 1.3rem + 0.9vw, 2rem);
+  --text-2xl: clamp(2rem, 1.6rem + 1.9vw, 3rem);
+  --text-hero: clamp(2.6rem, 1.9rem + 3.6vw, 4.6rem);
+
+  --space: clamp(1rem, 0.9rem + 0.5vw, 1.4rem);
+  --container: 70rem;
+  --container-narrow: 40rem;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* Ledger flourishes: sans eyebrows/labels, serif everything else */
+.eyebrow, .nav-link, .btn, .mt-label, .mega-brand, .footer-menu .nav-link, .chip { font-family: var(--font-sans); }
+h1, h2, h3, h4, .hero-copy h1 { font-family: var(--font-display); font-weight: 620; letter-spacing: -0.01em; }
+.wb-hero h1 { font-style: normal; }
+.post-title, .mm-pane-copy h3 { font-family: var(--font-display); }

@@ -1,0 +1,12 @@
+{
+  "name": "atelier",
+  "label": "Atelier",
+  "description": "Bold studio portfolio — oversized display type, square edges, one signal accent, lots of air.",
+  "slots": ["header.announce", "header.after", "footer.before", "footer.social"],
+  "tokens": [
+    { "key": "hue", "label": "Accent hue", "type": "range", "min": 0, "max": 360, "default": "22" },
+    { "key": "accent-chroma", "label": "Accent intensity", "type": "range", "min": 0, "max": 0.3, "default": "0.19" },
+    { "key": "radius", "label": "Corner radius", "type": "text", "default": "0px" },
+    { "key": "container", "label": "Max content width", "type": "text", "default": "84rem" }
+  ]
+}

@@ -1,0 +1,13 @@
+{%- comment -%}
+  Deck — presentation-style: each top-level section becomes a full-height
+  slide with scroll snapping. Ideal for service walk-throughs and pitches.
+{%- endcomment -%}
+<div class="tpl-deck">
+  {% region 'content' %}
+</div>
+<style>
+  .tpl-deck { scroll-snap-type: y proximity; }
+  .tpl-deck > .wb-section { min-height: calc(100dvh - var(--header-h, 4rem)); display: grid; align-content: center; scroll-snap-align: start; }
+  .tpl-deck > .wb-section:nth-child(even) { background: var(--bg-subtle); }
+  html { scroll-behavior: smooth; }
+</style>

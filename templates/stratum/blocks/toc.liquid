@@ -1,0 +1,8 @@
+<nav class="sb-toc" aria-label="{{ props.title | default: 'On this page' | escape }}">
+  <p class="toc-title">{{ props.title | default: 'On this page' | escape }}</p>
+  <ol class="toc-list">
+    {% for i in props.items %}
+      <li><a href="{{ i.href }}"><span class="toc-n" aria-hidden="true"></span>{{ i.label | escape }}</a></li>
+    {% endfor %}
+  </ol>
+</nav>

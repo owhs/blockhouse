@@ -1,0 +1,39 @@
+{% comment %}
+  The first slide is the LCP image on the home page, so it loads eagerly and
+  gets a preload hint (`priority: true`); the rest stay lazy. Slides are
+  stacked in one grid cell and cross-faded by the theme script — with no JS the
+  first one simply shows.
+{% endcomment %}
+<div class="hero anim-hidden" data-hero-slider data-hero-interval="{{ props.interval | default: 6 | times: 1000 }}">
+  <div class="hero__viewport">
+    <div class="hero__track">
+      {% for s in props.slides %}
+        <div class="hero__slide{% if forloop.first %} is-active{% endif %}"{% unless forloop.first %} aria-hidden="true"{% endunless %}>
+          {% if s.image %}
+            <figure class="hero__image">
+              {% if forloop.first %}
+                {{ s.image | img: priority: true, width: 1984, sizes: '100vw' }}
+              {% else %}
+                {{ s.image | img: width: 1984, sizes: '100vw' }}
+              {% endif %}
+            </figure>
+          {% endif %}
+          {% if s.heading or s.caption %}
+            <div class="hero__content">
+              {% if s.heading %}<h2>{{ s.heading | escape }}</h2>{% endif %}
+              {% if s.caption %}{{ s.caption | md }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if props.dots and props.slides.size > 1 %}
+      <div class="hero__dots" role="group" aria-label="Choose slide">
+        {% for s in props.slides %}
+          <button type="button" aria-current="{% if forloop.first %}true{% else %}false{% endif %}" aria-label="Slide {{ forloop.index }}"></button>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>

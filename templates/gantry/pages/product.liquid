@@ -1,0 +1,15 @@
+<div class="tpl-product">
+  {% if fields.cover %}
+    <div class="tp-hero">{{ fields.cover | img: width: 1800, priority: true }}</div>
+  {% endif %}
+  <header class="tp-head container w-normal">
+    <p class="eyebrow">{% if fields.brand %}{{ fields.brand | escape }} · {% endif %}{{ fields.category | escape }}</p>
+    <h1>{{ doc.title | escape }}</h1>
+    {% if fields.tagline %}<p class="tp-tagline">{{ fields.tagline | escape }}</p>{% endif %}
+    <div class="tp-meta">
+      {% if fields.price %}<span class="tp-price">{{ fields.price | escape }}</span>{% endif %}
+      <a class="btn btn-primary" href="/contact#quote">Request a quote</a>
+    </div>
+  </header>
+  {% region 'content' %}
+</div>

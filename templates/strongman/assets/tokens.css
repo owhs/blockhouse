@@ -1,0 +1,169 @@
+/* ---------------------------------------------------------------------------
+   Strongman — design tokens.
+
+   The palette is a straight port of the house style: a single deep green does
+   all the work in light mode (links, buttons, rules, tab chrome); dark mode
+   swaps it for a warm amber because green-on-black reads muddy at that
+   lightness. Everything else is neutral, so the photography carries the page.
+
+   Type is deliberately odd for the sector: a monospace body face at a normal
+   weight, paired with a compact grotesque for headings. Keep both — the mono
+   body is the strongest part of the brand's fingerprint.
+--------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrainsmono.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrainsmono-italic.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Ruda';
+  src: url('fonts/ruda.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  /* --- measure & rhythm ------------------------------------------------- */
+  --page-width: 1984px;
+  --page-margin: clamp(1rem, 4vw, 6rem);
+  --magic-number: clamp(1rem, 4vw, 6rem);
+  --entry-width: 74ch;
+  --baseline: 0.25rem;
+  --border-radius: 4px;
+  --navbar-height: 3.8rem;
+  --branding-banner-height: 240px;
+  --gallery-gap: calc(var(--baseline) * 2);
+  --section-title-width: 30ch;
+  --transition: cubic-bezier(.17, .67, .34, 1);
+
+  /* --- type ------------------------------------------------------------- */
+  --body-font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --heading-font: 'Ruda', system-ui, -apple-system, sans-serif;
+  --logo-font: var(--body-font);
+  --menu-font: var(--body-font);
+  --font-size: 1rem;
+  --font-weight-normal: 450;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height: 1.4;
+  --letter-spacing: 0em;
+  --headings-weight: 650;
+  --headings-transform: none;
+  --headings-style: normal;
+  --headings-letter-spacing: -0.02em;
+  --headings-line-height: calc(2px + 2ex + 2px);
+
+  /* --- media ratios ----------------------------------------------------- */
+  --hero-content-width: 76ch;
+  --hero-aspect-ratio-sm: 3/4;
+  --hero-aspect-ratio-md: 1/1;
+  --hero-aspect-ratio-lg: 16/9;
+  --hero-image-object-fit: cover;
+  --content-image-aspect-ratio-sm: 3/4;
+  --content-image-aspect-ratio-md: 1/1;
+  --content-image-aspect-ratio-lg: 16/9;
+  --content-image-object-fit: cover;
+  --card-image-aspect-ratio-sm: 4/3;
+  --card-image-aspect-ratio-lg: 16/9;
+  --card-image-object-fit: cover;
+  --tile-image-aspect-ratio-sm: 3/4;
+  --tile-image-aspect-ratio-md: 1/1;
+  --tile-image-aspect-ratio-lg: 16/9;
+  --tile-image-object-fit: cover;
+  --tile-content-width: 76ch;
+
+  /* --- neutrals (scheme-independent) ------------------------------------ */
+  --white: #FFFFFF;
+  --black: #000000;
+  --dark: #141416;
+  --gray: #D5D5D5;
+  --light: #E0DDD9;
+  --lighter: #D5D5D5;
+  --lightest: #F0F0F0;
+
+  --highlight-color: #FFC700;
+  --info-color: #67B1F3;
+  --success-color: #00A563;
+  --warning-color: #EE4E4E;
+  --code-color: #C84B31;
+  --shadow: 0 0 3px 0 rgba(0, 0, 0, .1);
+  --shadow-submenu: 0 0 2px 0 rgba(0, 0, 0, .2);
+
+  /* --- light scheme ----------------------------------------------------- */
+  --page-bg: #FFFFFF;
+  --color: #116C41;
+  --text-color: #141416;
+  --text-color-light: #6E737E;
+  --headings-color: #141416;
+  --link-color: #116C41;
+  --link-color-hover: #10874F;
+  --nav-link-color: #141416;
+  --nav-link-color-hover: #116C41;
+  --border-color: #E0DDD9;
+  --logo-color: #141416;
+  --backdrop-bg: rgba(255, 255, 255, 0.2);
+  --backdrop-filter: blur(16px) brightness(68%) opacity(80%);
+  --tile-text-color: #FFFFFF;
+  --surface-muted: #F7F7F6;
+  --logo-invert: 0;
+}
+
+/* Dark mode. Two ways in: the visitor flipped the toggle (data-theme), or the
+   OS asked for it and the visitor has not overridden that. Both branches set
+   the same variables — keep them in sync. */
+:root[data-theme='dark'] {
+  --page-bg: #141416;
+  --color: #FFBC6C;
+  --text-color: #BFBFBF;
+  --text-color-light: #7A7A7A;
+  --headings-color: #EEEDED;
+  --link-color: #EEEDED;
+  --link-color-hover: #FFBC6C;
+  --nav-link-color: #EEEDED;
+  --nav-link-color-hover: #FFBC6C;
+  --border-color: #2C2C30;
+  --logo-color: #EEEDED;
+  --backdrop-bg: rgba(55, 52, 45, 0.52);
+  --tile-text-color: #EEEDED;
+  --surface-muted: #1B1B1E;
+  --logo-invert: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --page-bg: #141416;
+    --color: #FFBC6C;
+    --text-color: #BFBFBF;
+    --text-color-light: #7A7A7A;
+    --headings-color: #EEEDED;
+    --link-color: #EEEDED;
+    --link-color-hover: #FFBC6C;
+    --nav-link-color: #EEEDED;
+    --nav-link-color-hover: #FFBC6C;
+    --border-color: #2C2C30;
+    --logo-color: #EEEDED;
+    --backdrop-bg: rgba(55, 52, 45, 0.52);
+    --tile-text-color: #EEEDED;
+    --surface-muted: #1B1B1E;
+    --logo-invert: 1;
+  }
+}
+
+/* Sites locked to a single scheme opt out of both branches above. */
+:root[data-scheme-locked='light'] { color-scheme: light; }
+:root[data-scheme-locked='dark']  { color-scheme: dark; }
+
+/* Visitor text-size control (header A/A/A). Scales the whole type ramp. */
+:root[data-textsize='l']  { --font-size: 1.125rem; }
+:root[data-textsize='xl'] { --font-size: 1.25rem; }

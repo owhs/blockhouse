@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="{{ lang }}" class="{{ site.template }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{ head }}
+  <link rel="stylesheet" href="{{ 'tokens.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'base.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'components.css' | asset }}">
+  {% if features.rss %}<link rel="alternate" type="application/rss+xml" href="/blog/feed.xml">{% endif %}
+</head>
+<body {{ body_attrs }}>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include 'partials/header' %}
+  <main id="main">
+    {{ main }}
+  </main>
+  {% include 'partials/footer' %}
+</body>
+</html>

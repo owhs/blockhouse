@@ -1,0 +1,24 @@
+<div class="wb-brand-strip">
+  {% for item in props.items %}
+    <div class="brand-strip-cell">
+      {% assign lower_name = item.name | downcase %}
+      {% if lower_name contains 'sanpark' %}
+        <svg class="brand-strip-logo" viewBox="0 0 200 50" fill="none" aria-hidden="true">
+          <text x="100" y="32" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="800" letter-spacing="2" fill="currentColor">SANPARK</text>
+          <line x1="20" y1="42" x2="180" y2="42" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+          <circle cx="100" cy="10" r="3" fill="currentColor" opacity="0.6"/>
+        </svg>
+      {% elsif lower_name contains 'stolzer' %}
+        <svg class="brand-strip-logo" viewBox="0 0 200 50" fill="none" aria-hidden="true">
+          <text x="100" y="30" text-anchor="middle" font-family="Inter, sans-serif" font-size="26" font-weight="800" letter-spacing="3" fill="currentColor">STOLZER</text>
+          <line x1="40" y1="40" x2="160" y2="40" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+          <polygon points="95,44 105,44 100,50" fill="currentColor" opacity="0.5"/>
+        </svg>
+      {% else %}
+        <div class="brand-strip-name">{{ item.name | escape }}</div>
+      {% endif %}
+      {% if item.description %}<div class="brand-strip-desc">{{ item.description | escape }}</div>{% endif %}
+      {% if item.link.href %}<a class="brand-strip-link" href="{{ item.link.href }}">Explore range &rarr;</a>{% endif %}
+    </div>
+  {% endfor %}
+</div>

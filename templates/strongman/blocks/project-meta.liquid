@@ -1,0 +1,9 @@
+<ul class="proj-details anim-hidden">
+  {% if props.scope %}<li><span class="k">Scope</span><span class="v">{{ props.scope | escape }}</span></li>{% endif %}
+  {% if props.client %}<li><span class="k">Client</span><span class="v">{{ props.client | escape }}</span></li>{% endif %}
+  {% if props.service %}<li><span class="k">Service</span><span class="v">{{ props.service | escape }}</span></li>{% endif %}
+  {% if props.location %}<li><span class="k">Location</span><span class="v">{{ props.location | escape }}</span></li>{% endif %}
+  {% if props.link.href %}
+    <li><span class="k">Website</span><span class="v"><a href="{{ props.link.href }}" target="_blank" rel="noopener">{{ props.link.label | default: 'Visit site' | escape }}</a></span></li>
+  {% endif %}
+</ul>

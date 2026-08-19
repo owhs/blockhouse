@@ -1,0 +1,11 @@
+{
+  "name": "ledger",
+  "label": "Ledger",
+  "description": "Editorial and typographic — serif headlines, generous measure, hairline rules. Built for writing-first sites.",
+  "slots": ["header.announce", "header.after", "footer.before", "footer.social"],
+  "tokens": [
+    { "key": "hue", "label": "Accent hue", "type": "range", "min": 0, "max": 360, "default": "28" },
+    { "key": "accent-chroma", "label": "Accent intensity", "type": "range", "min": 0, "max": 0.2, "default": "0.11" },
+    { "key": "radius", "label": "Corner radius", "type": "text", "default": "3px" }
+  ]
+}

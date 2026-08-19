@@ -1,0 +1,16 @@
+{
+  "type": "spec-table",
+  "label": "Specification table",
+  "group": "Stratum",
+  "icon": "table",
+  "description": "Ruled label/value data sheet — the technical body of a product page.",
+  "fields": [
+    { "key": "title", "type": "text", "label": "Title" },
+    { "key": "note", "type": "text", "label": "Footnote", "help": "e.g. 'Indicative figures — confirmed at survey.'" },
+    { "key": "rows", "type": "list", "label": "Rows", "item": [
+      { "key": "label", "type": "text", "label": "Label" },
+      { "key": "value", "type": "text", "label": "Value" }
+    ] }
+  ],
+  "defaults": { "rows": [] }
+}

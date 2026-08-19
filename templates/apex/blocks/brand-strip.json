@@ -1,0 +1,32 @@
+{
+  "type": "brand-strip",
+  "label": "Brand strip",
+  "group": "Industrial",
+  "icon": "building",
+  "description": "Partner brand logos/descriptions in a horizontal strip",
+  "fields": [
+    {
+      "key": "items",
+      "type": "list",
+      "label": "Brands",
+      "item": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Brand name",
+          "required": true
+        },
+        {
+          "key": "description",
+          "type": "text",
+          "label": "Short description"
+        },
+        {
+          "key": "link",
+          "type": "link",
+          "label": "Link"
+        }
+      ]
+    }
+  ]
+}

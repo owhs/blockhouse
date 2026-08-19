@@ -1,0 +1,10 @@
+{% if props.title %}<h3 style="margin-bottom: 0.8rem">{{ props.title | escape }}</h3>{% endif %}
+<div class="wb-spec-table">
+  <table>
+    <tbody>
+      {% for row in props.rows %}
+        <tr><th>{{ row.label | escape }}</th><td>{{ row.value | escape }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,25 @@
+<section class="wb-section pad-normal"><div class="container w-normal">
+  <header class="list-header">
+    <h1>{{ concept.labelPlural | default: concept.label | escape }}</h1>
+  </header>
+  <div class="post-grid">
+    {% for d in docs %}
+      <a class="post-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="post-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="post-card-body">
+          <time datetime="{{ d.publishAt | default: d.createdAt }}">{{ d.publishAt | default: d.createdAt | date: '%b %e, %Y' }}</time>
+          <h2>{{ d.title | escape }}</h2>
+          {% if d.fields.lede %}<p>{{ d.fields.lede | escape | truncate: 140 }}</p>{% endif %}
+          <span class="post-card-more">Read more →</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+  {% if pages > 1 %}
+  <nav class="pagination" aria-label="Pages">
+    {% if prevUrl %}<a class="btn btn-ghost" href="{{ prevUrl }}">← Newer</a>{% endif %}
+    <span class="page-of">Page {{ page }} of {{ pages }}</span>
+    {% if nextUrl %}<a class="btn btn-ghost" href="{{ nextUrl }}">Older →</a>{% endif %}
+  </nav>
+  {% endif %}
+</div></section>

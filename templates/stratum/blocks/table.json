@@ -1,0 +1,24 @@
+{
+  "type": "table",
+  "label": "Table",
+  "group": "Interactive",
+  "icon": "table",
+  "description": "Data table with a per-table choice of what it does on a phone: scroll sideways, or split into one card per row.",
+  "fields": [
+    { "key": "data", "type": "table", "label": "Table data" },
+    { "key": "headerRow", "type": "boolean", "label": "First row is a header", "default": true, "width": "half" },
+    { "key": "striped", "type": "boolean", "label": "Striped rows", "default": true, "width": "half" },
+    { "key": "mobile", "type": "select", "label": "On small screens", "default": "scroll", "width": "half",
+      "help": "Scroll keeps the grid and pins the first column; split stacks each row as its own labelled card",
+      "options": [
+        { "value": "scroll", "label": "Scroll sideways" },
+        { "value": "split", "label": "Split into rows" }
+      ] },
+    { "key": "compact", "type": "boolean", "label": "Compact rows", "default": false, "width": "half" },
+    { "key": "caption", "type": "text", "label": "Caption" }
+  ],
+  "defaults": {
+    "data": [["Column A", "Column B"], ["", ""]],
+    "headerRow": true, "striped": true, "mobile": "scroll", "compact": false
+  }
+}

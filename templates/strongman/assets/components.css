@@ -1,0 +1,1714 @@
+/* ---------------------------------------------------------------------------
+   Strongman — components: branding banner, header + nav, hero slider, tiles,
+   cards, product tabs, FAQ, footer, and the native-block skins.
+--------------------------------------------------------------------------- */
+
+/* === branding banner ======================================================
+   The oversized wordmark that sits above the header on every page. It is
+   decorative (the header carries the real home link), so it is hidden from
+   assistive tech. */
+.site-branding {
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2.5rem) var(--page-margin) 0;
+}
+/* The wordmark is an SVG carrying a viewBox but no width/height, so it has an
+   intrinsic *ratio* and no intrinsic *size*. Sizing it from `width: auto`
+   collapses it to nothing — drive the height and let the ratio supply the
+   width. The vw term keeps it from overflowing on a narrow viewport. */
+.site-branding img {
+  height: min(var(--branding-banner-height), 22vw);
+  width: auto;
+  max-width: 100%;
+  filter: invert(var(--logo-invert));
+}
+@media (max-width: 640px) {
+  .site-branding { padding-top: 1rem; }
+  .site-branding img { height: min(120px, 16vw); }
+}
+
+/* === header =============================================================== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  min-height: var(--navbar-height);
+  padding-inline: var(--page-margin);
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header__logo {
+  flex: none;
+  font-family: var(--logo-font);
+  font-weight: var(--font-weight-bold);
+  font-size: 1.05rem;
+  color: var(--logo-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header__logo:hover { color: var(--nav-link-color-hover); }
+
+/* The nav sits truly centred in the bar, with search and CTA parked right.
+   A flex row cannot do that — an auto margin on the right-hand group eats the
+   free space and shoves the nav off centre. Three symmetric grid tracks can:
+   the empty first column always matches the third, so the middle column stays
+   on the page's centre line no matter how wide the buttons get. */
+.header__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+.header__content > .nav { grid-column: 2; flex: 0 1 auto; min-width: 0; }
+.header__end {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-width: 0;
+}
+
+@media (max-width: 1000px) {
+  /* The sheet takes over: the burger is the only thing left in the row, so the
+     three-column split stops earning its keep. */
+  .header__content { display: flex; justify-content: flex-end; }
+  .header__end { display: flex; }
+}
+
+/* --- header right-hand side ----------------------------------------------- */
+.header__search { flex: none; }
+
+.btn--clean {
+  display: grid;
+  place-items: center;
+  width: 2.25rem; height: 2.25rem;
+  padding: 0;
+  color: var(--nav-link-color);
+  background: none;
+  border: 0;
+}
+.btn--clean:hover { color: var(--nav-link-color-hover); }
+
+/* nowrap matters: the CTA is the widest thing in the row, and letting it wrap
+   drops it onto a second line and doubles the header height. */
+.header__actions {
+  flex: none;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.header__btn {
+  display: inline-block;
+  padding: .5rem 1.1rem;
+  font-size: .85rem;
+  color: var(--white);
+  background: var(--link-color);
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .2s var(--transition);
+}
+.header__btn:hover { background: var(--link-color-hover); color: var(--white); }
+:root[data-theme='dark'] .header__btn { color: var(--dark); background: var(--color); }
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.25rem; height: 2.25rem;
+  color: var(--nav-link-color);
+  background: none;
+  border: 0;
+}
+.theme-toggle:hover { color: var(--nav-link-color-hover); }
+.theme-toggle .i-moon { display: none; }
+:root[data-theme='dark'] .theme-toggle .i-sun { display: none; }
+:root[data-theme='dark'] .theme-toggle .i-moon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .theme-toggle .i-sun { display: none; }
+  :root:not([data-theme='light']) .theme-toggle .i-moon { display: block; }
+}
+
+/* --- navbar ---------------------------------------------------------------
+   These class names come from blockhouse's own {% menu %} tag, so the site runtime's
+   burger, drill-down and panel handling all work without a line of theme JS. */
+.nav { flex: 1; min-width: 0; }
+
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: clamp(.75rem, 1.6vw, 1.75rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nav-item { position: relative; }
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .4rem 0;
+  font-family: var(--menu-font);
+  font-size: .875rem;
+  font-weight: var(--font-weight-normal);
+  color: var(--nav-link-color);
+  text-decoration: none;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+}
+.nav-link:hover,
+.nav-item.open > .nav-link,
+.nav-link[aria-current='page'] { color: var(--nav-link-color-hover); }
+
+/* Bold-on-hover without reflow: an invisible bold copy of the label reserves
+   the wider measure, so the row never jitters as the pointer crosses it. */
+.nav-link > span { position: relative; display: inline-block; }
+.nav-link > span::after {
+  content: attr(data-hover);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  font-weight: var(--font-weight-bold);
+  visibility: hidden;
+}
+.nav-item:hover > .nav-link > span,
+.nav-item.open > .nav-link > span,
+.nav-link[aria-current='page'] > span { font-weight: var(--font-weight-bold); }
+
+.nav-caret { flex: none; transition: transform .18s var(--transition); }
+.nav-item.open > .nav-link .nav-caret { transform: rotate(180deg); }
+
+.nav-divider {
+  height: 1px;
+  margin: .4rem 0;
+  background: var(--border-color);
+}
+.nav-heading {
+  padding: .5rem 1rem .25rem;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+
+/* --- dropdown panels ------------------------------------------------------ */
+.drop-panel,
+.mega-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 70;
+  min-width: 15rem;
+  padding: .5rem 0;
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-submenu);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity .18s var(--transition), transform .18s var(--transition), visibility .18s;
+}
+.nav-item:hover > .drop-panel,
+.nav-item:focus-within > .drop-panel,
+.nav-item.open > .drop-panel,
+.nav-item.open > .mega-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.drop-list { margin: 0; padding: 0; list-style: none; }
+.drop-list a,
+.mega-links a {
+  display: block;
+  padding: .5rem 1rem;
+  font-size: .85rem;
+  color: var(--nav-link-color);
+  text-decoration: none;
+}
+.drop-list a:hover,
+.mega-links a:hover {
+  color: var(--nav-link-color-hover);
+  background: var(--surface-muted);
+}
+
+.mega-panel { min-width: 32rem; padding: 1.25rem; }
+.mega-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.mega-title {
+  margin: 0 0 .5rem;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+.mega-links { margin: 0; padding: 0; list-style: none; }
+.mega-link-label { display: block; }
+.mega-link-desc { display: block; font-size: .78rem; color: var(--text-color-light); }
+
+/* The drill-down header only exists for the mobile panel stack. */
+.nav-mobile-head, .drill-head { display: none; }
+
+/* --- mobile nav ------------------------------------------------------------
+   Below the breakpoint the list becomes a right-hand sheet and each panel
+   drills in over it — both states are driven by the runtime's classes. */
+.nav-burger {
+  display: none;
+  align-items: center;
+  gap: .5rem;
+  padding: .35rem 0;
+  font-size: .875rem;
+  color: var(--nav-link-color);
+  background: none;
+  border: 0;
+}
+.nb-box {
+  width: 1.1rem; height: 2px;
+  background: currentColor;
+  box-shadow: 0 5px 0 currentColor, 0 -5px 0 currentColor;
+}
+.nb-box > span { display: none; }
+
+@media (max-width: 1000px) {
+  .nav-burger { display: inline-flex; }
+
+  .nav {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 90;
+    width: min(22rem, 86vw);
+    padding: 1.25rem 1.5rem 2rem;
+    overflow-y: auto;
+    background: var(--page-bg);
+    border-left: 1px solid var(--border-color);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform .3s var(--transition), visibility .3s;
+  }
+  /* hidden while parked: an off-screen menu should not be tabbable, and it
+     cannot contribute to page width if it is not painted */
+  body.nav-open .nav { transform: none; visibility: visible; }
+  body.nav-open { overflow: hidden; }
+
+  .nav-mobile-head {
+    display: block;
+    padding-bottom: .75rem;
+    margin-bottom: .5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .nav-mobile-title {
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-color-light);
+  }
+
+  .nav-list { flex-direction: column; align-items: stretch; gap: 0; }
+  .nav-item { position: static; }
+
+  .nav-link {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: .75rem 0;
+    font-size: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .nav-link .nav-caret { transform: rotate(-90deg); }
+  .nav-item.open > .nav-link .nav-caret { transform: rotate(-90deg); }
+
+  /* Panels slide in over the sheet rather than expanding it, so a long
+     catalogue never buries the items below it. */
+  .drop-panel, .mega-panel {
+    position: fixed;
+    z-index: 95;
+    inset: 0 0 0 auto;
+    width: min(22rem, 86vw);
+    min-width: 0;
+    padding: 1.25rem 1.5rem 2rem;
+    overflow-y: auto;
+    border: 0;
+    border-left: 1px solid var(--border-color);
+    border-radius: 0;
+    box-shadow: none;
+    transform: translateX(100%);
+    opacity: 1;
+    visibility: visible;
+    transition: transform .3s var(--transition);
+  }
+  .nav-item:hover > .drop-panel,
+  .nav-item:focus-within > .drop-panel { transform: translateX(100%); }
+  .nav-item.drilled > .drop-panel,
+  .nav-item.drilled > .mega-panel { transform: none; }
+
+  .drill-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding-bottom: .75rem;
+    margin-bottom: .5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .drill-back {
+    display: grid;
+    place-items: center;
+    width: 2rem; height: 2rem;
+    color: var(--nav-link-color);
+    background: none;
+    border: 0;
+  }
+  .drill-title { font-weight: var(--font-weight-bold); }
+
+  .drop-list a, .mega-links a { padding: .7rem 0; font-size: 1rem; border-bottom: 1px solid var(--border-color); }
+  .mega-grid { grid-template-columns: 1fr; }
+
+  .nav-scrim {
+    position: fixed;
+    inset: 0;
+    /* Must sit BELOW the header. The header is position:sticky with a
+       z-index, so it creates its own stacking context — the nav sheet inside
+       it cannot escape that context no matter how high its own z-index goes.
+       Against the scrim the whole header competes as a single layer at 60, so
+       a scrim at 80 painted over the entire open menu and swallowed every tap. */
+    z-index: 55;
+    background: rgba(0, 0, 0, .45);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .3s var(--transition), visibility .3s;
+  }
+  body.nav-open .nav-scrim { opacity: 1; visibility: visible; }
+}
+
+@media (max-width: 560px) {
+  .header__btn { display: none; }
+  .header__logo { font-size: .95rem; }
+}
+
+/* === hero slider ==========================================================
+   Slides are stacked in one grid cell and cross-faded; JS only toggles the
+   active class. Without JS the first slide shows statically, which is a
+   perfectly good hero. */
+/* The hero is inset by the page gutter rather than running edge to edge, and
+   its caption sits in a frosted panel — the same backdrop treatment the range
+   tiles use, which is what keeps white text legible over both a bright
+   workshop and a dark storage building. */
+.hero {
+  position: relative;
+  padding-inline: var(--page-margin);
+}
+
+.hero__viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  /* the slider is dragged horizontally, so let the browser own vertical
+     scrolling and hand us the horizontal axis */
+  touch-action: pan-y;
+}
+.hero__viewport { cursor: grab; }
+.hero__viewport.is-pressed,
+.hero__viewport.is-dragging { cursor: grabbing; }
+
+/* Native image dragging fights the slider gesture and swallows the pointerup
+   that ends it, so it is switched off across the hero. */
+.hero__viewport img,
+.hero__viewport picture {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.hero__viewport.is-dragging * { pointer-events: none; }
+
+.hero__track { display: grid; }
+.hero__slide {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .4s var(--transition), visibility .4s;
+}
+.hero__slide.is-active { opacity: 1; visibility: visible; }
+
+/* No JS fallback is needed here: the template stamps `is-active` on the first
+   slide server-side, so a scriptless visitor sees slide one and nothing else.
+   (This used to be a `html:not(.js)` override, left stranded when the `js`
+   class was dropped from the boot script — with nothing setting that class the
+   selector matched permanently, forcing every slide visible at once. The
+   active class kept changing underneath a stack of six opaque images, which
+   looked exactly like a slider that had stopped working.) */
+
+.hero__image {
+  margin: 0;
+  aspect-ratio: var(--hero-aspect-ratio-sm);
+}
+@media (min-width: 640px) { .hero__image { aspect-ratio: var(--hero-aspect-ratio-md); } }
+@media (min-width: 1024px) { .hero__image { aspect-ratio: var(--hero-aspect-ratio-lg); } }
+
+.hero__image img,
+.hero__image picture {
+  width: 100%;
+  height: 100%;
+  object-fit: var(--hero-image-object-fit);
+}
+.hero__image picture img { height: 100%; }
+
+.hero__content {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
+  width: fit-content;
+  max-width: min(var(--hero-content-width), calc(100% - 3rem));
+  margin: clamp(.75rem, 2vw, 1.5rem);
+  padding: clamp(1.25rem, 2.5vw, 2rem) clamp(1.5rem, 3vw, 2.5rem);
+  color: var(--tile-text-color);
+  background: var(--backdrop-bg);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border-radius: var(--border-radius);
+}
+.hero__content h2 {
+  margin: 0 0 .3em;
+  color: inherit;
+  font-size: clamp(1.6rem, 1.1rem + 2.4vw, 3rem);
+}
+.hero__content p { margin: 0; }
+.hero__content a { color: inherit; text-decoration-thickness: 2px; }
+.hero__content a:hover { color: inherit; opacity: .85; }
+
+@supports not (backdrop-filter: blur(1px)) {
+  .hero__content { background: rgba(0, 0, 0, .55); color: #fff; }
+}
+
+.hero__dots {
+  position: absolute;
+  right: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1.25rem, 3vw, 2.5rem);
+  z-index: 3;
+  display: flex;
+  gap: .5rem;
+}
+.hero__dots button {
+  width: .55rem; height: .55rem;
+  padding: 0;
+  background: rgba(255, 255, 255, .45);
+  border: 0;
+  border-radius: 50%;
+}
+.hero__dots button[aria-current='true'] { background: var(--white); }
+
+/* === tiles ================================================================
+   Full-bleed image with a frosted panel of copy sitting on it. The panel is a
+   backdrop-filter, so it picks up whatever is behind it and stays legible over
+   both a bright workshop shot and a dark basement one. */
+.tile {
+  position: relative;
+  display: grid;
+  isolation: isolate;
+}
+.tile__image { grid-area: 1 / 1; margin: 0; aspect-ratio: var(--tile-image-aspect-ratio-sm); }
+@media (min-width: 768px) { .tile__image { aspect-ratio: var(--tile-image-aspect-ratio-md); } }
+@media (min-width: 1024px) { .tile__image { aspect-ratio: var(--tile-image-aspect-ratio-lg); } }
+
+.tile__image img,
+.tile__image picture {
+  width: 100%; height: 100%;
+  object-fit: var(--tile-image-object-fit);
+}
+.tile__image picture img { height: 100%; }
+
+.tile__body {
+  grid-area: 1 / 1;
+  z-index: 2;
+  align-self: end;
+  width: 100%;
+  max-width: var(--tile-content-width);
+  padding: clamp(1rem, 2.5vw, 2rem);
+  margin: clamp(.75rem, 2vw, 1.5rem);
+  color: var(--tile-text-color);
+  background: var(--backdrop-bg);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border-radius: var(--border-radius);
+}
+.tile__title { margin: 0 0 .4em; color: inherit; }
+.tile__description { margin-bottom: 1rem; }
+.tile__description p:last-child { margin-bottom: 0; }
+.tile__link { margin: 0; }
+
+@supports not (backdrop-filter: blur(1px)) {
+  .tile__body { background: rgba(0, 0, 0, .55); color: #fff; }
+}
+
+/* === buttons ============================================================== */
+.btn {
+  display: inline-block;
+  padding: .55rem 1.25rem;
+  font-size: .9rem;
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+  transition: background .2s var(--transition), color .2s var(--transition), border-color .2s var(--transition);
+}
+.btn--white {
+  color: var(--dark);
+  background: var(--white);
+  border-color: var(--white);
+}
+.btn--white:hover { color: var(--dark); background: transparent; border-color: var(--white); }
+:root[data-theme='dark'] .btn--white:hover { color: var(--white); }
+
+.btn--light {
+  color: var(--link-color);
+  background: transparent;
+  border-color: currentColor;
+}
+.btn--light:hover { color: var(--white); background: var(--link-color); border-color: var(--link-color); }
+:root[data-theme='dark'] .btn--light:hover { color: var(--dark); background: var(--color); border-color: var(--color); }
+
+.btn--primary {
+  color: var(--white);
+  background: var(--link-color);
+  border-color: var(--link-color);
+}
+.btn--primary:hover { color: var(--white); background: var(--link-color-hover); border-color: var(--link-color-hover); }
+:root[data-theme='dark'] .btn--primary { color: var(--dark); background: var(--color); border-color: var(--color); }
+
+/* === cards (range listings) =============================================== */
+.cards-grid {
+  display: grid;
+  gap: 3rem 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+}
+@media (max-width: 640px) { .cards-grid { gap: 2rem 1rem; } }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+.card__image {
+  margin: 0 0 .9rem;
+  aspect-ratio: var(--card-image-aspect-ratio-sm);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+@media (min-width: 1024px) { .card__image { aspect-ratio: var(--card-image-aspect-ratio-lg); } }
+.card__image img,
+.card__image picture { width: 100%; height: 100%; object-fit: var(--card-image-object-fit); }
+.card__image picture img { height: 100%; }
+
+.card__title { margin: 0 0 .35em; font-size: 1.15rem; }
+.card:hover .card__title { color: var(--link-color-hover); }
+.card__entry { margin: 0; color: var(--text-color-light); font-size: .9rem; }
+.card__meta {
+  margin: 0 0 .4rem;
+  font-size: .75rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+
+/* === product tabs =========================================================
+   The tab strip reads as folder tabs: the active one shares its fill with the
+   panel border below it, so the two read as one object. */
+.wb-tabs { margin-block: 1.5rem; }
+
+.tabs-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+.tabs-list button {
+  min-width: 8rem;
+  padding: .45rem 1rem;
+  font-size: 1.05rem;
+  color: var(--link-color);
+  background: var(--page-bg);
+  border: 2px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+.tabs-list button[aria-selected='true'] {
+  color: var(--white);
+  background: var(--link-color);
+  border-color: var(--link-color);
+}
+:root[data-theme='dark'] .tabs-list button[aria-selected='true'] { color: var(--dark); }
+
+.wb-tabs .tab-panel {
+  position: relative;
+  z-index: 2;
+  margin-top: -2px;
+  padding: 1.25rem;
+  border: 4px solid var(--link-color);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+.wb-tabs .tab-panel[hidden] { display: none; }
+
+/* === spec list ============================================================
+   Two-up label/value rows. Where a row's label or value carries a parenthetical
+   (e.g. "3200 kg (7050 lb)") the two halves split so the metric and imperial
+   figures stay aligned down the column. */
+.spec-table { display: grid; gap: 0; }
+
+.spec-row { display: flex; }
+.spec-row > div { width: 100%; margin: 3px 1em; }
+
+/* The label column runs right-aligned into the centre gutter and the value
+   picks up the accent, so the eye reads the pair as one line rather than two
+   columns of unrelated text. A row with only one cell centres instead. */
+.spec-row > div:first-child { text-align: right; }
+.spec-row > div:only-child { text-align: center; }
+.spec-row > div:nth-child(2) { color: var(--link-color); }
+
+/* The second half of a "3200 kg (7050 lb)" pair — the brackets are drawn by
+   CSS so the stored value stays clean data. */
+.spec-row .split > div:nth-child(2) {
+  font-size: small;
+  font-style: italic;
+  color: var(--text-color-light);
+}
+.spec-row .split > div:nth-child(2)::before { content: '('; }
+.spec-row .split > div:nth-child(2)::after { content: ')'; }
+
+.spec-note { margin-top: .75rem; font-size: .85rem; color: var(--text-color-light); }
+
+@media (max-width: 1200px) {
+  .spec-row {
+    flex-direction: column;
+    margin-bottom: 1em;
+    border-bottom: 2px solid var(--light);
+  }
+  .spec-row:last-child { border-bottom: 0; margin-bottom: 0; }
+  .spec-row > div { text-align: center !important; }
+}
+
+/* === project detail bar =================================================== */
+.proj-details {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  padding: 1.25rem 0;
+  margin-block: 1.5rem;
+  border-block: 1px solid var(--border-color);
+  list-style: none;
+}
+.proj-details > li { margin: 0; }
+.proj-details .k {
+  display: block;
+  margin-bottom: .2rem;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+.proj-details .v { display: block; color: var(--headings-color); }
+
+/* === FAQ ================================================================== */
+/* The column count comes from the block's own `cols-N` class rather than the
+   utility classes in the markup — one rule, in the sheet that loads last, so
+   the outcome does not depend on cascade order between stylesheets. */
+.faq__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  column-gap: 3rem;
+  row-gap: 2rem;
+}
+@media (min-width: 640px) {
+  .faq__list.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.faq__item { margin: 0; }
+.faq__question { margin: 0 0 .5em; font-size: 1.05rem; }
+.faq__answer { color: var(--text-color-light); }
+.faq__answer p:last-child { margin-bottom: 0; }
+
+/* Accordion form (native faq block) */
+.wb-faq { display: grid; gap: 0; }
+.wb-faq-item { border-bottom: 1px solid var(--border-color); }
+.wb-faq-item:first-child { border-top: 1px solid var(--border-color); }
+.wb-faq-item > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .9rem .25rem;
+  cursor: pointer;
+  font-family: var(--heading-font);
+  font-weight: var(--headings-weight);
+  color: var(--headings-color);
+  list-style: none;
+}
+.wb-faq-item > summary::-webkit-details-marker { display: none; }
+.wb-faq-item .faq-caret { flex: none; transition: transform .2s var(--transition); }
+.wb-faq-item[open] .faq-caret { transform: rotate(180deg); }
+.faq-body { padding: 0 .25rem 1rem; color: var(--text-color-light); }
+
+/* === footer =============================================================== */
+.footer {
+  padding-block: clamp(2.5rem, 5vw, 4rem) 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer__top { display: grid; gap: 2rem; }
+@media (min-width: 640px) { .footer__top { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) {
+  .footer__top { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; }
+}
+
+.footer__item { min-width: 0; }
+.footer__heading {
+  width: fit-content;
+  margin: 0 0 .5rem;
+  padding-bottom: 2px;
+  font-size: 1rem;
+  border-bottom: 2px solid var(--link-color);
+}
+.footer__item ul { margin: 0; padding: 0; list-style: none; }
+.footer__item li { padding: 4px 0; }
+.footer__item a { color: var(--text-color); text-decoration: none; }
+.footer__item a:hover { color: var(--link-color-hover); text-decoration: underline; }
+
+.footer__item--address { text-align: right; }
+.footer__item--address .footer__heading {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.footer__item--address p { font-weight: var(--font-weight-bold); }
+@media (max-width: 1023px) {
+  .footer__item--address { text-align: left; }
+  .footer__item--address .footer__heading { margin-left: 0; }
+}
+
+.footer__cta { grid-column: 1 / -1; }
+.footer__cta .footer__heading { border: 0; font-size: clamp(1.15rem, 1rem + .6vw, 1.5rem); }
+
+.footer__bottom {
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 1.5rem;
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--border-color);
+  font-size: .85rem;
+  color: var(--text-color-light);
+}
+@media (min-width: 768px) {
+  .footer__bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer__copyright { text-align: right; }
+}
+.footer__social { display: flex; flex-wrap: wrap; gap: 1rem; }
+.footer__social a,
+.footer__copyright a { color: var(--text-color-light); }
+.footer__social a:hover,
+.footer__copyright a:hover { color: var(--link-color-hover); }
+.footer__copyright p { margin: 0; }
+
+/* === back to top ========================================================== */
+.footer__bttop {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 2.75rem; height: 2.75rem;
+  padding: 0;
+  color: var(--white);
+  background: var(--link-color);
+  border: 0;
+  border-radius: var(--border-radius);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s var(--transition), visibility .25s;
+}
+.footer__bttop.is-visible { opacity: 1; visibility: visible; }
+:root[data-theme='dark'] .footer__bttop { color: var(--dark); background: var(--color); }
+
+/* === search overlay ======================================================= */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: start center;
+  padding: 15vh 1.5rem 0;
+  background: var(--page-bg);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s var(--transition), visibility .25s;
+}
+.search-overlay.is-open { opacity: 1; visibility: visible; }
+.search-overlay__wrapper { width: min(40rem, 100%); }
+.search__form { display: flex; gap: .5rem; }
+.search__input {
+  flex: 1;
+  padding: .7rem 1rem;
+  color: var(--text-color);
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.search-overlay__close {
+  position: absolute;
+  top: 1.25rem; right: 1.25rem;
+  width: 2.5rem; height: 2.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-color);
+  background: none;
+  border: 0;
+}
+
+/* === native block skins ===================================================
+   Blockhouse's built-in blocks render with wb-* classes. These rules dress them in
+   the house style so editors can reach for a stock block and still get a page
+   that looks designed. */
+.wb-heading .eyebrow {
+  margin: 0 0 .4em;
+  font-size: .75rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+.wb-heading h2, .wb-heading h3 { margin: 0; }
+.wb-heading.align-center { text-align: center; }
+
+.wb-section { padding-block: clamp(2rem, 4vw, 4rem); }
+.wb-section.pad-none { padding-block: 0; }
+.wb-section.pad-spacious { padding-block: clamp(3rem, 7vw, 7rem); }
+.wb-section > .container {
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+.wb-section > .container.w-normal { max-width: 90rem; }
+.wb-section > .container.w-narrow { max-width: 52rem; }
+
+/* --- galleries ------------------------------------------------------------
+   Four ways to fill a frame, because photographs of lifts arrive in wildly
+   different shapes: phone snaps from a workshop next to wide architectural
+   shots. `cover` crops everything to one rhythm, `contain` guarantees nothing
+   is trimmed, `natural` lets each image keep its own proportions, and
+   `masonry` packs those natural heights into columns. */
+.wb-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+}
+
+/* spacing */
+.wb-gallery.gap-none { gap: 0; }
+.wb-gallery.gap-tight { gap: calc(var(--baseline) * 1); }
+.wb-gallery.gap-normal { gap: var(--gallery-gap); }
+.wb-gallery.gap-loose { gap: calc(var(--baseline) * 6); }
+
+/* column counts */
+.wb-gallery.cols-1 { grid-template-columns: 1fr; }
+.wb-gallery.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wb-gallery.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wb-gallery.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .wb-gallery.cols-3, .wb-gallery.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .wb-gallery.cols-2, .wb-gallery.cols-3, .wb-gallery.cols-4 { grid-template-columns: 1fr; }
+}
+
+.wb-gallery figure { position: relative; margin: 0; min-width: 0; }
+.wb-gallery.is-rounded figure { overflow: hidden; border-radius: var(--border-radius); }
+.wb-gallery img, .wb-gallery picture { display: block; width: 100%; }
+
+/* frame shapes — only meaningful when the image is being fitted to a frame */
+.wb-gallery.fit-cover figure,
+.wb-gallery.fit-contain figure { aspect-ratio: var(--frame, 4 / 3); }
+.wb-gallery.ratio-16-9 { --frame: 16 / 9; }
+.wb-gallery.ratio-3-2  { --frame: 3 / 2; }
+.wb-gallery.ratio-4-3  { --frame: 4 / 3; }
+.wb-gallery.ratio-1-1  { --frame: 1 / 1; }
+.wb-gallery.ratio-3-4  { --frame: 3 / 4; }
+.wb-gallery.ratio-slim { --frame: 21 / 9; }
+
+.wb-gallery.fit-cover img,
+.wb-gallery.fit-cover picture { height: 100%; object-fit: cover; }
+
+.wb-gallery.fit-contain figure { background: var(--surface-muted); }
+.wb-gallery.fit-contain img,
+.wb-gallery.fit-contain picture { height: 100%; object-fit: contain; }
+
+/* natural: no frame at all, each image keeps its own aspect ratio */
+.wb-gallery.fit-natural figure { aspect-ratio: auto; }
+.wb-gallery.fit-natural img,
+.wb-gallery.fit-natural picture { height: auto; object-fit: fill; }
+
+/* masonry: natural heights, but packed so rows do not leave ragged gaps.
+   `columns` is the one layout mode that genuinely balances varied heights;
+   the grid falls back to it only here. */
+.wb-gallery.fit-masonry {
+  display: block;
+  columns: 2;
+  column-gap: var(--gallery-gap);
+}
+.wb-gallery.fit-masonry.cols-1 { columns: 1; }
+.wb-gallery.fit-masonry.cols-3 { columns: 3; }
+.wb-gallery.fit-masonry.cols-4 { columns: 4; }
+.wb-gallery.fit-masonry figure {
+  break-inside: avoid;
+  margin-bottom: var(--gallery-gap);
+  aspect-ratio: auto;
+}
+.wb-gallery.fit-masonry img { height: auto; }
+@media (max-width: 900px) {
+  .wb-gallery.fit-masonry.cols-3, .wb-gallery.fit-masonry.cols-4 { columns: 2; }
+}
+@media (max-width: 560px) {
+  .wb-gallery.fit-masonry { columns: 1; }
+}
+
+/* A zoom affordance, so a click target that opens a lightbox looks like one. */
+.wb-gallery [data-lightbox] { cursor: zoom-in; }
+.wb-gallery [data-lightbox]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background .2s var(--transition);
+  pointer-events: none;
+}
+.wb-gallery [data-lightbox]:hover::after { background: rgba(0, 0, 0, .12); }
+.wb-gallery [data-lightbox] img { transition: transform .4s var(--transition); }
+.wb-gallery.is-rounded [data-lightbox]:hover img { transform: scale(1.03); }
+
+/* Anything narrower than its track is centred in it, so a single portrait
+   shot sits in the middle of the reading column instead of hugging the left
+   edge. (The old fixed height cap that caused that has been retired in favour
+   of the ratio-slim frame.) */
+.wb-gallery figure { justify-self: stretch; }
+.wb-gallery img, .wb-gallery picture { margin-inline: auto; }
+
+
+
+.wb-figure { margin: 0; }
+.wb-figure img, .wb-figure picture { width: 100%; border-radius: var(--border-radius); }
+.wb-figure figcaption,
+.wb-gallery figcaption {
+  margin-top: .5rem;
+  font-size: .82rem;
+  color: var(--text-color-light);
+}
+
+/* The old build styled "info" paragraphs with a coloured rule; callouts inherit
+   that treatment so ported content keeps its emphasis. */
+.wb-callout {
+  display: flex;
+  gap: .75rem;
+  padding: 1rem 1.25rem;
+  margin-block: 1.2rem;
+  background: var(--surface-muted);
+  border-left: 3px solid var(--info-color);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+.wb-callout .co-ico { flex: none; color: var(--info-color); }
+.wb-callout .co-title { margin: 0 0 .3em; font-weight: var(--font-weight-bold); }
+.wb-callout .co-body > :last-child { margin-bottom: 0; }
+.wb-callout.tone-warning { border-left-color: var(--warning-color); }
+.wb-callout.tone-warning .co-ico { color: var(--warning-color); }
+.wb-callout.tone-tip { border-left-color: var(--success-color); }
+.wb-callout.tone-tip .co-ico { color: var(--success-color); }
+
+.wb-embed, .wb-video { margin-block: 1.5rem; }
+.wb-embed iframe, .wb-video video, .wb-video iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  border-radius: var(--border-radius);
+}
+.wb-embed .embed-facade {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-muted);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.wb-map iframe { width: 100%; aspect-ratio: 4 / 3; border: 0; border-radius: var(--border-radius); }
+
+.wb-table { overflow-x: auto; }
+.wb-table table { min-width: 34rem; }
+
+.wb-cta {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  text-align: center;
+  background: var(--surface-muted);
+  border-radius: var(--border-radius);
+}
+.wb-cta h2 { margin-top: 0; }
+.wb-cta .cta-actions { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; }
+
+.wb-related { margin-block: 3rem 0; }
+.rel-heading { margin-bottom: 1.25rem; text-align: center; }
+.rel-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+}
+.rel-card { display: block; color: inherit; text-decoration: none; }
+.rel-media { display: block; margin-bottom: .75rem; border-radius: var(--border-radius); overflow: hidden; }
+.rel-media img, .rel-media picture { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.rel-title { display: block; font-family: var(--heading-font); font-weight: var(--headings-weight); color: var(--headings-color); }
+.rel-card:hover .rel-title { color: var(--link-color-hover); }
+.rel-desc { display: block; margin-top: .25rem; font-size: .88rem; color: var(--text-color-light); }
+
+.wb-stats { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr)); text-align: center; }
+.wb-steps { display: grid; gap: 1.5rem; }
+.wb-quote { margin: 1.5rem 0; }
+.wb-spacer.size-small { height: 1rem; }
+.wb-spacer.size-medium { height: 2rem; }
+.wb-spacer.size-large { height: 4rem; }
+
+.is-empty {
+  padding: 1rem;
+  color: var(--text-color-light);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+/* === lightbox =============================================================
+   Two viewers exist: the site runtime's single-image one (used by any stray
+   [data-lightbox] outside a row) and this one, which owns [data-gallery] rows
+   and can be walked with the arrows or the keyboard. */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgba(0, 0, 0, .9);
+}
+.lightbox-overlay img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+
+.sm-lb {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(.5rem, 2vw, 2rem);
+  padding: clamp(1rem, 4vw, 3rem);
+  background: rgba(0, 0, 0, .92);
+}
+
+.sm-lb-stage {
+  grid-column: 2;
+  display: grid;
+  justify-items: center;
+  gap: .75rem;
+  margin: 0;
+  min-width: 0;
+}
+.sm-lb-stage img {
+  max-width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: var(--border-radius);
+  cursor: zoom-in;
+  transform-origin: center center;
+  transition: transform .18s var(--transition);
+  will-change: transform;
+}
+/* While zoomed the drag is a pan, so the transition must not fight it. */
+.sm-lb.is-zoomed .sm-lb-stage img { transition: none; }
+.sm-lb.is-zoomed .sm-lb-stage { overflow: hidden; }
+.sm-lb.is-zoomed figcaption { opacity: .5; }
+.sm-lb-stage figcaption {
+  max-width: 60ch;
+  color: rgba(255, 255, 255, .82);
+  font-size: .88rem;
+  text-align: center;
+}
+
+.sm-lb button {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, .1);
+  border: 0;
+  border-radius: 50%;
+  transition: background .2s var(--transition);
+}
+.sm-lb button:hover { background: rgba(255, 255, 255, .22); }
+.sm-lb button[hidden] { display: none; }
+
+.sm-lb-prev, .sm-lb-next {
+  width: clamp(2.5rem, 6vw, 3.25rem);
+  aspect-ratio: 1;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.sm-lb-prev { grid-column: 1; }
+.sm-lb-next { grid-column: 3; }
+
+.sm-lb-close {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  width: 2.75rem;
+  aspect-ratio: 1;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.sm-lb-count {
+  position: absolute;
+  left: 0; right: 0; bottom: 1rem;
+  margin: 0;
+  color: rgba(255, 255, 255, .7);
+  font-size: .8rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .sm-lb { grid-template-columns: 1fr; padding: 3.5rem 1rem 3rem; }
+  .sm-lb-stage { grid-column: 1; }
+  .sm-lb-prev, .sm-lb-next { position: absolute; top: 50%; translate: 0 -50%; }
+  .sm-lb-prev { left: .5rem; }
+  .sm-lb-next { right: .5rem; }
+}
+
+
+
+/* === print ================================================================ */
+@media print {
+  .header, .footer, .site-branding, .footer__bttop, .search-overlay, .hero__dots { display: none !important; }
+  body { color: #000; background: #fff; }
+}
+
+/* === strongman blocks ===================================================== */
+.tile-grid { display: grid; gap: 1.5rem; }
+.tile-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); }
+
+.section-intro { margin-bottom: 2rem; }
+.section-intro__body { min-width: 0; }
+
+.spec-block { margin-block: 1.5rem; }
+.spec-title { margin-bottom: .75rem; }
+
+/* A full-bleed block that still wants the page gutter — the range catalogue
+   spans the page rather than the reading column, but should not run to the
+   very edge of the viewport the way a photograph does. */
+.content__body > .is-contained {
+  padding-inline: var(--page-margin);
+}
+
+/* === catalogue mega panel =================================================
+   Full-width panel under the header: category tabs across the top, the models
+   for that category down the left, a detail pane on the right.
+
+   The height is capped against the viewport rather than the content — a
+   twelve-model category would otherwise push the panel past the bottom of the
+   screen, and the list is the part that should scroll, not the page. */
+.nav-item.has-mega { position: static; }
+
+.site-header .mega-panel {
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+  max-height: calc(100vh - var(--navbar-height));
+  overflow: hidden;
+}
+
+.mega-catalogue {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--navbar-height));
+}
+
+/* --- category tabs -------------------------------------------------------- */
+.mc-tabs {
+  display: flex;
+  flex-shrink: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-color);
+}
+.mc-tab-btn {
+  flex: 1;
+  padding: 1.25rem 1rem;
+  font-family: var(--menu-font);
+  font-size: .9rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--text-color-light);
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  transition: color .2s var(--transition), border-color .2s var(--transition);
+}
+.mc-tab-btn:hover { color: var(--headings-color); }
+.mc-tab-btn.active,
+.mc-tab-btn[aria-selected='true'] {
+  color: var(--headings-color);
+  border-bottom-color: var(--link-color);
+}
+
+/* --- body: list + detail -------------------------------------------------- */
+.mc-panes { flex: 1; min-height: 0; }
+.mc-tabpane[hidden] { display: none; }
+.mc-tabpane {
+  display: flex;
+  height: min(60vh, calc(100vh - var(--navbar-height) - 5rem));
+  min-height: 22rem;
+  overflow: hidden;
+}
+
+.mc-list {
+  flex: 0 0 34%;
+  min-width: min(25rem, 40vw);
+  overflow-y: auto;
+  background: var(--surface-muted);
+  border-right: 1px solid var(--border-color);
+}
+.mc-item {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.1rem 1.25rem;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+  border-left: 3px solid transparent;
+  transition: background .2s var(--transition), border-color .2s var(--transition);
+}
+.mc-item:hover,
+.mc-item.active {
+  background: var(--page-bg);
+  border-left-color: var(--link-color);
+  color: inherit;
+}
+.mc-thumb {
+  flex: none;
+  width: 90px;
+  height: 56px;
+  overflow: hidden;
+  background: var(--page-bg);
+}
+.mc-thumb img, .mc-thumb picture { width: 100%; height: 100%; object-fit: cover; }
+.mc-thumb-ph { display: grid; place-items: center; color: var(--text-color-light); }
+
+.mc-body { flex: 1; min-width: 0; }
+.mc-name {
+  display: block;
+  margin-bottom: .25rem;
+  font-family: var(--heading-font);
+  font-weight: var(--font-weight-bold);
+  font-size: 1.02rem;
+  text-transform: uppercase;
+  color: var(--headings-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-cat {
+  display: block;
+  font-size: .82rem;
+  line-height: 1.3;
+  color: var(--text-color-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-detail {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem 2.5rem;
+  overflow-y: auto;
+}
+.mc-pane[hidden] { display: none; }
+.mc-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.mc-detail-head h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.mc-cta {
+  flex: none;
+  padding: .5rem 1.2rem;
+  font-size: .82rem;
+  color: var(--white);
+  background: var(--link-color);
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mc-cta:hover { background: var(--link-color-hover); color: var(--white); }
+:root[data-theme='dark'] .mc-cta { color: var(--dark); background: var(--color); }
+
+.mc-detail-cat { margin: 0 0 1rem; font-size: .9rem; color: var(--text-color-light); }
+.mc-hero { overflow: hidden; border-radius: var(--border-radius); margin-bottom: 1rem; }
+.mc-hero img, .mc-hero picture { width: 100%; max-height: 26vh; object-fit: cover; }
+.mc-desc { margin: 0; font-size: .9rem; color: var(--text-color-light); }
+
+/* --- panel tiles + footer ------------------------------------------------- */
+.mega-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  flex-shrink: 0;
+  padding: .85rem var(--page-margin);
+  border-top: 1px solid var(--border-color);
+}
+.mega-tiles a {
+  padding: .4rem .9rem;
+  font-size: .8rem;
+  color: var(--link-color);
+  text-decoration: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.mega-tiles a:hover { border-color: var(--link-color); background: var(--surface-muted); }
+
+.mega-footer {
+  flex-shrink: 0;
+  padding: .85rem var(--page-margin);
+  background: var(--surface-muted);
+  border-top: 1px solid var(--border-color);
+}
+.mega-footer-title {
+  margin: 0 0 .35rem;
+  font-size: .74rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+.mega-brands { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.mega-brands a { font-size: .85rem; color: var(--link-color); text-decoration: none; }
+.mega-brands a:hover { text-decoration: underline; }
+
+@media (max-width: 1000px) {
+  /* On a phone the catalogue collapses to what it is actually for: three
+     links, one per range. The desktop panel's whole point is the list ↔ detail
+     pairing, and neither half survives a 350px sheet — thumbnails, taglines
+     and a preview pane just make a long scroll out of a short decision. The
+     site it replaces made the same call: its mobile menu was these three links
+     and nothing else. Every individual lift is one tap further on, from the
+     range page.
+
+     This also sidesteps a structural problem with the accordion form: the tab
+     buttons and their panes are separate containers, so an expanded pane
+     renders after *all* the headings rather than under the one that was
+     tapped. */
+  .site-header .mega-panel {
+    z-index: 95;
+    inset: 0 0 0 auto;
+    width: min(22rem, 86vw);
+    max-height: none;
+    overflow-y: auto;
+    box-shadow: none;
+    border-top: 0;
+  }
+  .mega-catalogue { max-height: none; padding: 0; }
+
+  .mc-tabs,
+  .mc-panes,
+  .mega-footer { display: none; }
+
+  /* The range links carry the panel on their own, so they stop being chips in
+     a row and become full-width rows like the rest of the mobile menu. */
+  .mega-tiles {
+    display: block;
+    padding: 0;
+    border-top: 0;
+  }
+  .mega-tiles a {
+    display: block;
+    padding: .7rem 0;
+    font-size: 1rem;
+    color: var(--nav-link-color);
+    border: 0;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+  }
+  .mega-tiles a:hover,
+  .mega-tiles a:focus-visible {
+    color: var(--nav-link-color-hover);
+    background: none;
+  }
+  .mega-tiles .mt-ico { display: none; }
+}
+
+
+
+
+/* === ported layout helpers ================================================
+   Column helpers and a few sizing rules carried over from the old site's
+   custom stylesheet, so content authored against them keeps its intent. */
+.grid-max { grid-column: full; }
+.grid-left { grid-column: full-start / entry-end; }
+.grid-right { grid-column: entry-start / full-end; }
+.mar-1 { margin: 1em; }
+.mar-2 { margin: 2em; }
+.mar-3 { margin: 3em; }
+.mar-4 { margin: 4em; }
+.mar-5 { margin: 5em; }
+
+/* The hero never grows taller than the viewport, however tall the source
+   photograph is — a 3:4 phone shot would otherwise push the whole page down. */
+.hero__image {
+  max-height: calc(100vh - 20px);
+  margin-inline: auto;
+}
+.hero__content { width: fit-content; max-width: min(var(--hero-content-width), 100%); }
+
+/* Tab panels sit inset from the reading column on wide screens and go
+   full-bleed within it on narrow ones. */
+@media (min-width: 1200px) {
+  .wb-tabs .tab-panel { margin-inline: 4rem; }
+}
+
+/* The menu renderer appends a chevron to every catalogue row. The whole row is
+   already a link and the detail pane on the right is the real affordance, so
+   the extra glyph is just noise at the end of each line. */
+.mc-item .mm-chev,
+.mega-brand .mm-chev { display: none; }
+
+/* === link row =============================================================
+   The pill index at the top of a range page. Wraps to as many rows as it needs
+   and stacks full-width on a phone, where a row of small targets is worse than
+   a column of large ones. */
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 1.5rem;
+}
+.link-row.align-center { justify-content: center; }
+.link-row.align-left { justify-content: flex-start; }
+.link-row a {
+  padding: 10px 20px;
+  line-height: 30px;
+  color: var(--link-color);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  border-radius: .3em;
+  text-decoration: none;
+  transition: background .2s var(--transition), color .2s var(--transition), border-color .2s var(--transition);
+}
+.link-row a:hover {
+  color: var(--white);
+  background: var(--link-color);
+  border-color: var(--link-color);
+}
+:root[data-theme='dark'] .link-row a:hover { color: var(--dark); background: var(--color); border-color: var(--color); }
+
+@media (max-width: 1200px) {
+  .link-row { flex-direction: column; }
+  .link-row a { width: 100%; text-align: center; }
+}
+
+/* === mega panel: open state ===============================================
+   While a desktop panel is open the page behaves like a modal surface: the
+   wordmark banner gets out of the way, the page behind stops scrolling, and
+   the panel runs from under the header to the bottom of the window.
+
+   --header-h is measured and set by the theme script when the panel opens,
+   because the header's distance from the top of the viewport depends on
+   whether the banner above it has been scrolled past yet. */
+body.mega-open { overflow: hidden; }
+body.mega-open .site-branding { display: none; }
+
+body.mega-open .site-header .mega-panel {
+  position: fixed;
+  top: var(--header-h, var(--navbar-height));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: none;
+  overflow: hidden;
+}
+body.mega-open .mega-catalogue {
+  height: 100%;
+  max-height: none;
+}
+/* The panes take the leftover height and hand their own scrolling to the two
+   columns, so the tab bar and the footer links stay put. */
+body.mega-open .mc-panes { flex: 1; min-height: 0; display: flex; }
+body.mega-open .mc-tabpane { flex: 1; height: auto; min-height: 0; }
+body.mega-open .mc-tabpane[hidden] { display: none; }
+
+/* Schematic drawings are line art on white: cropping them to fill a 16:9 box
+   cuts the posts off and stretches the rest. Fit the whole drawing inside the
+   frame instead and let the surface show through. */
+.mc-hero {
+  display: grid;
+  place-items: center;
+  background: var(--page-bg);
+}
+.mc-hero img, .mc-hero picture {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(30vh, 20rem);
+  object-fit: contain;
+}
+.mc-thumb img, .mc-thumb picture { object-fit: contain; }
+
+/* Panel footer: the tiles and the "not sure which fits?" links belong at the
+   bottom of the panel, not floating directly under a short model list.
+   The renderer nests them as
+       .mega-panel > .mega-scroll( .mega-catalogue + .mega-tiles ) + .mega-footer
+   so the "grow" has to be threaded down both levels — the catalogue absorbs
+   whatever height is left and everything else keeps its natural size. */
+body.mega-open .site-header .mega-panel {
+  display: flex;
+  flex-direction: column;
+}
+body.mega-open .mega-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+body.mega-open .mega-catalogue { flex: 1; min-height: 0; }
+body.mega-open .mega-tiles,
+body.mega-open .mega-footer { flex: none; }
+
+.mega-brand {
+  display: inline-flex;
+  align-items: center;
+  font-size: .85rem;
+  color: var(--link-color);
+  text-decoration: none;
+}
+.mega-brand:hover { text-decoration: underline; }
+
+/* === search ===============================================================
+   The block ships bare markup — an input and a list of anchors — so without
+   this the results render as a run-on wall of underlined text. */
+.wb-search { position: relative; max-width: 40rem; margin-inline: auto; }
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .1rem .9rem;
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: border-color .2s var(--transition);
+}
+.search-box:focus-within { border-color: var(--link-color); }
+.search-box > svg { flex: none; color: var(--text-color-light); }
+
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  padding: .7rem 0;
+  color: var(--text-color);
+  background: none;
+  border: 0;
+  outline: 0;
+  font-size: 1rem;
+}
+.search-box input::-webkit-search-cancel-button { cursor: pointer; }
+
+.search-go { flex: none; }
+
+/* Results read as a list of destinations: title first, then a muted one-line
+   summary. Nothing is underlined — the row itself is the affordance. */
+.search-results {
+  display: grid;
+  margin-top: .5rem;
+  overflow: hidden;
+  text-align: left;
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+.search-results[hidden] { display: none; }
+
+.search-results a {
+  display: grid;
+  gap: .15rem;
+  padding: .8rem 1rem;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+}
+.search-results a:last-child { border-bottom: 0; }
+.search-results a:hover,
+.search-results a:focus-visible {
+  background: var(--surface-muted);
+  outline-offset: -2px;
+}
+.search-results a strong {
+  font-family: var(--heading-font);
+  font-weight: var(--headings-weight);
+  font-size: 1rem;
+  color: var(--headings-color);
+}
+.search-results a:hover strong { color: var(--link-color-hover); }
+
+/* The excerpt is a preview, not the page — one line, clipped. */
+.search-results a span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--text-color-light);
+}
+
+.search-empty {
+  padding: 1rem;
+  font-size: .9rem;
+  color: var(--text-color-light);
+  text-align: center;
+}
+.search-note { margin-top: .6rem; font-size: .82rem; color: var(--text-color-light); }
+
+/* On the dedicated search page the results are the content, so they sit in
+   the flow rather than hovering as a dropdown over it. */
+.tpl-search .search-results { position: static; }

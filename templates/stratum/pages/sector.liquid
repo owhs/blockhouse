@@ -1,0 +1,38 @@
+<article class="tpl-sector">
+  <header class="pdp-head">
+    <div class="pdp-inner">
+      <div class="pdp-copy">
+        <p class="pdp-crumb">
+          <a href="/sectors">Sector guides</a> <span aria-hidden="true">/</span>
+          <span>{{ doc.title | escape }}</span>
+        </p>
+        <h1 class="pdp-title">{{ doc.title | escape }}</h1>
+        {% if fields.lede %}<p class="pdp-lede">{{ fields.lede | escape }}</p>{% endif %}
+        {% if fields.constraint %}
+          <p class="sector-constraint"><span class="sc-k">The constraint</span>{{ fields.constraint | escape }}</p>
+        {% endif %}
+        <p class="pdp-actions">
+          <a class="btn btn-primary" href="{{ site.vars.quoteHref | default: '/contact' }}">Request a quote</a>
+          <a class="btn btn-ghost" href="/planning">Planning guide</a>
+        </p>
+      </div>
+      {% if fields.cover %}
+        <div class="pdp-media art-plate on-plate">
+          {{ fields.cover | img: width: 1100, sizes: '(max-width: 960px) 92vw, 620px' }}
+          <span class="art-cap">Fig. 01 — typical arrangement</span>
+        </div>
+      {% endif %}
+    </div>
+    {% if fields.facts %}
+      <div class="pdp-specbar">
+        <div class="container">
+          {% for s in fields.facts %}
+            <div class="pdp-spec"><span class="k">{{ s.label | escape }}</span><span class="v">{{ s.value | escape }}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </header>
+
+  {% region 'content' %}
+</article>

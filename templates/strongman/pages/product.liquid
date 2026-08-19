@@ -1,0 +1,25 @@
+{% comment %}
+  A lift model. The page opens with the model name and its strapline, then the
+  block region carries the galleries, the description and the tabbed
+  description / uses / specification / downloads set.
+
+  Titles are stored as "The Donnington: Car Parking / Stacking Lift" — the
+  `name` and `strapline` fields split that so the heading can lead with the
+  model name and set the descriptor underneath, while the document title stays
+  intact for search results and the browser tab.
+{% endcomment %}
+{% comment %}
+  One centred title and nothing else. The model name and strapline are still
+  stored separately — the range grids and the mega menu need them apart — but
+  the page itself leads with the whole title, and no range chip or repeated
+  strapline sits above the copy.
+{% endcomment %}
+<article class="content post tpl-product">
+  <header class="content__header content__narrow anim-hidden">
+    <h1 class="content__title">{{ doc.title | escape }}</h1>
+  </header>
+
+  <div class="content__body">
+    {% region 'content' %}
+  </div>
+</article>

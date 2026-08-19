@@ -1,0 +1,23 @@
+{
+  "type": "system-grid",
+  "label": "System cards",
+  "group": "Stratum",
+  "icon": "layout",
+  "description": "Hand-picked equipment cards: schematic, code chip, two headline specs and a link.",
+  "fields": [
+    { "key": "cols", "type": "select", "label": "Columns", "options": [{ "value": "2" }, { "value": "3" }, { "value": "4" }], "default": "3", "width": "half" },
+    { "key": "items", "type": "list", "label": "Systems", "item": [
+      { "key": "name", "type": "text", "label": "Name" },
+      { "key": "code", "type": "text", "label": "Code chip", "help": "e.g. TP · SP · PUZZLELIFT" },
+      { "key": "brand", "type": "text", "label": "Brand" },
+      { "key": "text", "type": "textarea", "label": "One-liner", "rows": 2 },
+      { "key": "image", "type": "image", "label": "Schematic" },
+      { "key": "href", "type": "text", "label": "Link" },
+      { "key": "k1", "type": "text", "label": "Spec 1 — label" },
+      { "key": "v1", "type": "text", "label": "Spec 1 — value" },
+      { "key": "k2", "type": "text", "label": "Spec 2 — label" },
+      { "key": "v2", "type": "text", "label": "Spec 2 — value" }
+    ] }
+  ],
+  "defaults": { "cols": "3", "items": [] }
+}

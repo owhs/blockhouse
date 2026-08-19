@@ -1,0 +1,14 @@
+{
+  "type": "section-intro",
+  "label": "Section intro",
+  "group": "Strongman",
+  "icon": "text",
+  "description": "A section title on the left and a column of body copy on the right — the two-up opener above a tile or card grid.",
+  "fields": [
+    { "key": "title", "type": "text", "label": "Section title" },
+    { "key": "text", "type": "richtext", "label": "Intro copy" },
+    { "key": "level", "type": "select", "label": "Heading level", "default": "2", "width": "half", "options": [{ "value": "1" }, { "value": "2" }, { "value": "3" }] },
+    { "key": "justify", "type": "boolean", "label": "Justify the body copy", "default": false, "width": "half" }
+  ],
+  "defaults": { "level": "2", "justify": false }
+}

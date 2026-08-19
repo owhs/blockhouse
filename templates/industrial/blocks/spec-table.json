@@ -1,0 +1,33 @@
+{
+  "type": "spec-table",
+  "label": "Spec table",
+  "group": "Industrial",
+  "icon": "table",
+  "description": "Key-value specification table",
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Table title"
+    },
+    {
+      "key": "rows",
+      "type": "list",
+      "label": "Specification rows",
+      "item": [
+        {
+          "key": "label",
+          "type": "text",
+          "label": "Spec name",
+          "required": true
+        },
+        {
+          "key": "value",
+          "type": "text",
+          "label": "Spec value",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

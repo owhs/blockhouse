@@ -1,0 +1,15 @@
+{
+  "name": "stratum",
+  "label": "Stratum",
+  "description": "Engineered showcase theme for capital equipment — cinematic dark plates, technical drawing art, mono data labels and a full-screen catalogue menu. Square geometry, OKLCH tokens, light by default with a real dark mode.",
+  "slots": ["header.announce", "header.after", "footer.before", "footer.social"],
+  "tokens": [
+    { "key": "hue", "label": "Accent hue", "type": "range", "min": 0, "max": 360, "default": "156" },
+    { "key": "accent-chroma", "label": "Accent intensity", "type": "range", "min": 0, "max": 0.3, "default": "0.108" },
+    { "key": "plate-hue", "label": "Dark plate hue", "type": "range", "min": 0, "max": 360, "default": "248" },
+    { "key": "radius", "label": "Corner radius", "type": "text", "default": "2px" },
+    { "key": "container", "label": "Content width", "type": "text", "default": "78rem" },
+    { "key": "font-body", "label": "Body font stack", "type": "text", "default": "" },
+    { "key": "font-display", "label": "Display font stack", "type": "text", "default": "" }
+  ]
+}

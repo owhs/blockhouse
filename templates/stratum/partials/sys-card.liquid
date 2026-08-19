@@ -1,0 +1,18 @@
+{% comment %} Expects `d` — a document from a list, with `d.path`. {% endcomment %}
+<a class="sys-card" href="{{ d.path }}">
+  <span class="sys-media">
+    {% if d.fields.cover %}{{ d.fields.cover | img: width: 640, sizes: '(max-width: 720px) 92vw, 340px' }}{% endif %}
+    {% if d.fields.code %}<span class="sys-code">{{ d.fields.code }}</span>{% endif %}
+    {% if d.fields.brand %}<span class="sys-brand">{{ d.fields.brand }}</span>{% endif %}
+  </span>
+  <span class="sys-body">
+    <span class="sys-name">{{ d.title | escape }}</span>
+    {% if d.fields.tagline %}<span class="sys-text">{{ d.fields.tagline | escape | truncate: 118 }}</span>{% endif %}
+    {% if d.fields.keySpecs %}
+      <span class="sys-specs">
+        {% for s in d.fields.keySpecs %}<span class="row"><span class="k">{{ s.label | escape }}</span><span class="v">{{ s.value | escape }}</span></span>{% endfor %}
+      </span>
+    {% endif %}
+    <span class="sys-more">View system →</span>
+  </span>
+</a>

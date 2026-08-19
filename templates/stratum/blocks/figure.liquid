@@ -1,0 +1,31 @@
+{% comment %}
+  The drawing is a normal <img>, so its behaviour is steered through the URL
+  fragment the SVG reads with :target — "" (leaders + motion), #p (plain),
+  #s (still), #ps (plain + still), #hN (focus part N). data-art lets the
+  runtime swap between them on hover and on callout hover.
+{% endcomment %}
+{% assign fig_frag = '' %}
+{% if props.motion == 'off' %}{% assign fig_frag = '#s' %}{% endif %}
+{% if props.motion == 'hover' %}{% assign fig_frag = '#s' %}{% endif %}
+{% if props.leaders == false %}{% if fig_frag == '#s' %}{% assign fig_frag = '#ps' %}{% else %}{% assign fig_frag = '#p' %}{% endif %}{% endif %}
+<div class="sb-figure side-{{ props.side | default: 'left' }}"
+     data-art
+     data-art-motion="{{ props.motion | default: 'always' }}"
+     data-art-leaders="{{ props.leaders | default: true }}">
+  <div class="fig-plate art-plate{% if props.plate == 'dark' %} on-plate{% endif %}">
+    {{ props.image | img: width: 1200, sizes: '(max-width: 940px) 92vw, 640px' }}
+    {% if props.caption %}<span class="art-cap">{{ props.caption | escape }}</span>{% endif %}
+    <span class="art-badge" data-art-badge hidden>Focus</span>
+  </div>
+  <div class="fig-notes">
+    {% if props.eyebrow %}<p class="eyebrow">{{ props.eyebrow | escape }}</p>{% endif %}
+    {% if props.title %}<h2>{{ props.title | escape }}</h2>{% endif %}
+    {% for n in props.notes %}
+      <button type="button" class="fig-note" data-art-part>
+        <span class="fig-n" aria-hidden="true"></span>
+        <span><strong>{{ n.title | escape }}</strong>{% if n.text %}<span>{{ n.text | escape }}</span>{% endif %}</span>
+      </button>
+    {% endfor %}
+    {% if props.notes %}<p class="fig-hint">Hover a component to locate it on the drawing.</p>{% endif %}
+  </div>
+</div>

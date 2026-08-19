@@ -1,0 +1,15 @@
+{%- comment -%}
+  Product hero — oversized opening media/heading, then standard sections.
+  Pair with a "product" content type; fields.cover becomes the hero image.
+{%- endcomment -%}
+<div class="tpl-product">
+  {% if fields.cover %}
+    <div class="tp-hero container">{{ fields.cover | img: width: 1600 }}</div>
+  {% endif %}
+  {% region 'content' %}
+</div>
+<style>
+  .tp-hero { padding-top: clamp(1.5rem, 4vw, 3rem); }
+  .tp-hero img { width: 100%; border-radius: var(--radius); box-shadow: var(--shadow-2); }
+  .tpl-product .wb-section h1, .tpl-product .hero-copy h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); }
+</style>

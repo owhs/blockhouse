@@ -1,0 +1,49 @@
+{% comment %}
+  Four columns across the top — three of links from the `footer.columns` slot,
+  then the address — followed by a full-width call to action, then a rule and
+  the social/legal bar.
+
+  The link columns live in a slot rather than the template so an editor can
+  reorder them without touching Liquid; the address column is built from site
+  variables because it is the same data the JSON-LD and the contact page use.
+{% endcomment %}
+<footer class="section footer" id="footer">
+  <div class="wrapper">
+
+    <div class="footer__top">
+      {% slot 'footer.columns' %}
+
+      <div class="footer__item footer__item--address">
+        <h3 class="footer__heading">Address</h3>
+        {% if site.vars.addressLines %}
+          <p>{{ site.vars.addressLines | md }}</p>
+        {% endif %}
+        <p>
+          {% if site.vars.phone %}<strong>Telephone: <a href="tel:{{ site.vars.phoneHref | default: site.vars.phone }}">{{ site.vars.phone }}</a></strong><br>{% endif %}
+          {% if site.vars.email %}<strong><a href="mailto:{{ site.vars.email }}">{{ site.vars.email }}</a></strong>{% endif %}
+        </p>
+      </div>
+
+      {% if site.vars.footerCtaHeading %}
+        <div class="footer__item footer__cta">
+          <h3 class="footer__heading">{{ site.vars.footerCtaHeading | escape }}</h3>
+          {% if site.vars.footerCtaText %}<div class="prose">{{ site.vars.footerCtaText | md }}</div>{% endif %}
+        </div>
+      {% endif %}
+
+      {% slot 'footer.before' %}
+    </div>
+
+    <div class="footer__bottom">
+      <div class="footer__nav">
+        <div class="footer__social">
+          {% slot 'footer.social' %}
+        </div>
+      </div>
+      {% if site.vars.copyright %}
+        <div class="footer__copyright">{{ site.vars.copyright | md }}</div>
+      {% endif %}
+    </div>
+
+  </div>
+</footer>

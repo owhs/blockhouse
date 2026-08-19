@@ -1,0 +1,27 @@
+
+<div class="container" style="padding-block: clamp(2rem, 5vw, 3.5rem)">
+  <header class="post-header">
+    <h1 class="post-title">{{ doc.title | escape }}</h1>
+    {% if fields.lede %}<p class="post-lede">{{ fields.lede | escape }}</p>{% endif %}
+  </header>
+  <div class="post-grid">
+    {% for item in items %}
+      <a class="post-card" href="{{ item.url }}">
+        {% if item.fields.cover %}<div class="post-card-media">{{ item.fields.cover | img: width: 640 }}</div>{% endif %}
+        <div class="post-card-body">
+          {% if item.fields.brand %}<span class="product-card-brand">{{ item.fields.brand | escape }}</span>{% endif %}
+          <h2>{{ item.title | escape }}</h2>
+          {% if item.fields.tagline %}<p>{{ item.fields.tagline | escape }}</p>{% endif %}
+          <span class="post-card-more">View product →</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+  {% if pagination.pages.size > 1 %}
+    <div class="pagination">
+      {% if pagination.prev %}<a class="btn btn-ghost" href="{{ pagination.prev.url }}">← Previous</a>{% endif %}
+      <span class="page-of">Page {{ pagination.current }} of {{ pagination.total }}</span>
+      {% if pagination.next %}<a class="btn btn-ghost" href="{{ pagination.next.url }}">Next →</a>{% endif %}
+    </div>
+  {% endif %}
+</div>

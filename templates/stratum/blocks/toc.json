@@ -1,0 +1,15 @@
+{
+  "type": "toc",
+  "label": "On this page",
+  "group": "Stratum",
+  "icon": "list",
+  "description": "A ruled contents strip that jumps to the anchored sections of a long guide.",
+  "fields": [
+    { "key": "title", "type": "text", "label": "Title", "default": "On this page" },
+    { "key": "items", "type": "list", "label": "Links", "item": [
+      { "key": "label", "type": "text", "label": "Label" },
+      { "key": "href", "type": "text", "label": "Anchor", "help": "e.g. #figures" }
+    ] }
+  ],
+  "defaults": { "title": "On this page", "items": [] }
+}

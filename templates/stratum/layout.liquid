@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="{{ lang }}" class="{{ site.template }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% comment %}
+    Light is the default scheme. Stamp data-theme before first paint so
+    light-dark() resolves from a known state and the toggle flips both ways
+    even when the visitor's OS prefers dark.
+  {% endcomment %}
+  <script>try{var t=localStorage.getItem('blockhouse-theme');document.documentElement.dataset.theme=(t==='dark'||t==='light')?t:'light';var z=localStorage.getItem('blockhouse-textsize');if(z==='l'||z==='xl')document.documentElement.dataset.textsize=z}catch(e){document.documentElement.dataset.theme='light'}</script>
+  {{ head }}
+  <link rel="stylesheet" href="{{ 'tokens.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'base.css' | asset }}">
+  <link rel="stylesheet" href="{{ 'components.css' | asset }}">
+</head>
+<body {{ body_attrs }}>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include 'partials/header' %}
+  <main id="main">
+    {{ main }}
+  </main>
+  {% include 'partials/footer' %}
+  <script>
+    /* ---- drawings -------------------------------------------------------
+       Every schematic is one SVG that reads its URL fragment: "" runs with
+       callout numbers, #p drops the numbers, #s stops the motion, #ps does
+       both, #hN focuses one component. Swapping the fragment costs nothing —
+       the file is already cached — so hover and focus states are just src
+       changes. */
+    ;(function () {
+      var base = function (img) { return img.getAttribute('src').split('#')[0] }
+      var set = function (img, frag) {
+        var next = base(img) + (frag || '')
+        if (img.getAttribute('src') !== next) img.setAttribute('src', next)
+      }
+      var rest = function (host) {
+        var still = host.dataset.artMotion === 'off' || host.dataset.artMotion === 'hover'
+        var plain = host.dataset.artLeaders === 'false'
+        return plain ? (still ? '#ps' : '#p') : (still ? '#s' : '')
+      }
+      var play = function (host) { return host.dataset.artLeaders === 'false' ? '#p' : '' }
+
+      document.querySelectorAll('[data-art]').forEach(function (host) {
+        var img = host.querySelector('img')
+        if (!img) return
+        set(img, rest(host))
+        if (host.dataset.artMotion === 'hover') {
+          host.addEventListener('pointerenter', function () { set(img, play(host)) })
+          host.addEventListener('pointerleave', function () { set(img, rest(host)) })
+        }
+        var badge = host.querySelector('[data-art-badge]')
+        var notes = host.querySelectorAll('[data-art-part]')
+        notes.forEach(function (note, i) {
+          var focus = function () {
+            set(img, '#h' + (i + 1))
+            note.classList.add('is-focus')
+            if (badge) { badge.hidden = false; badge.textContent = note.querySelector('strong').textContent }
+          }
+          var blur = function () {
+            set(img, rest(host))
+            note.classList.remove('is-focus')
+            if (badge) badge.hidden = true
+          }
+          note.addEventListener('pointerenter', focus)
+          note.addEventListener('pointerleave', blur)
+          note.addEventListener('focus', focus)
+          note.addEventListener('blur', blur)
+        })
+      })
+
+      /* cards and menu thumbnails stay still until you point at them, so a
+         catalogue of 26 systems is not 26 things moving at once */
+      document.querySelectorAll('.sys-card, .mc-item, .mega-card, .rel-card, .post-card').forEach(function (card) {
+        var img = card.querySelector('img')
+        if (!img || !/\.svg/.test(img.getAttribute('src') || '')) return
+        set(img, '#ps')
+        card.addEventListener('pointerenter', function () { set(img, '#p') })
+        card.addEventListener('pointerleave', function () { set(img, '#ps') })
+      })
+    })();
+
+    /* ---- tables that split into rows on a phone -------------------------- */
+    ;(function () {
+      document.querySelectorAll('[data-table-mobile="split"]').forEach(function (wrap) {
+        var heads = [].map.call(wrap.querySelectorAll('thead th'), function (th) { return th.textContent.trim() })
+        if (!heads.length) return
+        wrap.querySelectorAll('tbody tr').forEach(function (tr) {
+          [].forEach.call(tr.children, function (td, i) { if (heads[i]) td.setAttribute('data-label', heads[i]) })
+        })
+      })
+    })();
+
+    /* ---- mega menu behaviour -------------------------------------------- */
+    (function () {
+      var header = document.querySelector('.site-header')
+      if (!header) return
+      var body = document.body
+      var mode = header.dataset.navTrigger || 'hover'
+      var veil = header.dataset.navBackdrop || 'none'
+      var open = null
+
+      function close() {
+        if (!open) return
+        open.classList.remove('open')
+        var b = open.querySelector('.nav-link'); if (b) b.setAttribute('aria-expanded', 'false')
+        open = null
+        body.classList.remove('nav-veiled', 'nav-locked')
+        body.removeAttribute('data-nav-veil')
+      }
+      function show(item) {
+        if (open === item) return close()
+        close()
+        item.classList.add('open')
+        var b = item.querySelector('.nav-link'); if (b) b.setAttribute('aria-expanded', 'true')
+        open = item
+        if (veil !== 'none') { body.classList.add('nav-veiled'); body.setAttribute('data-nav-veil', veil) }
+      }
+
+      document.querySelectorAll('.site-header .nav-item.has-mega, .site-header .nav-item.has-drop').forEach(function (item) {
+        var link = item.querySelector(':scope > .nav-link')
+        if (!link) return
+        if (mode === 'click' || mode === 'hover') {
+          link.addEventListener('click', function () {
+            if (matchMedia('(max-width: 1000px)').matches) return   // drill-down owns mobile
+            setTimeout(function () { open = item.classList.contains('open') ? item : null
+              if (open) {
+                if (veil !== 'none') { body.classList.add('nav-veiled'); body.setAttribute('data-nav-veil', veil) }
+                if (header.dataset.navFill === 'true') body.classList.add('nav-locked')
+              } else { body.classList.remove('nav-veiled', 'nav-locked'); body.removeAttribute('data-nav-veil') } }, 0)
+          })
+        }
+        if (mode === 'hover' && veil !== 'none') {
+          item.addEventListener('pointerenter', function () {
+            if (matchMedia('(max-width: 1000px)').matches) return
+            body.classList.add('nav-veiled'); body.setAttribute('data-nav-veil', veil)
+            if (header.dataset.navFill === 'true') body.classList.add('nav-locked')
+          })
+          item.addEventListener('pointerleave', function () {
+            if (!item.classList.contains('open')) { body.classList.remove('nav-veiled', 'nav-locked'); body.removeAttribute('data-nav-veil') }
+          })
+        }
+        // close button on full-screen panels
+        var panel = item.querySelector('.mega-panel')
+        if (panel && header.dataset.navFill === 'true' && !panel.querySelector('.mega-close')) {
+          var x = document.createElement('button')
+          x.type = 'button'; x.className = 'mega-close'; x.setAttribute('aria-label', 'Close menu')
+          x.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+          x.addEventListener('click', function (e) { e.stopPropagation(); close(); link.blur() })
+          panel.appendChild(x)
+        }
+      })
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return
+        close()
+        document.querySelectorAll('.nav-item.open, .nav-item.drilled').forEach(function (i) { i.classList.remove('open', 'drilled') })
+        body.classList.remove('nav-veiled', 'nav-locked'); body.removeAttribute('data-nav-veil')
+        if (body.classList.contains('nav-open')) {
+          body.classList.remove('nav-open')
+          var burger = document.querySelector('[data-blockhouse="burger"]')
+          if (burger) burger.setAttribute('aria-expanded', 'false')
+        }
+      })
+      document.addEventListener('click', function (e) {
+        if (open && !header.contains(e.target)) close()
+      })
+    })();
+
+    /* ---- text size ------------------------------------------------------ */
+    (function () {
+      var root = document.documentElement
+      function apply(size) {
+        if (size === 'm') delete root.dataset.textsize; else root.dataset.textsize = size
+        try { localStorage.setItem('blockhouse-textsize', size) } catch (e) {}
+        for (var b of document.querySelectorAll('[data-textsize-set]'))
+          b.setAttribute('aria-pressed', String(b.dataset.textsizeSet === size))
+      }
+      for (var b of document.querySelectorAll('[data-textsize-set]'))
+        b.addEventListener('click', function () { apply(this.dataset.textsizeSet) })
+      apply(root.dataset.textsize || 'm')
+    })()
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<div class="announce-bar"><div class="container announce-bar-inner">
+  {% slot 'header.announce' %}
+</div></div>
+<header class="site-header" data-blockhouse="header">
+  <div class="container header-bar">
+    <a class="site-brand" href="/">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">{{ site.name | escape }}</span>
+    </a>
+    {% menu 'main' %}
+    <div class="header-actions">
+      {% slot 'header.after' %}
+      <a class="btn btn-primary btn-quote" href="/contact#quote">Get a quote</a>
+      {% if show_theme_toggle %}<button class="theme-toggle" data-blockhouse="theme" aria-label="Switch color theme" title="Theme">
+        <svg class="i-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.3 4.3L6 6M18 18l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.3 19.7L6 18M18 6l1.7-1.7"/></svg>
+        <svg class="i-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      </button>{% endif %}
+      <button class="nav-burger" data-blockhouse="burger" aria-label="Menu" aria-expanded="false">
+        <span class="nb-box" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="nb-label">Menu</span>
+      </button>
+    </div>
+  </div>
+</header>

@@ -1,0 +1,21 @@
+{
+  "type": "footer-column",
+  "label": "Footer column",
+  "group": "Strongman",
+  "icon": "list",
+  "description": "One heading plus a list of links. Drop three of these into the footer.columns slot to build the footer.",
+  "fields": [
+    { "key": "title", "type": "text", "label": "Heading" },
+    {
+      "key": "links",
+      "type": "list",
+      "label": "Links",
+      "item": [
+        { "key": "label", "type": "text", "label": "Label" },
+        { "key": "href", "type": "text", "label": "URL" },
+        { "key": "title", "type": "text", "label": "Title attribute", "help": "Optional — the tooltip and a hint for search engines" }
+      ]
+    }
+  ],
+  "defaults": { "links": [] }
+}

@@ -1,0 +1,58 @@
+{
+  "type": "product-grid",
+  "label": "Product grid",
+  "group": "Industrial",
+  "icon": "columns",
+  "description": "Grid of product cards with brand, title, tagline and key specs",
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Section title"
+    },
+    {
+      "key": "eyebrow",
+      "type": "text",
+      "label": "Eyebrow label"
+    },
+    {
+      "key": "items",
+      "type": "list",
+      "label": "Products",
+      "item": [
+        {
+          "key": "brand",
+          "type": "text",
+          "label": "Brand"
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": "Product name",
+          "required": true
+        },
+        {
+          "key": "tagline",
+          "type": "textarea",
+          "label": "Tagline",
+          "rows": 2
+        },
+        {
+          "key": "spec1",
+          "type": "text",
+          "label": "Spec 1 (e.g. capacity)"
+        },
+        {
+          "key": "spec2",
+          "type": "text",
+          "label": "Spec 2 (e.g. height)"
+        },
+        {
+          "key": "link",
+          "type": "link",
+          "label": "Link"
+        }
+      ]
+    }
+  ]
+}

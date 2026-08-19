@@ -1,0 +1,24 @@
+{
+  "type": "figure",
+  "label": "Annotated figure",
+  "group": "Stratum",
+  "icon": "vector",
+  "description": "A drawing plate beside numbered callouts — how the system actually works.",
+  "fields": [
+    { "key": "eyebrow", "type": "text", "label": "Micro-label" },
+    { "key": "title", "type": "text", "label": "Title" },
+    { "key": "image", "type": "image", "label": "Drawing", "required": true },
+    { "key": "caption", "type": "text", "label": "Drawing caption" },
+    { "key": "side", "type": "select", "label": "Drawing side", "options": [{ "value": "left" }, { "value": "right" }], "default": "left", "width": "half" },
+    { "key": "plate", "type": "select", "label": "Plate", "options": [{ "value": "paper" }, { "value": "dark" }], "default": "paper", "width": "half" },
+    { "key": "motion", "type": "select", "label": "Animation", "width": "half", "default": "always",
+      "help": "Drawings can run continuously, only while the pointer is over them, or not at all",
+      "options": [{ "value": "always", "label": "Always running" }, { "value": "hover", "label": "On hover only" }, { "value": "off", "label": "Still" }] },
+    { "key": "leaders", "type": "boolean", "label": "Show callout numbers on the drawing", "default": true, "width": "half" },
+    { "key": "notes", "type": "list", "label": "Callouts", "item": [
+      { "key": "title", "type": "text", "label": "Title" },
+      { "key": "text", "type": "textarea", "label": "Text", "rows": 2 }
+    ] }
+  ],
+  "defaults": { "side": "left", "plate": "paper", "notes": [] }
+}

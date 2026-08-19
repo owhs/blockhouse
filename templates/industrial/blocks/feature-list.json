@@ -1,0 +1,72 @@
+{
+  "type": "feature-list",
+  "label": "Feature list",
+  "group": "Industrial",
+  "icon": "list",
+  "description": "Icon + title + text feature cards in a grid",
+  "fields": [
+    {
+      "key": "items",
+      "type": "list",
+      "label": "Features",
+      "item": [
+        {
+          "key": "icon",
+          "type": "select",
+          "label": "Icon",
+          "default": "check",
+          "options": [
+            {
+              "value": "check",
+              "label": "check"
+            },
+            {
+              "value": "bolt",
+              "label": "bolt"
+            },
+            {
+              "value": "shield",
+              "label": "shield"
+            },
+            {
+              "value": "lock",
+              "label": "lock"
+            },
+            {
+              "value": "layers",
+              "label": "layers"
+            },
+            {
+              "value": "gear",
+              "label": "gear"
+            },
+            {
+              "value": "star",
+              "label": "star"
+            },
+            {
+              "value": "rocket",
+              "label": "rocket"
+            },
+            {
+              "value": "leaf",
+              "label": "leaf"
+            }
+          ]
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": "Title",
+          "required": true
+        },
+        {
+          "key": "text",
+          "type": "textarea",
+          "label": "Description",
+          "rows": 2
+        }
+      ]
+    }
+  ]
+}

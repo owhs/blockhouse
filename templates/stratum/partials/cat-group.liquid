@@ -1,0 +1,16 @@
+{% comment %}
+  Expects cat_key · cat_name · cat_desc, plus `docs` in scope. Renders one
+  catalogue group, and nothing at all when the group is empty.
+{% endcomment %}
+{% assign grp_has = false %}
+{% assign grp_n = 0 %}
+{% for d in docs %}{% if d.fields.category == cat_key %}{% assign grp_has = true %}{% assign grp_n = grp_n | plus: 1 %}{% endif %}{% endfor %}
+{% if grp_has %}
+<section class="cat-group" id="{{ cat_key }}">
+  <h2>{{ cat_name }} <span class="count">{{ grp_n }} systems</span></h2>
+  <p class="cat-desc">{{ cat_desc }}</p>
+  <div class="sb-grid cols-3">
+    {% for d in docs %}{% if d.fields.category == cat_key %}{% include 'partials/sys-card' %}{% endif %}{% endfor %}
+  </div>
+</section>
+{% endif %}

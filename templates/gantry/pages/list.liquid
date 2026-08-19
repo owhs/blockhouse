@@ -1,0 +1,83 @@
+<section class="wb-section pad-normal"><div class="container w-normal">
+  <header class="list-header">
+    <p class="eyebrow">Full range</p>
+    <h1>{{ concept.labelPlural | default: concept.label | escape }}</h1>
+    <p class="list-intro">Automatic parking lifts, car elevators and fully automated systems — supplied, installed and serviced across the UK by Strongman Lifts, engineered by Sanpark and Stolzer.</p>
+  </header>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="car-elevators">Car Elevators</h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.category == "Car Elevators" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.brand | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.price %}<span class="product-card-price">{{ d.fields.price | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="fully-automated-systems">Fully Automated Systems</h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.category == "Fully Automated Systems" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.brand | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.price %}<span class="product-card-price">{{ d.fields.price | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="shuttle-systems">Shuttle Systems</h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.category == "Shuttle Systems" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.brand | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.price %}<span class="product-card-price">{{ d.fields.price | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <div class="product-cat-group">
+    <h2 class="product-cat-title" id="compact-semi-automatic-systems">Compact &amp; Semi-Automatic Systems</h2>
+    <div class="product-grid">
+      {% for d in docs %}{% if d.fields.category == "Compact & Semi-Automatic Systems" %}
+      <a class="product-card" href="{{ d.path }}">
+        {% if d.fields.cover %}<div class="product-card-media">{{ d.fields.cover | img: sizes: '(max-width: 640px) 100vw, 420px' }}</div>{% endif %}
+        <div class="product-card-body">
+          <span class="product-card-brand">{{ d.fields.brand | escape }}</span>
+          <h3>{{ d.title | escape }}</h3>
+          {% if d.fields.tagline %}<p>{{ d.fields.tagline | escape }}</p>{% endif %}
+          {% if d.fields.price %}<span class="product-card-price">{{ d.fields.price | escape }}</span>{% endif %}
+        </div>
+      </a>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  {% if pages > 1 %}
+  <nav class="pagination" aria-label="Pages">
+    {% if prevUrl %}<a class="btn btn-ghost" href="{{ prevUrl }}">← Newer</a>{% endif %}
+    <span class="page-of">Page {{ page }} of {{ pages }}</span>
+    {% if nextUrl %}<a class="btn btn-ghost" href="{{ nextUrl }}">Older →</a>{% endif %}
+  </nav>
+  {% endif %}
+</div></section>

@@ -1,0 +1,15 @@
+{
+  "type": "project-meta",
+  "label": "Project details",
+  "group": "Strongman",
+  "icon": "info",
+  "description": "The scope / client / service / location bar at the top of a case study. Blank entries are dropped.",
+  "fields": [
+    { "key": "scope", "type": "text", "label": "Scope", "width": "half" },
+    { "key": "client", "type": "text", "label": "Client", "width": "half" },
+    { "key": "service", "type": "text", "label": "Service", "width": "half" },
+    { "key": "location", "type": "text", "label": "Location", "width": "half" },
+    { "key": "link", "type": "link", "label": "Client website" }
+  ],
+  "defaults": {}
+}

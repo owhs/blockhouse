@@ -1,0 +1,22 @@
+<div class="sb-grid cols-{{ props.cols | default: '3' }}">
+  {% for s in props.items %}
+    <a class="sys-card" href="{{ s.href | default: '#' }}">
+      <span class="sys-media">
+        {% if s.image %}{{ s.image | img: width: 640, sizes: '(max-width: 720px) 92vw, 340px' }}{% endif %}
+        {% if s.code %}<span class="sys-code">{{ s.code | escape }}</span>{% endif %}
+        {% if s.brand %}<span class="sys-brand">{{ s.brand | escape }}</span>{% endif %}
+      </span>
+      <span class="sys-body">
+        <span class="sys-name">{{ s.name | escape }}</span>
+        {% if s.text %}<span class="sys-text">{{ s.text | escape }}</span>{% endif %}
+        {% if s.k1 %}
+          <span class="sys-specs">
+            <span class="row"><span class="k">{{ s.k1 | escape }}</span><span class="v">{{ s.v1 | escape }}</span></span>
+            {% if s.k2 %}<span class="row"><span class="k">{{ s.k2 | escape }}</span><span class="v">{{ s.v2 | escape }}</span></span>{% endif %}
+          </span>
+        {% endif %}
+        <span class="sys-more">View system →</span>
+      </span>
+    </a>
+  {% endfor %}
+</div>

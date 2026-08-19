@@ -1,0 +1,110 @@
+/* ============================================================================
+   STRATUM — design tokens
+   Brand: Strongman Lifts deep green (#116C41 ≈ oklch(47% .107 156)) on a cool
+   graphite/steel neutral ramp. Geometry is square; colour is carried by one
+   accent plus a high-vis "signal" used only on technical annotation.
+
+   Colour scheme: LIGHT BY DEFAULT. The document always carries data-theme
+   (set by the boot script in layout.liquid), so light-dark() resolves
+   deterministically and the toggle flips both ways from a known state.
+   ========================================================================= */
+
+:root {
+  color-scheme: light;
+
+  --hue: 156;            /* Strongman green */
+  --accent-chroma: 0.108;
+  --plate-hue: 248;      /* cool graphite for dark plates + neutrals */
+  --signal-hue: 112;     /* high-vis chartreuse — annotation only */
+
+  /* ---- accent ------------------------------------------------------- */
+  --accent: light-dark(
+    oklch(47% var(--accent-chroma) var(--hue)),
+    oklch(73% calc(var(--accent-chroma) + 0.03) var(--hue)));
+  --accent-strong: light-dark(
+    oklch(40% calc(var(--accent-chroma) + 0.01) var(--hue)),
+    oklch(82% calc(var(--accent-chroma) + 0.02) var(--hue)));
+  --accent-soft: light-dark(
+    oklch(95.5% 0.028 var(--hue)),
+    oklch(27% 0.05 var(--hue)));
+  --accent-contrast: light-dark(
+    oklch(99% 0.008 var(--hue)),
+    oklch(17% 0.03 var(--hue)));
+  --signal: light-dark(
+    oklch(72% 0.16 var(--signal-hue)),
+    oklch(88% 0.17 var(--signal-hue)));
+
+  /* ---- surfaces ----------------------------------------------------- */
+  --bg:          light-dark(oklch(99% 0.002 var(--plate-hue)), oklch(16.5% 0.009 var(--plate-hue)));
+  --bg-subtle:   light-dark(oklch(96.4% 0.004 var(--plate-hue)), oklch(20% 0.011 var(--plate-hue)));
+  --bg-raise:    light-dark(oklch(100% 0 0),                     oklch(22.5% 0.013 var(--plate-hue)));
+  --bg-contrast: light-dark(oklch(19% 0.014 var(--plate-hue)),   oklch(25.5% 0.015 var(--plate-hue)));
+
+  /* the dark plate is dark in BOTH schemes — cinematic bands never invert */
+  --plate:       light-dark(oklch(19% 0.014 var(--plate-hue)),   oklch(24% 0.015 var(--plate-hue)));
+  --plate-deep:  light-dark(oklch(14.5% 0.013 var(--plate-hue)), oklch(18% 0.013 var(--plate-hue)));
+  --plate-ink:   oklch(97% 0.003 var(--plate-hue));
+  --plate-mute:  oklch(76% 0.008 var(--plate-hue));
+  --plate-faint: oklch(60% 0.01 var(--plate-hue));
+  --plate-line:  oklch(100% 0 0 / 0.13);
+
+  /* ---- ink ---------------------------------------------------------- */
+  --ink:          light-dark(oklch(21% 0.008 var(--plate-hue)), oklch(95.5% 0.004 var(--plate-hue)));
+  --ink-mute:     light-dark(oklch(52% 0.014 var(--plate-hue)), oklch(74% 0.011 var(--plate-hue)));
+  --ink-faint:    light-dark(oklch(64% 0.012 var(--plate-hue)), oklch(58% 0.012 var(--plate-hue)));
+  --ink-contrast: light-dark(oklch(97% 0.003 var(--plate-hue)), oklch(97% 0.003 var(--plate-hue)));
+
+  --line:      light-dark(oklch(88.5% 0.006 var(--plate-hue)), oklch(30% 0.012 var(--plate-hue)));
+  --line-soft: light-dark(oklch(93.5% 0.004 var(--plate-hue)), oklch(26% 0.011 var(--plate-hue)));
+
+  --shadow-1: 0 1px 2px oklch(20% 0.02 var(--plate-hue) / 0.07), 0 6px 22px oklch(20% 0.02 var(--plate-hue) / 0.07);
+  --shadow-2: 0 2px 6px oklch(20% 0.02 var(--plate-hue) / 0.09), 0 22px 60px oklch(20% 0.02 var(--plate-hue) / 0.16);
+
+  /* ---- geometry ----------------------------------------------------- */
+  --radius: 2px;
+  --radius-s: 2px;
+  --hair: 1px;
+
+  /* ---- type --------------------------------------------------------- */
+  --font-body: var(--font-body-custom, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --font-display: var(--font-display-custom, "Bahnschrift", "DIN Alternate", "Archivo Narrow", "Inter Tight", var(--font-body));
+  --font-mono: var(--font-mono-custom, ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace);
+
+  --text-micro: 0.68rem;
+  --text-s:    clamp(0.82rem, 0.79rem + 0.12vw, 0.89rem);
+  --text-base: clamp(1rem, 0.97rem + 0.16vw, 1.06rem);
+  --text-l:    clamp(1.12rem, 1.05rem + 0.34vw, 1.28rem);
+  --text-xl:   clamp(1.45rem, 1.25rem + 0.95vw, 2.05rem);
+  --text-2xl:  clamp(1.95rem, 1.5rem + 2.1vw, 3.1rem);
+  --text-hero: clamp(2.6rem, 1.5rem + 4.9vw, 5.4rem);
+
+  --track-micro: 0.26em;   /* the JLR micro-label signature */
+  --track-display: 0.005em;
+
+  /* ---- rhythm ------------------------------------------------------- */
+  --space: clamp(1rem, 0.85rem + 0.6vw, 1.5rem);
+  --container: 78rem;
+  --container-narrow: 44rem;
+  --utility-h: 2.1rem;   /* --header-h is derived from this in base.css */
+
+  /* ---- technical drawing palette (used by inline .art SVGs) --------- */
+  --art-ln:    color-mix(in oklch, var(--ink) 34%, transparent);
+  --art-ln-2:  color-mix(in oklch, var(--ink) 62%, transparent);
+  --art-fill:  color-mix(in oklch, var(--ink) 7%, transparent);
+  --art-accent: var(--accent);
+  --art-signal: var(--signal);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+/* Visitor text-size control (header): everything is sized in rem, so scaling
+   the root size scales the whole page and keeps the layout proportional. */
+html { font-size: calc(100% * var(--text-scale, 1)); }
+:root[data-textsize="l"]  { --text-scale: 1.09; }
+:root[data-textsize="xl"] { --text-scale: 1.2; }
+
+/* Visitors who never touch the toggle get light: the boot script stamps
+   data-theme="light" when nothing is stored, so the rendered scheme never
+   depends on the OS preference. Locking the site (Settings → Colour scheme)
+   still works — blockhouse stamps data-theme itself and pins color-scheme. */

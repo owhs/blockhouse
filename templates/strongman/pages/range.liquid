@@ -1,0 +1,16 @@
+{% comment %}
+  A range landing page (Car Parking, Multi-Level & Basement, Maintenance).
+  The header and intro copy come from the document; the catalogue itself is the
+  range-grid block inside the region, which queries the lifts tagged into this
+  range rather than needing them listed by hand.
+{% endcomment %}
+<article class="content tpl-range">
+  <header class="content__header content__narrow anim-hidden">
+    
+    <h1 class="content__title">{{ doc.title | escape }}</h1>
+  </header>
+
+  <div class="content__body">
+    {% region 'content' %}
+  </div>
+</article>

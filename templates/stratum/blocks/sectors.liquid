@@ -1,0 +1,17 @@
+<div class="sb-sectors">
+  {% for s in props.items %}
+    {% if s.href %}
+      <a class="sec-cell" href="{{ s.href }}">
+        <span class="sec-ico">{{ s.icon | default: 'building' | icon: 24 }}</span>
+        <span class="sec-name">{{ s.name | escape }}</span>
+        {% if s.text %}<span class="sec-text">{{ s.text | escape }}</span>{% endif %}
+      </a>
+    {% else %}
+      <div class="sec-cell">
+        <span class="sec-ico">{{ s.icon | default: 'building' | icon: 24 }}</span>
+        <span class="sec-name">{{ s.name | escape }}</span>
+        {% if s.text %}<span class="sec-text">{{ s.text | escape }}</span>{% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>

@@ -1,0 +1,198 @@
+{
+  "type": "feature-card",
+  "label": "Feature card",
+  "group": "Aurora",
+  "icon": "star",
+  "description": "Icon + title + text card \u2014 an example of a designer-made template block",
+  "fields": [
+    {
+      "key": "icon",
+      "type": "select",
+      "label": "Icon",
+      "default": "star",
+      "options": [
+        {
+          "value": "compare",
+          "label": "compare"
+        },
+        {
+          "value": "bespoke",
+          "label": "bespoke"
+        },
+        {
+          "value": "classic",
+          "label": "classic"
+        },
+        {
+          "value": "electric",
+          "label": "electric"
+        },
+        {
+          "value": "arrow",
+          "label": "arrow"
+        },
+        {
+          "value": "chevron",
+          "label": "chevron"
+        },
+        {
+          "value": "back",
+          "label": "back"
+        },
+        {
+          "value": "close",
+          "label": "close"
+        },
+        {
+          "value": "location",
+          "label": "location"
+        },
+        {
+          "value": "bookmark",
+          "label": "bookmark"
+        },
+        {
+          "value": "support",
+          "label": "support"
+        },
+        {
+          "value": "search",
+          "label": "search"
+        },
+        {
+          "value": "account",
+          "label": "account"
+        },
+        {
+          "value": "cart",
+          "label": "cart"
+        },
+        {
+          "value": "tag",
+          "label": "tag"
+        },
+        {
+          "value": "mail",
+          "label": "mail"
+        },
+        {
+          "value": "globe",
+          "label": "globe"
+        },
+        {
+          "value": "doc",
+          "label": "doc"
+        },
+        {
+          "value": "star",
+          "label": "star"
+        },
+        {
+          "value": "bolt",
+          "label": "bolt"
+        },
+        {
+          "value": "building",
+          "label": "building"
+        },
+        {
+          "value": "phone",
+          "label": "phone"
+        },
+        {
+          "value": "calendar",
+          "label": "calendar"
+        },
+        {
+          "value": "key",
+          "label": "key"
+        },
+        {
+          "value": "sparkle",
+          "label": "sparkle"
+        },
+        {
+          "value": "layers",
+          "label": "layers"
+        },
+        {
+          "value": "pen",
+          "label": "pen"
+        },
+        {
+          "value": "code",
+          "label": "code"
+        },
+        {
+          "value": "shield",
+          "label": "shield"
+        },
+        {
+          "value": "lock",
+          "label": "lock"
+        },
+        {
+          "value": "chart",
+          "label": "chart"
+        },
+        {
+          "value": "users",
+          "label": "users"
+        },
+        {
+          "value": "heart",
+          "label": "heart"
+        },
+        {
+          "value": "clock",
+          "label": "clock"
+        },
+        {
+          "value": "check",
+          "label": "check"
+        },
+        {
+          "value": "play",
+          "label": "play"
+        },
+        {
+          "value": "download",
+          "label": "download"
+        },
+        {
+          "value": "rocket",
+          "label": "rocket"
+        },
+        {
+          "value": "leaf",
+          "label": "leaf"
+        },
+        {
+          "value": "gear",
+          "label": "gear"
+        }
+      ],
+      "help": "From the site icon set \u2014 inline SVG, so it renders identically everywhere"
+    },
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    },
+    {
+      "key": "text",
+      "type": "textarea",
+      "label": "Text",
+      "rows": 3
+    },
+    {
+      "key": "link",
+      "type": "link",
+      "label": "Link (optional)"
+    }
+  ],
+  "defaults": {
+    "icon": "star"
+  }
+}

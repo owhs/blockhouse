@@ -1,0 +1,32 @@
+{% slot 'footer.before' %}
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a class="site-brand" href="/">
+        {% include 'partials/brandmark' %}
+        <span class="brand-text">
+          <span class="brand-name">{{ site.name | escape }}</span>
+          {% if site.vars.brandSub %}<span class="brand-sub">{{ site.vars.brandSub | escape }}</span>{% endif %}
+        </span>
+      </a>
+      {% if site.tagline %}<p class="footer-tagline">{{ site.tagline | escape }}</p>{% endif %}
+      <div class="footer-contact">
+        {% if site.vars.phone %}<div class="fc-row"><span class="fc-k">Phone</span><a href="tel:{{ site.vars.phoneHref | default: site.vars.phone }}">{{ site.vars.phone }}</a></div>{% endif %}
+        {% if site.vars.email %}<div class="fc-row"><span class="fc-k">Email</span><a href="mailto:{{ site.vars.email }}">{{ site.vars.email }}</a></div>{% endif %}
+        {% if site.vars.address %}<div class="fc-row"><span class="fc-k">Works</span><span>{{ site.vars.address | escape }}</span></div>{% endif %}
+        {% if site.vars.hours %}<div class="fc-row"><span class="fc-k">Hours</span><span>{{ site.vars.hours | escape }}</span></div>{% endif %}
+      </div>
+      <div class="footer-social">{% slot 'footer.social' %}</div>
+    </div>
+
+    <div class="footer-menu">
+      <h4 class="visually-hidden">Site</h4>
+      {% menu 'footer' %}
+    </div>
+  </div>
+
+  <div class="container footer-meta">
+    <p>© {{ 'now' | date: '%Y' }} {{ site.vars.legalName | default: site.name | escape }}{% if site.vars.companyNo %} · Reg {{ site.vars.companyNo }}{% endif %}</p>
+    <p>{{ site.vars.footerNote | default: 'Parking systems, lifts and car elevators — supplied, installed and maintained in the UK' }}</p>
+  </div>
+</footer>

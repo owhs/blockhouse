@@ -1,0 +1,16 @@
+<div class="tile-grid cols-{{ props.columns | default: '1' }}">
+  {% for t in props.tiles %}
+    <article class="tile anim-hidden">
+      {% if t.image %}
+        <figure class="tile__image">{{ t.image | img: width: 1600, sizes: '(max-width: 768px) 100vw, 90vw' }}</figure>
+      {% endif %}
+      <div class="tile__body">
+        {% if t.title %}<h3 class="tile__title">{{ t.title | escape }}</h3>{% endif %}
+        {% if t.text %}<div class="tile__description">{{ t.text | md }}</div>{% endif %}
+        {% if t.buttonHref.href %}
+          <p class="tile__link"><a href="{{ t.buttonHref.href }}" class="btn btn--white">{{ t.buttonLabel | default: 'View Range' | escape }}</a></p>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</div>

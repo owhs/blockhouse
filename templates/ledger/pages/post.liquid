@@ -1,0 +1,9 @@
+<article class="post">
+  <header class="wb-section pad-compact"><div class="container w-normal post-header">
+    <p class="eyebrow"><a href="{{ concept.indexPath | default: '/' }}">{{ concept.labelPlural | default: 'Posts' | escape }}</a>
+      · <time datetime="{{ doc.publishAt | default: doc.createdAt }}">{{ doc.publishAt | default: doc.createdAt | date: '%b %e, %Y' }}</time></p>
+    <h1 class="post-title">{{ doc.title | escape }}</h1>
+    {% if fields.lede %}<p class="post-lede">{{ fields.lede | escape }}</p>{% endif %}
+  </div></header>
+  {% region 'content' %}
+</article>

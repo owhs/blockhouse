@@ -1,0 +1,80 @@
+{
+  "name": "strongman",
+  "label": "Strongman",
+  "description": "Editorial equipment catalogue — mono body type, a wide branding banner, a fading full-bleed hero slider, backdrop-blurred image tiles and a green accent. Light by default with a warm-amber dark mode. Built to match the Strongman Lifts house style.",
+  "slots": [
+    "header.announce",
+    "header.after",
+    "footer.columns",
+    "footer.before",
+    "footer.social"
+  ],
+  "tokens": [
+    {
+      "key": "accent",
+      "label": "Accent / link colour",
+      "type": "color",
+      "default": "#116C41"
+    },
+    {
+      "key": "accent-hover",
+      "label": "Accent hover",
+      "type": "color",
+      "default": "#10874F"
+    },
+    {
+      "key": "accent-dark",
+      "label": "Accent (dark mode)",
+      "type": "color",
+      "default": "#FFBC6C"
+    },
+    {
+      "key": "page-width",
+      "label": "Max page width",
+      "type": "text",
+      "default": "1984px"
+    },
+    {
+      "key": "page-margin",
+      "label": "Page gutter",
+      "type": "text",
+      "default": "clamp(1rem, 4vw, 6rem)"
+    },
+    {
+      "key": "entry-width",
+      "label": "Reading column",
+      "type": "text",
+      "default": "74ch"
+    },
+    {
+      "key": "border-radius",
+      "label": "Corner radius",
+      "type": "text",
+      "default": "4px"
+    },
+    {
+      "key": "navbar-height",
+      "label": "Navbar height",
+      "type": "text",
+      "default": "3.8rem"
+    },
+    {
+      "key": "branding-banner-height",
+      "label": "Branding banner height",
+      "type": "text",
+      "default": "240px"
+    },
+    {
+      "key": "body-font",
+      "label": "Body font stack",
+      "type": "text",
+      "default": "'JetBrains Mono', ui-monospace, monospace"
+    },
+    {
+      "key": "heading-font",
+      "label": "Heading font stack",
+      "type": "text",
+      "default": "'Ruda', system-ui, sans-serif"
+    }
+  ]
+}

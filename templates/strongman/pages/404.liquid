@@ -1,0 +1,10 @@
+{% comment %}
+  Used only when no document is assigned to the 404 system page in settings.
+{% endcomment %}
+<section class="section">
+  <div class="wrapper" style="text-align:center">
+    <h1>Page not found</h1>
+    <p>That page has moved or never existed. Try the <a href="/">home page</a>, or
+       <a href="{{ site.vars.ctaHref | default: '/contact' }}">get in touch</a> and we will point you at it.</p>
+  </div>
+</section>

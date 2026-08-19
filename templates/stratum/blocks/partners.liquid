@@ -1,0 +1,18 @@
+<div class="sb-partners">
+  {% for p in props.items %}
+    {% if p.href %}
+      <a class="pt-card" href="{{ p.href }}"{% if p.href contains '//' %} target="_blank" rel="noopener"{% endif %}>
+        <span class="pt-role">{{ p.role | escape }}</span>
+        <span class="pt-name">{{ p.name | escape }}</span>
+        {% if p.text %}<span class="pt-text">{{ p.text | escape }}</span>{% endif %}
+        <span class="pt-link">{{ p.linkLabel | default: 'Explore the range →' | escape }}</span>
+      </a>
+    {% else %}
+      <div class="pt-card">
+        <span class="pt-role">{{ p.role | escape }}</span>
+        <span class="pt-name">{{ p.name | escape }}</span>
+        {% if p.text %}<span class="pt-text">{{ p.text | escape }}</span>{% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>

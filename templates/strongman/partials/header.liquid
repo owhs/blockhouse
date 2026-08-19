@@ -1,0 +1,48 @@
+{% comment %}
+  `site-header` is the hook the site runtime looks for when it wires the
+  burger, the mobile drill-down and the desktop panels — keep the class even if
+  the visual styling all hangs off `.header`.
+{% endcomment %}
+{% comment %}
+  The wordmark banner above already says who this is, so the header carries no
+  text logo — the nav sits centred in the bar instead. The link stays in the
+  markup (visually hidden) so "back to home" is still reachable by keyboard and
+  by assistive tech, and so the header is not a nav with no home affordance.
+{% endcomment %}
+<header class="header site-header" data-blockhouse="header">
+  <a class="header__logo visually-hidden" href="/">{{ site.name | escape }}</a>
+
+  <div class="header__content">
+    {% menu 'main' %}
+
+    <div class="header__end">
+    <div class="header__search">
+      <button class="search-toggle btn--clean" type="button" aria-label="Search" aria-expanded="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="header__actions">
+      {% slot 'header.after' %}
+
+      {% if site.vars.ctaHref %}
+        <a class="header__btn" href="{{ site.vars.ctaHref }}">{{ site.vars.ctaLabel | default: 'Contact Us' }}</a>
+      {% endif %}
+
+      {% if show_theme_toggle %}
+        <button class="theme-toggle" data-blockhouse="theme" type="button" aria-label="Switch colour theme" title="Theme">
+          <svg class="i-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.3 4.3L6 6M18 18l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.3 19.7L6 18M18 6l1.7-1.7"/></svg>
+          <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+        </button>
+      {% endif %}
+
+      <button class="nav-burger" data-blockhouse="burger" type="button" aria-label="Menu" aria-expanded="false">
+        <span class="nb-box" aria-hidden="true"></span>
+        <span class="nb-label">Menu</span>
+      </button>
+    </div>
+    </div>
+  </div>
+</header>

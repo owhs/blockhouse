@@ -1,0 +1,31 @@
+{% comment %}
+  Each cell is either a plain value or a "metric (imperial)" pair. Splitting on
+  the opening bracket lets the two halves sit at opposite ends of the cell, so
+  the imperial figures line up in their own vertical column all the way down
+  the table instead of drifting with the length of the metric ones.
+{% endcomment %}
+<div class="spec-block">
+  {% if props.title %}<h3 class="spec-title">{{ props.title | escape }}</h3>{% endif %}
+
+  <div class="spec-table">
+    {% for r in props.rows %}
+      <div class="spec-row">
+        {% assign lp = r.label | split: '(' %}
+        {% if lp.size > 1 %}
+          <div class="split"><div>{{ lp[0] | strip | escape }}</div><div>{{ lp[1] | replace: ')', '' | strip | escape }}</div></div>
+        {% else %}
+          <div>{{ r.label | escape }}</div>
+        {% endif %}
+
+        {% assign vp = r.value | split: '(' %}
+        {% if vp.size > 1 %}
+          <div class="split"><div>{{ vp[0] | strip | escape }}</div><div>{{ vp[1] | replace: ')', '' | strip | escape }}</div></div>
+        {% else %}
+          <div>{{ r.value | escape }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if props.note %}<p class="spec-note">{{ props.note | escape }}</p>{% endif %}
+</div>

@@ -1,0 +1,58 @@
+/* Atelier — bold studio/portfolio: near-black canvas, oversized display type,
+   one hot accent, square corners, generous negative space. */
+
+:root {
+  color-scheme: light dark;
+
+  --hue: 22;                  /* signal orange */
+  --accent-chroma: 0.19;
+
+  --accent: oklch(64% var(--accent-chroma) var(--hue));
+  --accent-strong: oklch(56% var(--accent-chroma) var(--hue));
+  --accent-soft: light-dark(oklch(95% 0.05 var(--hue)), oklch(28% 0.08 var(--hue)));
+  --accent-contrast: oklch(16% 0.02 var(--hue));
+
+  --bg: light-dark(oklch(97.5% 0 0), oklch(13% 0.004 260));
+  --bg-subtle: light-dark(oklch(94% 0 0), oklch(17% 0.005 260));
+  --bg-raise: light-dark(oklch(100% 0 0), oklch(19% 0.006 260));
+  --bg-contrast: light-dark(oklch(13% 0.004 260), oklch(97% 0 0));
+
+  --ink: light-dark(oklch(15% 0.004 260), oklch(96% 0.003 260));
+  --ink-mute: light-dark(oklch(42% 0.006 260), oklch(74% 0.005 260));
+  --ink-faint: light-dark(oklch(58% 0.006 260), oklch(56% 0.006 260));
+  --ink-contrast: light-dark(oklch(97% 0 0), oklch(14% 0.004 260));
+
+  --line: light-dark(oklch(87% 0 0), oklch(27% 0.006 260));
+  --line-soft: light-dark(oklch(92% 0 0), oklch(22% 0.005 260));
+
+  --shadow-1: none;
+  --shadow-2: 0 20px 60px oklch(0% 0 0 / 0.28);
+
+  --radius: 0px;
+  --radius-s: 0px;
+
+  --font-body: var(--font-body-custom, "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  --font-display: var(--font-display-custom, var(--font-body));
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-s: clamp(0.8rem, 0.78rem + 0.1vw, 0.86rem);
+  --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.08rem);
+  --text-l: clamp(1.15rem, 1.05rem + 0.5vw, 1.35rem);
+  --text-xl: clamp(1.6rem, 1.2rem + 1.8vw, 2.6rem);
+  --text-2xl: clamp(2.4rem, 1.6rem + 3.4vw, 4.4rem);
+  --text-hero: clamp(3.2rem, 1.6rem + 7vw, 8rem);
+
+  --space: clamp(1rem, 0.85rem + 0.7vw, 1.6rem);
+  --container: 84rem;
+  --container-narrow: 44rem;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* Atelier signatures: tight tracking, uppercase micro-labels, square everything */
+h1, h2, h3 { letter-spacing: -0.035em; font-weight: 760; text-transform: none; }
+.wb-hero h1 { line-height: 0.92; }
+.eyebrow, .nav-link, .mt-label, .logos-title, .share-label, .stat-label {
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;
+}

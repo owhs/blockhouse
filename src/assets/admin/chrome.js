@@ -1,0 +1,130 @@
+// Site chrome — the content that lives around every page: header announcement,
+// after-nav extras, footer rows. These are template *slots* filled with blocks
+// (site.slots in site.json); this view is where that content is edited, with a
+// live preview so "that link in the footer" is never a mystery again.
+
+import { get, put } from './api.js'
+import { h, dialog, confirmDialog, toast, emptyState, fitPreviewFrame } from './ui.js'
+import { registerView, state } from './state.js'
+import { icon, iconEl } from './icons.js'
+import { renderFields } from './fields.js'
+
+const NICE = {
+  'header.announce': ['Announcement bar', 'A strip above the header — offers, notices, launch banners'],
+  'header.after': ['Below the header', 'Rendered directly under the navigation on every page'],
+  'footer.before': ['Above the footer', 'A band that sits just before the footer — CTAs live well here'],
+  'footer.social': ['Footer links & social', 'The small print row — social links, RSS, credits'],
+}
+
+registerView('chrome', async (root, [slotParam]) => {
+  const meta = state.meta
+  const byType = Object.fromEntries(meta.blocks.map(b => [b.type, b]))
+  let { slots, discovered } = await get('/chrome')
+  let active = slotParam ? decodeURIComponent(slotParam) : (discovered[0]?.key || 'footer.social')
+  let dirty = false
+
+  const uid = () => 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+
+  // ---------- preview ----------
+  const iframe = h('iframe', { src: '/?__blockhousepreview=1', title: 'Site preview', style: { pointerEvents: 'none' } })
+  const holder = h('div.preview-frame-holder', {}, iframe)
+  const previewWrap = h('div.preview-wrap', { style: { minHeight: '16rem' } }, holder)
+  const unfit = fitPreviewFrame(holder, iframe, 1280)
+  const reloadPreview = () => { iframe.contentWindow?.location.reload() }
+
+  // ---------- slot list ----------
+  const slotList = h('div.panel-body')
+  const paintSlots = () => {
+    slotList.replaceChildren(...discovered.map(d => {
+      const [label] = NICE[d.key] || [d.key]
+      const n = (slots[d.key] || []).length
+      return h('button.row-item', { class: d.key === active ? 'active' : '', onclick: () => { active = d.key; paint() } },
+        h('span.row-ico', { html: icon(d.key.startsWith('header') ? 'layout' : 'menu', 14) }),
+        h('span.row-label', {}, label),
+        n ? h('span.mrow-tag', {}, String(n)) : '')
+    }))
+  }
+
+  // ---------- block editor for the active slot ----------
+  const blocksEl = h('div')
+  const save = async () => {
+    await put('/chrome', { slots })
+    dirty = false
+    saveBtn.textContent = 'Saved ✓'; setTimeout(() => (saveBtn.textContent = 'Save'), 1400)
+    reloadPreview()
+  }
+  const saveBtn = h('button.btn.primary.small', { onclick: save }, 'Save')
+  const mark = () => { dirty = true; saveBtn.textContent = 'Save •' }
+
+  const paintBlocks = () => {
+    const list = slots[active] || []
+    const [label, hint] = NICE[active] || [active, `Rendered wherever the template puts {% slot '${active}' %}`]
+    const rows = list.map((node, i) => {
+      const def = byType[node.type] || { label: node.type, fields: [] }
+      const open = h('div.card', { style: { padding: '0.8rem', marginTop: '0.5rem' } },
+        def.fields?.length
+          ? renderFields(def.fields, node.props ||= {}, () => mark())
+          : h('p.mut', {}, 'This block has no options.'))
+      open.hidden = true
+      return h('div', { style: { marginBottom: '0.5rem' } },
+        h('div.mrow', {},
+          h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
+          h('strong', { style: { flex: 1, cursor: 'pointer' }, onclick: () => (open.hidden = !open.hidden) }, def.label || node.type),
+          h('span.mrow-tools', {},
+            h('button.icon-btn', { title: 'Move up', onclick: () => { if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; mark(); paintBlocks() } } }, iconEl('up', 13)),
+            h('button.icon-btn', { title: 'Move down', onclick: () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; mark(); paintBlocks() } } }, iconEl('down', 13)),
+            h('button.icon-btn', { title: 'Edit', onclick: () => (open.hidden = !open.hidden) }, iconEl('pen', 13)),
+            h('button.icon-btn', { title: 'Remove', onclick: async () => { if (await confirmDialog('Remove block', `Remove this ${def.label || node.type}?`, 'Remove')) { list.splice(i, 1); mark(); paintBlocks() } } }, iconEl('trash', 13)))),
+        open)
+    })
+    blocksEl.replaceChildren(
+      h('div.page-head', { style: { marginBottom: '0.4rem' } },
+        h('div', {}, h('strong', {}, label), h('p.fnt', { style: { fontSize: '0.78rem' } }, hint)),
+        h('div', { style: { display: 'flex', gap: '0.5rem' } },
+          h('button.btn.ghost.small', { onclick: addBlock }, iconEl('plus', 13), 'Add block'), saveBtn)),
+      rows.length ? h('div', {}, ...rows)
+        : emptyState(icon('layout', 24), 'Nothing here yet', 'This slot is empty — the template renders nothing for it. Add a block to fill it.'))
+  }
+
+  const addBlock = () => {
+    const groups = {}
+    for (const b of meta.blocks) (groups[b.group || 'Other'] ??= []).push(b)
+    const body = h('div')
+    const dlg = dialog({ title: 'Add a block', width: 'min(44rem, 94vw)', body })
+    for (const [g, defs] of Object.entries(groups)) {
+      const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: '0.4rem' } })
+      for (const def of defs) {
+        grid.appendChild(h('button.row-item', {
+          style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '0.5rem 0.6rem' },
+          onclick: () => {
+            ;(slots[active] ??= []).push({ id: uid(), type: def.type, props: JSON.parse(JSON.stringify(def.defaults || {})) })
+            mark(); paintBlocks(); dlg.closeWith()
+          },
+        },
+          h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
+          h('div', { style: { textAlign: 'left' } },
+            h('div', { style: { fontWeight: 640, fontSize: '0.84rem' } }, def.label),
+            h('div.fnt', { style: { fontSize: '0.72rem' } }, def.description || ''))))
+      }
+      body.append(h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, g), grid)
+    }
+  }
+
+  const paint = () => { paintSlots(); paintBlocks() }
+
+  root.replaceChildren(h('div.split', {},
+    h('div.panel', {},
+      h('div.panel-head', {}, h('span.panel-title', {}, 'Site chrome'),
+        h('span.fnt', { style: { fontSize: '0.7rem' } }, 'slots')),
+      slotList),
+    h('div.main', { style: { display: 'grid', gridTemplateRows: 'auto 1fr', gap: '0.9rem', padding: '1rem' } },
+      h('div', {}, blocksEl),
+      h('div', {},
+        h('p.fnt', { style: { fontSize: '0.75rem', margin: '0 0 0.4rem' } },
+          'Live preview — saves apply to every page. The header and footer *structure* is a template file (Site → Templates); this is the content poured into it.'),
+        previewWrap)))
+  )
+  paint()
+
+  return () => { unfit(); if (dirty) save() }
+})

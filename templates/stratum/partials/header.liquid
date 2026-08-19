@@ -1,0 +1,44 @@
+<header class="site-header" data-blockhouse="header"
+        data-nav-trigger="{{ site.vars.navTrigger | default: 'hover' }}"
+        data-nav-fill="{{ site.vars.navFill | default: 'false' }}"
+        data-nav-backdrop="{{ site.vars.navBackdrop | default: 'none' }}">
+  <div class="utility-bar">
+    <div class="utility-inner">
+      <div class="utility-note"><span class="dot" aria-hidden="true"></span>{% slot 'header.announce' %}</div>
+      <div class="utility-links">
+        {% if site.vars.phone %}<a href="tel:{{ site.vars.phoneHref | default: site.vars.phone }}">{{ site.vars.phone }}</a>{% endif %}
+        {% if site.vars.email %}<a href="mailto:{{ site.vars.email }}">{{ site.vars.email }}</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="container header-bar">
+    <a class="site-brand" href="/">
+      {% include 'partials/brandmark' %}
+      <span class="brand-text">
+        <span class="brand-name">{{ site.name | escape }}</span>
+        {% if site.vars.brandSub %}<span class="brand-sub">{{ site.vars.brandSub | escape }}</span>{% endif %}
+      </span>
+    </a>
+
+    {% menu 'main' %}
+
+    <div class="header-actions">
+      {% slot 'header.after' %}
+      <div class="text-size" role="group" aria-label="Text size">
+        <button type="button" data-textsize-set="m" aria-pressed="true" title="Standard text size"><span aria-hidden="true">A</span><span class="visually-hidden">Standard text size</span></button>
+        <button type="button" data-textsize-set="l" aria-pressed="false" title="Larger text"><span aria-hidden="true">A</span><span class="visually-hidden">Larger text</span></button>
+        <button type="button" data-textsize-set="xl" aria-pressed="false" title="Largest text"><span aria-hidden="true">A</span><span class="visually-hidden">Largest text</span></button>
+      </div>
+      {% if site.vars.quoteHref %}<a class="header-cta" href="{{ site.vars.quoteHref }}">{{ site.vars.quoteLabel | default: 'Request a quote' }}</a>{% endif %}
+      {% if show_theme_toggle %}<button class="theme-toggle" data-blockhouse="theme" aria-label="Switch colour theme" title="Theme">
+        <svg class="i-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.3 4.3L6 6M18 18l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.3 19.7L6 18M18 6l1.7-1.7"/></svg>
+        <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      </button>{% endif %}
+      <button class="nav-burger" data-blockhouse="burger" aria-label="Menu" aria-expanded="false">
+        <span class="nb-box" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="nb-label">Menu</span>
+      </button>
+    </div>
+  </div>
+</header>

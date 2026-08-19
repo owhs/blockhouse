@@ -1,0 +1,17 @@
+{
+  "type": "enquiry",
+  "label": "Enquiry band",
+  "group": "Stratum",
+  "icon": "send",
+  "description": "Closing call to action with the live contact facts from Settings → Brand.",
+  "fields": [
+    { "key": "eyebrow", "type": "text", "label": "Micro-label" },
+    { "key": "title", "type": "text", "label": "Title", "required": true },
+    { "key": "text", "type": "textarea", "label": "Text", "rows": 3 },
+    { "key": "primaryLabel", "type": "text", "label": "Primary button", "default": "Request a quote", "width": "half" },
+    { "key": "primaryHref", "type": "text", "label": "Primary link", "default": "/contact", "width": "half" },
+    { "key": "secondaryLabel", "type": "text", "label": "Secondary button", "width": "half" },
+    { "key": "secondaryHref", "type": "text", "label": "Secondary link", "width": "half" }
+  ],
+  "defaults": { "primaryLabel": "Request a quote", "primaryHref": "/contact" }
+}

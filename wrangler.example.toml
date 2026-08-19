@@ -1,0 +1,15 @@
+# Cloudflare Workers deployment — copy to wrangler.toml and fill in.
+name = "my-blockhouse-site"
+main = "src/server/worker.ts"
+compatibility_date = "2026-01-01"
+
+[[r2_buckets]]
+binding = "SITE"
+bucket_name = "my-blockhouse-site"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "blockhouse"
+database_id = "REPLACE_ME"
+
+# npx wrangler secret put BLOCKHOUSE_SECRET
