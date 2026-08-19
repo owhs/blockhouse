@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+# per-site runtime state (secrets, sqlite, caches) — never commit
+sites/*/.blockhouse/
+**/.blockhouse/
+# generated image derivatives are rebuildable
+**/media/_var/
+
+.blockhouse/
+backup/
+# sites/
+# templates/
+
+*.lock
+
+!wrangler.example.toml
+.claude/
