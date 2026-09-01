@@ -244,10 +244,8 @@ async function notAuthorizedResponse(c: any, env: BlockhouseEnv, _path: string, 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Not authorised — ${escapeHtml(site.name || '')}</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;color:#1a1a1a}
-a{color:inherit}</style></head>
-<body><h1>Not authorised</h1><p>This site is only visible to signed-in team members.</p>
-<p><a href="/admin">Sign in →</a></p></body></html>`
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;color:#1a1a1a}</style></head>
+<body><h1>Not authorised</h1><p>This site is only visible to signed-in team members.</p></body></html>`
   return c.html(html, 401, { 'x-robots-tag': 'noindex' })
 }
 
