@@ -107,7 +107,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
       const { issueToken } = await import('../auth/tokens.ts')
       const { token } = await issueToken(env.secure, 'pwreset', { meta: { userId: u.id }, ttlMs: 30 * 60_000, maxUses: 1 })
       const site = await env.site()
-      const ap = String((site.security as any)?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
+      const ap = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
       const { sendMail } = await import('./env.ts')
       await sendMail(env, {
         to: email, subject: `Reset your ${site.name} studio password`,
@@ -862,7 +862,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     let entries
     try { entries = await unzip(new Uint8Array(await file.arrayBuffer())) } catch (e: any) { return c.json({ error: `not a readable zip: ${e.message}` }, 400) }
     const site = await env.site()
-    const check = await checkPackage(entries, (site.security as any)?.trustedIssuers || {})
+    const check = await checkPackage(entries, site.security?.trustedIssuers || {})
     if (check.manifest && check.manifest.kind && check.manifest.kind !== kind) {
       return c.json({ error: `this is a ${check.manifest.kind} package — install it under ${check.manifest.kind}s` }, 400)
     }

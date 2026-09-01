@@ -86,6 +86,13 @@ export async function render404(env: BlockhouseEnv, opts: RenderOpts): Promise<s
   })
 }
 
+export async function render401(env: BlockhouseEnv, opts: RenderOpts): Promise<string> {
+  return renderSystemPage(env, '401', opts, {
+    title: 'Not authorised',
+    fallback: `<section class="wb-section pad-spacious"><div class="container w-normal" style="text-align:center"><h1>Not authorised</h1><p>This site is only visible to signed-in team members. <a href="/admin">Sign in →</a></p></div></section>`,
+  })
+}
+
 /**
  * System pages ('404', 'maintenance', 'search', …). Resolution order:
  *   a document assigned in site.systemPages  →  pages/<key>.liquid in the
@@ -176,7 +183,7 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
     ? `<script>(function(){try{if(location.pathname.startsWith('/admin'))return;${consentOn ? "var c=(document.cookie.match(/(?:^|; )blockhouse_consent=([^;]*)/)||[])[1];if(!c||c.indexOf('analytics')<0)return;" : ''}var b=function(){navigator.sendBeacon('/x/analytics/hit',JSON.stringify({p:location.pathname,r:document.referrer}))};if(document.readyState!=='loading')b();else addEventListener('DOMContentLoaded',b)}catch(e){}})()</script>`
     : ''
   const runtime = `<script type="module" src="/assets/blockhouse/runtime.js?v=${(env as any).assetVersion || '1'}"></script>${beacon}`
-  const adminP = String((site.security as any)?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
+  const adminP = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
   const bridge = ctx.annotate ? `<script src="/${adminP}/assets/bridge.js"></script>` : ''
   const devReload = env.dev && ctx.mode === 'live' ? `<script type="module" src="/assets/blockhouse/dev-reload.js"></script>` : ''
 

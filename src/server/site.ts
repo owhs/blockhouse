@@ -6,7 +6,7 @@ import { Hono } from '../vendor/http.ts'
 import type { BlockhouseEnv } from './env.ts'
 import { escapeHtml, normalizePath } from '../core/util.ts'
 import { canonicalizeRequestPath, hrefFor } from '../core/urls.ts'
-import { renderDocPage, renderListPage, render404, renderSystemPage } from '../render/page.ts'
+import { renderDocPage, renderListPage, render404, render401, renderSystemPage } from '../render/page.ts'
 import { robotsTxt, rssXml, sitemapXml } from '../render/seo.ts'
 import { mimeOf } from '../images/exif.ts'
 
@@ -30,30 +30,32 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
     try { await next() } finally { resolver.preview = null }
   })
 
-  // Private / staging protection: when security.private is 'staging', the
-  // public site is only visible to signed-in studio users or members — everyone
-  // else is redirected to the production URL (or shown a plain 404). This is
-  // the "forgot the DNS rule" safety net for staging instances; pair it with
-  // real firewall/Cloudflare Access rules for defence in depth.
+  // Private / staging protection.
+  //   'staging' — studio users only. Everyone else gets a 401 "Not authorised"
+  //               page (or privateRedirect, if set) instead of the real content.
+  //   'members' — anyone signed in via the Members plugin, studio users included.
+  // This is the "forgot the DNS rule" safety net for staging instances; pair it
+  // with real firewall/Cloudflare Access rules for defence in depth.
   app.use('*', async (c, next) => {
     const site = await env.site()
-    const mode = (site.security as any)?.private || 'off'
+    const mode = site.security?.private || 'off'
     if (mode !== 'staging' && mode !== 'members') return next()
-    const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
-    const ap = String((site.security as any)?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
     if (c.get('user' as never)) return next()
+    const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
+    const ap = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
     if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path.startsWith('/x/members/')) return next()
-    const gate = (env as any).memberGate
-    const member = gate ? await gate.resolve(c).catch(() => null) : null
-    if (member) return next()
     if (mode === 'members') {
+      const gate = (env as any).memberGate
+      const member = gate ? await gate.resolve(c).catch(() => null) : null
+      if (member) return next()
       const login = gate ? await gate.loginPath() : '/account'
       if (path !== login) return c.redirect(`${login}?next=${encodeURIComponent(path)}`, 302)
       return next()
     }
-    const to = (site.security as any)?.privateRedirect
+    // mode === 'staging': studio sign-in only — the Members gate above doesn't apply here.
+    const to = site.security?.privateRedirect
     if (to) return c.redirect(to, 302)
-    return c.text('Not found', 404, { 'x-robots-tag': 'noindex' })
+    return notAuthorizedResponse(c, env, path, undefined)
   })
 
   // Maintenance mode: the public site returns 503 with a page you control, while
@@ -231,6 +233,11 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
 async function notFoundResponse(c: any, env: BlockhouseEnv, path: string, user: any) {
   const html = await render404(env, { mode: 'live', path, user })
   return c.html(html, 404)
+}
+
+async function notAuthorizedResponse(c: any, env: BlockhouseEnv, path: string, user: any) {
+  const html = await render401(env, { mode: 'live', path, user })
+  return c.html(html, 401, { 'x-robots-tag': 'noindex' })
 }
 
 /**
