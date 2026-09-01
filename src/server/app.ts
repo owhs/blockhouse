@@ -33,7 +33,7 @@ export function buildApp(env: BlockhouseEnv): Hono {
     try { await next() } catch (err: any) {
       try {
         const site = await env.site()
-        if ((site.security as any)?.errorLog !== false && (env as any).projectDir) {
+        if (site.security?.errorLog !== false && (env as any).projectDir) {
           const { appendFileSync, mkdirSync } = await import('node:fs')
           const { join } = await import('node:path')
           const dirp = join((env as any).projectDir, '.blockhouse', 'logs')

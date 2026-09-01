@@ -301,6 +301,20 @@ export interface SecurityConfig {
   adminAllowlist?: string[]
   auditLog?: boolean
   minPasswordLength?: number
+  /**
+   * Who can view the public site.
+   *   'off'     — everyone (default)
+   *   'staging' — studio users only; everyone else gets a 401 "Not authorised"
+   *               page (or privateRedirect, if set) instead of the real content
+   *   'members' — anyone signed in via the Members plugin, studio users included
+   */
+  private?: 'off' | 'staging' | 'members'
+  /** where to send blocked visitors instead of the built-in 401 page, e.g. the production URL */
+  privateRedirect?: string
+  /** studio mount point, default 'admin' */
+  adminPath?: string
+  errorLog?: boolean
+  trustedIssuers?: Record<string, string>
 }
 
 export interface FontDef {
