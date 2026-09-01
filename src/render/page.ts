@@ -86,13 +86,6 @@ export async function render404(env: BlockhouseEnv, opts: RenderOpts): Promise<s
   })
 }
 
-export async function render401(env: BlockhouseEnv, opts: RenderOpts): Promise<string> {
-  return renderSystemPage(env, '401', opts, {
-    title: 'Not authorised',
-    fallback: `<section class="wb-section pad-spacious"><div class="container w-normal" style="text-align:center"><h1>Not authorised</h1><p>This site is only visible to signed-in team members. <a href="/admin">Sign in →</a></p></div></section>`,
-  })
-}
-
 /**
  * System pages ('404', 'maintenance', 'search', …). Resolution order:
  *   a document assigned in site.systemPages  →  pages/<key>.liquid in the
