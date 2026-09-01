@@ -6,7 +6,7 @@ import { Hono } from '../vendor/http.ts'
 import type { BlockhouseEnv } from './env.ts'
 import { escapeHtml, normalizePath } from '../core/util.ts'
 import { canonicalizeRequestPath, hrefFor } from '../core/urls.ts'
-import { renderDocPage, renderListPage, render404, render401, renderSystemPage } from '../render/page.ts'
+import { renderDocPage, renderListPage, render404, renderSystemPage } from '../render/page.ts'
 import { robotsTxt, rssXml, sitemapXml } from '../render/seo.ts'
 import { mimeOf } from '../images/exif.ts'
 
@@ -235,8 +235,19 @@ async function notFoundResponse(c: any, env: BlockhouseEnv, path: string, user: 
   return c.html(html, 404)
 }
 
-async function notAuthorizedResponse(c: any, env: BlockhouseEnv, path: string, user: any) {
-  const html = await render401(env, { mode: 'live', path, user })
+// Deliberately does NOT go through renderSystemPage/assemble() — those pull in
+// the site's real header/nav (which can itself carry real content, e.g. a
+// mega-menu's preview panes), defeating the point of a staging gate meant to
+// show unauthorised visitors nothing at all. This is a bare, standalone page.
+async function notAuthorizedResponse(c: any, env: BlockhouseEnv, _path: string, _user: any) {
+  const site = await env.site()
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Not authorised — ${escapeHtml(site.name || '')}</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;color:#1a1a1a}
+a{color:inherit}</style></head>
+<body><h1>Not authorised</h1><p>This site is only visible to signed-in team members.</p>
+<p><a href="/admin">Sign in →</a></p></body></html>`
   return c.html(html, 401, { 'x-robots-tag': 'noindex' })
 }
 
