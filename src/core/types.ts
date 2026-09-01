@@ -311,6 +311,15 @@ export interface SecurityConfig {
   private?: 'off' | 'staging' | 'members'
   /** where to send blocked visitors instead of the built-in 401 page, e.g. the production URL */
   privateRedirect?: string
+  /**
+   * A shareable bypass for 'staging' mode — anyone with `?preview=<token>` in
+   * the URL sees the real site without signing in (the token then sets a
+   * cookie, so the rest of their visit doesn't need it in every link). For
+   * handing a staging URL to a client, or letting a stateless single-request
+   * tool — an AI fetch, a screenshot service — see the page without a login
+   * flow. Generate one with `blockhouse security:preview-link`.
+   */
+  previewToken?: string
   /** studio mount point, default 'admin' */
   adminPath?: string
   errorLog?: boolean

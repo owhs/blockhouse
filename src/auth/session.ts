@@ -9,6 +9,23 @@ import type { BlockhouseEnv } from '../server/env.ts'
 const SESSION_COOKIE = 'blockhouse_s'
 const CSRF_COOKIE = 'blockhouse_c'
 
+// Behind a reverse proxy (Cloudflare Tunnel, nginx — see `blockhouse deploy:init`,
+// which sets this header for exactly this reason), the request Bun actually sees
+// is plain HTTP: TLS was terminated upstream. Trusting X-Forwarded-Proto when
+// present is what makes `new URL(c.req.url)` reflect what the browser really
+// connected over, instead of silently reporting "http:" for every https:// site.
+function isSecureRequest(c: Context): boolean {
+  const xfp = c.req.header('x-forwarded-proto')
+  if (xfp) return xfp.split(',')[0].trim().toLowerCase() === 'https'
+  return new URL(c.req.url).protocol === 'https:'
+}
+
+function requestOrigin(c: Context): string {
+  const url = new URL(c.req.url)
+  url.protocol = isSecureRequest(c) ? 'https:' : 'http:'
+  return url.origin
+}
+
 export async function signValue(secret: string, v: string): Promise<string> {
   return `${v}.${await hmacSign(secret, v)}`
 }
@@ -23,7 +40,7 @@ export async function unsignValue(secret: string, signed: string | undefined): P
 
 export async function establishSession(c: Context, env: BlockhouseEnv, userId: string) {
   const session = await env.secure.createSession(userId, c.req.header('user-agent') || '')
-  const secure = new URL(c.req.url).protocol === 'https:'
+  const secure = isSecureRequest(c)
   setCookie(c, SESSION_COOKIE, await signValue(env.secret, session.id), {
     httpOnly: true, sameSite: 'Lax', path: '/', secure, maxAge: 30 * 86400,
   })
@@ -61,7 +78,7 @@ export function csrfMiddleware(): MiddlewareHandler {
       // auth endpoints run before any CSRF cookie exists — same-origin check instead
       if (c.req.path.startsWith('/api/auth/')) {
         const origin = c.req.header('origin')
-        if (origin && origin !== new URL(c.req.url).origin) {
+        if (origin && origin !== requestOrigin(c)) {
           return c.json({ error: 'cross-origin request rejected' }, 403)
         }
         return next()
@@ -80,9 +97,8 @@ export function csrfMiddleware(): MiddlewareHandler {
 export function sameOriginOnly(): MiddlewareHandler {
   return async (c, next) => {
     const origin = c.req.header('origin')
-    if (origin) {
-      const reqOrigin = new URL(c.req.url).origin
-      if (origin !== reqOrigin) return c.json({ error: 'cross-origin submission rejected' }, 403)
+    if (origin && origin !== requestOrigin(c)) {
+      return c.json({ error: 'cross-origin submission rejected' }, 403)
     }
     await next()
   }

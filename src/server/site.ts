@@ -4,14 +4,16 @@
 
 import { Hono } from '../vendor/http.ts'
 import type { BlockhouseEnv } from './env.ts'
-import { escapeHtml, normalizePath } from '../core/util.ts'
+import { escapeHtml, normalizePath, timingSafeEqual } from '../core/util.ts'
 import { canonicalizeRequestPath, hrefFor } from '../core/urls.ts'
 import { renderDocPage, renderListPage, render404, renderSystemPage } from '../render/page.ts'
 import { robotsTxt, rssXml, sitemapXml } from '../render/seo.ts'
 import { mimeOf } from '../images/exif.ts'
+import { getCookie, setCookie } from '../vendor/http.ts'
 
 const LONG_CACHE = 'public, max-age=31536000, immutable'
 const PAGE_CACHE = 'public, max-age=0, must-revalidate'
+const PREVIEW_COOKIE = 'blockhouse_preview'
 
 export function siteRoutes(env: BlockhouseEnv): Hono {
   const app = new Hono()
@@ -41,6 +43,16 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
     const mode = site.security?.private || 'off'
     if (mode !== 'staging' && mode !== 'members') return next()
     if (c.get('user' as never)) return next()
+    const token = site.security?.previewToken
+    if (token) {
+      const supplied = c.req.query('preview') || getCookie(c, PREVIEW_COOKIE)
+      if (supplied && timingSafeEqual(supplied, token)) {
+        if (c.req.query('preview')) {
+          setCookie(c, PREVIEW_COOKIE, token, { httpOnly: true, sameSite: 'Lax', path: '/', maxAge: 30 * 86400 })
+        }
+        return next()
+      }
+    }
     const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
     const ap = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
     if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path.startsWith('/x/members/')) return next()
