@@ -751,6 +751,18 @@ function securitySection(s, save) {
       trustedIssuers: (() => { try { return JSON.parse(vals.trustedIssuers || '{}') } catch { return sec.trustedIssuers || {} } })() },
   })
 
+  const previewOut = h('div', { style: { marginTop: '0.5rem' } })
+  const renderPreviewLink = token => {
+    if (!token) { previewOut.replaceChildren(h('p.fnt', { style: { fontSize: '0.76rem' } }, 'No link yet — visitors get the plain sign-in wall.')); return }
+    const url = `${location.origin}/?preview=${token}`
+    previewOut.replaceChildren(h('input', {
+      type: 'text', readonly: true, value: url,
+      style: { width: '100%', fontFamily: 'var(--mono)', fontSize: '0.78rem' },
+      onclick: e => e.target.select(),
+    }))
+  }
+  renderPreviewLink(sec.previewToken)
+
   const probeOut = h('pre.code-out', { hidden: true })
   const logsOut = h('div')
   const loadLogs = async () => {
@@ -789,9 +801,19 @@ function securitySection(s, save) {
           { value: 'members', label: 'Members only (whole site behind sign-in)' },
           { value: 'staging', label: 'Staging — studio users only' },
         ], width: 'half', help: 'Staging keeps the studio reachable and hides everything else' },
-        { key: 'privateRedirect', type: 'text', label: 'Staging: send visitors to', width: 'half', help: 'e.g. https://www.example.com — blank shows a plain 404' },
+        { key: 'privateRedirect', type: 'text', label: 'Staging: send visitors to', width: 'half', help: "e.g. https://www.example.com — blank shows the sign-in wall instead" },
       ], vals, () => {}),
-      h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' } },
+      h('div', { style: { marginTop: '0.7rem' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          h('strong', { style: { fontSize: '0.85rem' } }, 'Shareable preview link'),
+          h('button.btn.ghost.small', { onclick: async () => {
+            const r = await post('/security/preview-link', {})
+            renderPreviewLink(r.token)
+          } }, iconEl('link', 13), sec.previewToken ? 'Rotate' : 'Create')),
+        h('p.fnt', { style: { fontSize: '0.76rem', margin: '0.2rem 0 0.4rem' } },
+          'Lets anyone with the link view a Staging-gated site without signing in — for handing to a client, or a tool that just needs to fetch a page once. Rotating invalidates the old one immediately.'),
+        previewOut),
+      h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.8rem' } },
         h('button.btn.soft.small', { onclick: async e => {
           probeOut.hidden = false; probeOut.textContent = 'Probing…'
           const r = await post('/security/probe', {})

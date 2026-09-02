@@ -8,7 +8,7 @@ import { establishSession, destroySession } from '../auth/session.ts'
 import { analyzeSeo } from '../core/seo-analyze.ts'
 import { audit, checkPasswordPolicy, clearLoginFailures, loginBlocked, recordLoginFailure } from './security.ts'
 import type { Doc, User } from '../core/types.ts'
-import { deepClone, id, slugify, stringify, tryJson } from '../core/util.ts'
+import { deepClone, id, randomToken, slugify, stringify, tryJson } from '../core/util.ts'
 import { evaluate } from '../core/expr.ts'
 import { exportFileFor, hrefFor, shortPath } from '../core/urls.ts'
 import { openSecret, sealSecret } from './crypto.ts'
@@ -807,6 +807,17 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     }
     const exposed = results.filter(r => !r.ok)
     return c.json({ base, results, ok: exposed.length === 0, advice: exposed.length ? 'Something answered 200 where it must not. If a reverse proxy or object store serves the project folder directly, block these paths (nginx: location ~ /\\.(blockhouse|git) { deny all; } · Cloudflare: a WAF rule matching the paths above).' : 'Nothing sensitive is reachable from that URL.' })
+  })
+
+  // Shareable staging bypass link — see security.previewToken in site.ts.
+  // Generates once, rotates on demand; PUT /settings already goes through
+  // env.invalidate() via saveSite, so this takes effect immediately, no
+  // restart needed (unlike a token set by hand-editing site.json on disk).
+  app.post('/security/preview-link', guard('settings.write'), async c => {
+    const token = randomToken(20)
+    await env.content.saveSite({ security: { ...(await env.site()).security, previewToken: token } })
+    env.invalidate()
+    return c.json({ token })
   })
 
   // send the signed-in admin a test email through the configured driver
