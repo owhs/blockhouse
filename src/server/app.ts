@@ -75,7 +75,11 @@ export function buildApp(env: BlockhouseEnv): Hono {
       if (rel.includes('..')) return c.notFound()
       const data = await env.appAssets.read(`admin/${rel}`)
       if (!data) return c.notFound()
-      return c.body(data as any, 200, { 'content-type': mimeOf(rel), 'cache-control': env.dev ? 'no-cache' : 'public, max-age=3600' })
+      // 'private', not 'public': this is the studio bundle, gated behind a login — a
+      // shared/CDN cache (Cloudflare's edge, a corporate proxy) has no business holding
+      // a copy at all, and having one is exactly what turned "restart the site" into
+      // "also go purge Cloudflare's cache" for an admin-JS change more than once.
+      return c.body(data as any, 200, { 'content-type': mimeOf(rel), 'cache-control': env.dev ? 'no-cache' : 'private, max-age=3600' })
     }
     if (rest === '') return c.redirect(`/${ap}/`)
     return c.html(await adminShell(env, ap))
