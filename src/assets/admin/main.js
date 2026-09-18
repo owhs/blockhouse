@@ -225,16 +225,45 @@ function renderShell() {
         h('button.mbar-btn', {
           'aria-haspopup': 'menu', 'aria-expanded': 'false',
           onclick: e => {
-            const on = grp.classList.toggle('open')
-            e.currentTarget.setAttribute('aria-expanded', String(on))
+            const wasOpen = grp.classList.contains('open')
+            closeRibbon()
+            if (!wasOpen) {
+              grp.classList.add('open')
+              e.currentTarget.setAttribute('aria-expanded', 'true')
+              open.querySelector('button')?.focus()
+            }
+          },
+          onkeydown: e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.click() }
           },
         }, g.title, iconEl('chevD', 11)),
         open)
+      // choosing an item is the end of the menu's job
+      open.addEventListener('click', e => { if (e.target.closest('.mbar-item')) closeRibbon() })
+      open.addEventListener('keydown', e => {
+        const items = [...open.querySelectorAll('.mbar-item')]
+        const i = items.indexOf(document.activeElement)
+        if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus() }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus() }
+        else if (e.key === 'Escape') { e.preventDefault(); closeRibbon(); grp.querySelector('.mbar-btn')?.focus() }
+      })
       return grp
     }))
   }
 
   const closeNavOnMobile = () => shellEl?.classList.remove('nav-open')
+
+  /** Shut every ribbon menu. A menu with no way out but a second precise click
+      is a trap, so this runs on outside click, Escape, and route changes too. */
+  function closeRibbon() {
+    for (const g of document.querySelectorAll('.mbar-group.open')) {
+      g.classList.remove('open')
+      g.querySelector('.mbar-btn')?.setAttribute('aria-expanded', 'false')
+    }
+  }
+  addEventListener('pointerdown', e => { if (!e.target.closest?.('.mbar-group')) closeRibbon() })
+  addEventListener('keydown', e => { if (e.key === 'Escape') closeRibbon() })
+  addEventListener('hashchange', closeRibbon)
 
   viewEl = h('main.view', { id: 'view', tabindex: '-1' })
 

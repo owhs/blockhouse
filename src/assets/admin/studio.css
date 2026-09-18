@@ -539,8 +539,15 @@ a { color: var(--acc-bright); text-decoration: none; }
 .mbar-btn { display: inline-flex; align-items: center; gap: var(--s1); padding: var(--s1) var(--s4); border-radius: var(--r-s); font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); }
 .mbar-group:hover .mbar-btn, .mbar-group.active .mbar-btn { background: var(--bg-hover); color: var(--ink); }
 .mbar-group.active .mbar-btn { color: light-dark(var(--acc-strong), var(--acc-bright)); }
-.mbar-drop { position: absolute; top: calc(100% + 0.2rem); left: 0; min-width: 13rem; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: var(--s1); display: none; z-index: 60; }
-.mbar-group:hover .mbar-drop, .mbar-group:focus-within .mbar-drop { display: grid; gap: 1px; }
+/* The ribbon menu opens on CLICK, which is what the markup always claimed:
+   the button carries aria-expanded and the script toggles .open. There was no
+   rule for .open, so clicking did nothing at all — the menu appeared only on
+   :hover, and `top: calc(100% + 0.2rem)` left a 3px dead strip between the
+   button and the menu that belongs to neither, so the pointer lost :hover on
+   the way down and the menu vanished before you could reach an item. */
+.mbar-drop { position: absolute; top: 100%; left: 0; margin-top: 0.2rem; min-width: 13rem; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-l); padding: var(--s1); display: none; z-index: 60; }
+.mbar-group.open .mbar-drop { display: grid; gap: 1px; }
+.mbar-group.open .mbar-btn { background: var(--bg-hover); color: var(--ink); }
 .mbar-item { color: var(--mut); }
 .mbar-item:hover { background: var(--bg-hover); color: var(--ink); }
 .mbar-item.active { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
