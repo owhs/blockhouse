@@ -26,6 +26,8 @@ export class Registry {
   actions = new Map<string, AutomationAction>()
   mailDrivers = new Map<string, MailDriver>()
   plugins = new Map<string, PluginManifest>()
+  /** pluginId -> why it failed to register, so the studio can show it. */
+  pluginErrors = new Map<string, string>()
   adminPanels: AdminPanel[] = []
   resources = new Map<string, { plugin: string; def: ResourceDef }>()
 

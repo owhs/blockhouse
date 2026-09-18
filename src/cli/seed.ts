@@ -5,6 +5,7 @@ import { FsDriver } from '../storage/fs.ts'
 import { stringify, now } from '../core/util.ts'
 import { imageDimensions } from '../images/exif.ts'
 import type { Doc } from '../core/types.ts'
+import { builtinPlugins } from '../../../plugins/index.ts'
 
 const T = now()
 let bi = 0
@@ -15,7 +16,12 @@ export async function seedDemo(dir: string) {
   const d = new FsDriver(dir)
   const w = (key: string, v: any) => d.write(key, stringify(v))
 
-  const ALL = (perms: string[]) => ({ enabled: true, approved: perms })
+  // Approve exactly what each plugin's manifest declares. This used to be a
+  // hand-copied list per plugin, which silently drifted: `files` gained a
+  // routes.public route but the seed never granted it, so every seeded site
+  // threw a PermissionError for `files` on boot.
+  const ALL = (pid: keyof typeof builtinPlugins) =>
+    ({ enabled: true, approved: [...builtinPlugins[pid].manifest.permissions] })
 
   // register generated placeholder SVGs (in media/library/) as media entries
   const MEDIA: Record<string, string> = {}
@@ -56,14 +62,14 @@ export async function seedDemo(dir: string) {
     },
     mail: { driver: 'console', from: 'hello@meridian.example' },
     plugins: {
-      forms: ALL(['blocks.register', 'routes.public', 'routes.api', 'secure.tables', 'settings.own', 'mail.send', 'events.listen', 'events.emit', 'net.fetch']),
-      files: ALL(['routes.root', 'routes.api', 'secure.tables', 'settings.own', 'mail.send', 'events.emit', 'files.private']),
-      newsletter: ALL(['blocks.register', 'routes.public', 'routes.api', 'secure.tables', 'settings.own', 'mail.send', 'events.emit']),
-      automations: ALL(['events.listen', 'events.emit', 'routes.public', 'routes.api', 'secure.tables', 'settings.own', 'mail.send', 'net.fetch', 'actions.register', 'content.read', 'content.write']),
-      data: ALL(['routes.public', 'routes.api', 'secure.tables', 'settings.own', 'actions.register', 'events.emit', 'content.read']),
-      search: ALL(['blocks.register', 'routes.public', 'routes.api', 'settings.own', 'events.listen', 'content.read']),
-      analytics: ALL(['routes.public', 'routes.api', 'secure.tables', 'settings.own']),
-      ai: ALL(['routes.api', 'settings.own', 'net.fetch', 'actions.register', 'events.listen', 'events.emit']),
+      forms: ALL('forms'),
+      files: ALL('files'),
+      newsletter: ALL('newsletter'),
+      automations: ALL('automations'),
+      data: ALL('data'),
+      search: ALL('search'),
+      analytics: ALL('analytics'),
+      ai: ALL('ai'),
     },
   })
 
