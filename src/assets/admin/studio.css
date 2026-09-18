@@ -939,7 +939,10 @@ button.card.plug-card:hover { border-color: var(--acc); }
    ========================================================================== */
 .app.wide .side,
 .app.wide .outline,
-.app.wide .inspector { display: none; }
+.app.wide .inspector,
+.app.wide .ribbon,
+.app.wide .split > .panel { display: none; }
+.app.wide .split { grid-template-columns: minmax(0, 1fr); }
 .app.wide .editor,
 .app.wide.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
 .app.wide { grid-template-columns: 1fr; grid-template-areas: "top" "view"; }

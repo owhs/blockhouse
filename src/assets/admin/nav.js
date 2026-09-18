@@ -18,15 +18,21 @@ const PLUGIN_ICONS = {
   commerce: 'cart', ops: 'server', backups: 'cloud',
 }
 
-// Which job each plugin belongs to. Unknown plugins land in Content, where a
-// person is most likely to look for something that holds records.
+// Which job each plugin belongs to. Some genuinely belong to an existing
+// section — search and analytics are part of what visitors get, automations and
+// ops are part of running the place. The rest keep their own records (form
+// submissions, subscribers, delivered files) and belong to neither, so they get
+// their own section instead of being filed under "the things you write", which
+// they are not: a person hunting for form submissions does not think Content.
 const PLUGIN_SECTION = {
   search: 'site', analytics: 'site', seo: 'site',
   ops: 'studio', backups: 'studio', integrations: 'studio', automations: 'studio', ai: 'studio',
 }
+const PLUGIN_FALLBACK_SECTION = 'apps'
 
 export const SECTIONS = [
   { key: 'content', title: 'Content', hint: 'The things you write and upload' },
+  { key: 'apps', title: 'Apps', hint: 'Extras you switched on — each keeps its own records' },
   { key: 'site', title: 'Site', hint: 'What visitors see' },
   { key: 'studio', title: 'Studio', hint: 'Running the place' },
 ]
@@ -61,13 +67,15 @@ export function allItems() {
   if (m.perms.seo) out.push({ key: 'seo', section: 'site', icon: 'compass', label: 'SEO & redirects', hash: '#/seo', tip: 'Audit, feeds and redirects' })
 
   for (const p of m.panels || []) {
-    const section = PLUGIN_SECTION[p.plugin] || 'content'
+    const section = PLUGIN_SECTION[p.plugin] || PLUGIN_FALLBACK_SECTION
     out.push({
       key: `p/${p.key}`, section,
       icon: PLUGIN_ICONS[p.plugin] || p.icon || 'plug', label: p.label, hash: `#/p/${p.key}`,
       // say where it came from, so an app sitting in Content is explained
       // rather than merely placed
-      tip: `From the ${p.plugin} app · filed under ${SECTIONS.find(x => x.key === section)?.title || section}`,
+      tip: section === PLUGIN_FALLBACK_SECTION
+        ? `From the ${p.plugin} app`
+        : `From the ${p.plugin} app · filed under ${SECTIONS.find(x => x.key === section)?.title || section}`,
       plugin: p.plugin,
     })
   }
@@ -96,7 +104,7 @@ export const isPinned = key => pinned().includes(key)
 // this: 27 rail items, overflowing a 900px-tall window by 230px, which made
 // the primary navigation something you had to scroll to read.
 // An explicit choice always wins and is remembered forever after.
-const DEFAULT_CLOSED = { site: true, studio: true }
+const DEFAULT_CLOSED = { apps: true, site: true, studio: true }
 export const collapsed = () => ({ ...DEFAULT_CLOSED, ...(prefs().navCollapsed || {}) })
 export function toggleSection(key) {
   const c = { ...collapsed() }

@@ -9,7 +9,7 @@
 import { get, put, post, del } from './api.js'
 import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, fitPreviewFrame, makeTreeSortable, skeleton, sc } from './ui.js'
 import { renderFields } from './fields.js'
-import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn } from './state.js'
+import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn, toggleWide } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { registerCommands } from './search.js'
 import { helpButton } from './help.js'
@@ -1030,17 +1030,10 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     setTimeout(paintScale, 60)
   }
 
-  // Focus mode: rail, outline and inspector out of the way in one action,
-  // remembered between visits, and always reversible from the same button.
-  const toggleWide = (force) => {
-    const app2 = document.querySelector('.app')
-    const on = force ?? !app2.classList.contains('wide')
-    app2.classList.toggle('wide', on)
-    setPref('wideMode', on)
-    document.querySelectorAll('.wide-btn').forEach(b => b.setAttribute('aria-pressed', String(on)))
-    toast(on ? 'Wide — press Esc or the Wide button to bring the panels back' : 'Panels back', 'info', 2200)
-    setTimeout(paintScale, 280)
-  }
+  // Wide lives in state.js — the same state on every view. The editor only
+  // needs to re-measure the preview once the panels have gone.
+  const onWide = () => setTimeout(paintScale, 280)
+  addEventListener('bh:wide', onWide)
 
   const backTo = peekReturn()
   const editorEl = h('div.editor', {},
@@ -1115,7 +1108,6 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const appEl = document.querySelector('.app')
   appEl?.classList.toggle('insp-left', !!prefs().inspLeft)
   appEl?.classList.toggle('insp-hidden', !!prefs().inspHidden)
-  appEl?.classList.toggle('wide', !!prefs().wideMode)
   // While you are editing one document the site-wide rail is not the job —
   // collapse it to icons and give the pixels to the page you are looking at.
   const railWasOpen = !appEl?.classList.contains('side-collapsed')
@@ -1231,12 +1223,6 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     // Everything typed into a sheet belongs to the sheet.
     if (sheetIsOpen()) return
     const mod = e.metaKey || e.ctrlKey
-    if (mod && e.key === '.') { e.preventDefault(); return toggleWide() }
-    // Wide hides the navigation, so the usual "get me out" key has to work
-    // before anything else claims Esc.
-    if (e.key === 'Escape' && document.querySelector('.app')?.classList.contains('wide')) {
-      e.preventDefault(); return toggleWide(false)
-    }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doUndo() }
     if (mod && e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doRedo() }
@@ -1306,7 +1292,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   return () => {
     if (railWasOpen) appEl?.classList.remove('side-collapsed')
     appEl?.classList.remove('insp-hidden')
-    appEl?.classList.remove('wide')
+    removeEventListener('bh:wide', onWide)
     removeEventListener('message', onBridgeMsg)
     removeEventListener('keydown', onKey)
     removeEventListener('resize', onResize)

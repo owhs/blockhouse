@@ -4,7 +4,7 @@
 import { get, post } from './api.js'
 import { h, toast, dialog, spinner, contextMenu, sc } from './ui.js'
 import { icon, iconEl } from './icons.js'
-import { state, VIEWS, prefs, setPref, hooks, guards, pushReturn, popReturn } from './state.js'
+import { state, VIEWS, prefs, setPref, hooks, guards, pushReturn, popReturn, wideMode, toggleWide } from './state.js'
 // view modules register themselves into VIEWS as a side effect
 import './views.js'
 import './editor.js'
@@ -239,7 +239,7 @@ function renderShell() {
   viewEl = h('main.view', { id: 'view', tabindex: '-1' })
 
   shellEl = h('div.app', {
-    class: [prefs().layout === 'ribbon' ? 'layout-ribbon' : '', prefs().sideCollapsed ? 'side-collapsed' : ''].filter(Boolean).join(' '),
+    class: [prefs().layout === 'ribbon' ? 'layout-ribbon' : '', prefs().sideCollapsed ? 'side-collapsed' : '', wideMode() ? 'wide' : ''].filter(Boolean).join(' '),
   },
     h('a.skip-link', { href: '#view' }, 'Skip to content'),
     h('header.topbar', {},
@@ -256,6 +256,11 @@ function renderShell() {
           h('span.kbd', {}, sc('⌘K')))),
       h('div.top-end', {},
         h('a.btn.ghost.small', { href: '/', target: '_blank', rel: 'noopener', style: { display: 'inline-flex', gap: 'var(--s2)' } }, 'View site', iconEl('external', 13)),
+        h('button.icon-btn.wide-btn', {
+          title: sc('Wide — give this view the whole window  ⌘.'),
+          'aria-label': 'Wide — hide the side panels', 'aria-pressed': String(wideMode()),
+          onclick: () => toggleWide(),
+        }, iconEl('panel-close', 16)),
         h('button.icon-btn', { title: 'Keyboard shortcuts  ?', 'aria-label': 'Keyboard shortcuts', onclick: showShortcuts }, iconEl('help', 16)),
         h('button.icon-btn', { title: 'Personalize studio', 'aria-label': 'Personalize studio', onclick: personalize }, iconEl('palette', 16)),
         h('button.icon-btn', { title: 'Toggle studio theme', 'aria-label': 'Toggle studio light or dark', onclick: toggleTheme }, iconEl('contrast', 16)),
@@ -273,6 +278,11 @@ function renderShell() {
     const typing = /input|textarea|select/i.test(e.target.tagName) || e.target.isContentEditable
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette() }
     else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); setCollapsed(!collapsedSide()) }
+    else if ((e.metaKey || e.ctrlKey) && e.key === '.') { e.preventDefault(); toggleWide() }
+    // Wide hides the navigation, so the usual way out has to work from anywhere.
+    else if (e.key === 'Escape' && !typing && shellEl?.classList.contains('wide') && !document.querySelector('dialog[open], .sheet.open')) {
+      e.preventDefault(); toggleWide(false)
+    }
     else if (e.key === '?' && !typing && !e.metaKey && !e.ctrlKey) { e.preventDefault(); showShortcuts() }
     else if (e.key === 'Escape') closeSheet()
   })

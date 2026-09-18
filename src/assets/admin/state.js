@@ -70,3 +70,18 @@ export function setDisclosure(key, open) {
   d[key] = open
   setPref('disclosure', d)
 }
+
+// ---------- wide mode ----------
+// Wide is a shell state, not an editor one: the same key and the same button
+// clear the chrome on every view. Owned here so no view keeps its own copy.
+export const wideMode = () => !!prefs().wideMode
+export function setWide(on) {
+  const app = document.querySelector('.app')
+  if (!app) return
+  app.classList.toggle('wide', on)
+  setPref('wideMode', on)
+  document.querySelectorAll('.wide-btn').forEach(b => b.setAttribute('aria-pressed', String(on)))
+  // views that scale something to fit need to re-measure once the panels have gone
+  dispatchEvent(new CustomEvent('bh:wide', { detail: { on } }))
+}
+export const toggleWide = force => setWide(force ?? !document.querySelector('.app')?.classList.contains('wide'))
