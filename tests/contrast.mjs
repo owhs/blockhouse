@@ -25,10 +25,10 @@ const over = (fill, pct, back) => fill.map((c, i) => c * pct + back[i] * (1 - pc
 const H = 162 // evergreen
 const T = {
   light: {
-    bg: oklchToLinear(0.968, 0.004, H),
-    panel: oklchToLinear(0.983, 0.003, H),
+    bg: oklchToLinear(0.955, 0.004, H),
+    panel: oklchToLinear(0.985, 0.003, H),
     raise: oklchToLinear(1.0, 0, H),
-    hover: oklchToLinear(0.935, 0.006, H),
+    hover: oklchToLinear(0.925, 0.006, H),
     fnt: oklchToLinear(0.50, 0.012, H),
     mut: oklchToLinear(0.46, 0.01, H),
     okInk: oklchToLinear(0.42, 0.12, 155),
@@ -37,10 +37,10 @@ const T = {
     dangerHover: oklchToLinear(0.38, 0.17, 25),
   },
   dark: {
-    bg: oklchToLinear(0.19, 0.008, H),
-    panel: oklchToLinear(0.22, 0.009, H),
-    raise: oklchToLinear(0.25, 0.01, H),
-    hover: oklchToLinear(0.285, 0.012, H),
+    bg: oklchToLinear(0.145, 0.008, H),
+    panel: oklchToLinear(0.19, 0.009, H),
+    raise: oklchToLinear(0.235, 0.01, H),
+    hover: oklchToLinear(0.28, 0.012, H),
     fnt: oklchToLinear(0.66, 0.009, H),
     mut: oklchToLinear(0.70, 0.008, H),
     okInk: oklchToLinear(0.80, 0.13, 155),
