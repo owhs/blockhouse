@@ -592,6 +592,21 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const container = [...(found.parents || [])].reverse()
       .find(p => byType[p.type]?.fields?.some(f => f.key === 'width'))
     const containerDef = container && byType[container.type]
+    // A block sitting at page root has no Section, so there is nothing that owns
+    // its width. Rather than leave the inspector silent about layout, offer the
+    // one action that gives it a width: put a Section around it.
+    const wrapDef = !container && byType['section']
+    const wrapForm = wrapDef
+      ? [
+        h('div.insp-section-title', {}, 'Layout'),
+        h('p.mut', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
+          'Width, background and padding belong to a Section. This block is not in one yet.'),
+        h('button.btn.ghost.small', {
+          onclick: () => wrapInSection(found.node.id),
+        }, iconEl('layout', 14), 'Wrap in a Section'),
+      ]
+      : []
+
     const containerForm = container
       ? [
         h('div.insp-section-title', {},
@@ -620,7 +635,21 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           onclick: e => blockMenu(e, found.node.id),
         }, iconEl('more', 14))),
       propsForm,
-      ...containerForm)
+      ...containerForm,
+      ...wrapForm)
+  }
+
+  /** Put a Section around a root-level block, so it has something that owns its width. */
+  function wrapInSection(id) {
+    const def = byType['section']
+    if (!def) return
+    const site = ops.siteFor(id)
+    snapshotOnce('Wrap in a Section')
+    const sec = ops.insert({ id: uid(), type: 'section', props: seedProps(def), children: [] }, site.parentId, site.index)
+    if (!sec) return
+    ops.move(id, sec.id, 0)
+    selectBlock(id)
+    toast('Wrapped in a Section — its width is in the inspector', 'ok', 2600)
   }
 
   // `inside` nests the rest within the first type. Pushing them flat, as this

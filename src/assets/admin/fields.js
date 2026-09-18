@@ -36,7 +36,9 @@ export function renderField(def, values, onChange, opts = {}) {
           ? options
           : String(options || '').split('|').map(s => s.trim()).filter(Boolean).map(v => ({ value: v }))
         sel.replaceChildren(
-          ...(def.required ? [] : [h('option', { value: '' }, '—')]),
+          // A field with a default has no meaningful empty state — offering "—"
+          // let you select nothing and land the block on an invalid value.
+          ...(def.required || def.default !== undefined ? [] : [h('option', { value: '' }, '—')]),
           ...opts.map(o => h('option', { value: o.value, selected: String(o.value) === String(val) }, o.label || o.value)))
       }
       fill(def.options || [])
