@@ -423,14 +423,33 @@ registerView('menus', async (root, [menuKey]) => {
   paintInspector()
   // The view promises "the site changes when you save". Publishing silently on
   // the way out broke that promise with the site's live navigation.
+  // Three honest outcomes. The /draft endpoint backs the live preview and is
+  // held in memory on the server, so it cannot be offered as a place to keep
+  // work — saying "kept as a draft" and then dropping it would be worse than
+  // saying nothing.
   const disposeGuard = registerGuard('menus', async () => {
     if (!dirty) return true
-    const go = await confirmDialog('Unsaved menu changes',
-      `“${active.label || active.key}” has changes that are not live yet. Publish them to the site now, or keep them as a draft?`,
-      'Publish now')
-    if (go) await put(`/menus/${active.key}`, { menu: active }).catch(() => {})
-    else await put(`/menus/${active.key}/draft`, { menu: active }).catch(() => {})
-    return true
+    return await new Promise(resolve => {
+      dialog({
+        title: 'Unsaved menu changes',
+        body: h('p.dlg-text', {},
+          `“${active.label || active.key}” has changes that are not live yet. Publishing puts them on the site straight away.`),
+        actions: [
+          { label: 'Keep editing', onClick: () => { resolve(false); return true } },
+          { label: 'Discard changes', kind: 'danger', onClick: () => { dirty = false; resolve(true); return true } },
+          {
+            label: 'Publish now', kind: 'primary', onClick: async () => {
+              await put(`/menus/${active.key}`, { menu: active }).catch(() => {})
+              dirty = false
+              toast('Menu is live', 'ok')
+              resolve(true)
+              return true
+            },
+          },
+        ],
+        onClose: v => { if (v === undefined) resolve(false) },
+      })
+    })
   })
   const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
   addEventListener('beforeunload', beforeUnload)

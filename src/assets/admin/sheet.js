@@ -30,14 +30,35 @@ export async function openSheet({ title, sub, body, onClose, width }) {
     holder)
 
   document.body.append(scrim, panel)
-  requestAnimationFrame(() => { scrim.classList.add('in'); panel.classList.add('in') })
+  // A forced reflow starts the transition reliably. requestAnimationFrame does
+  // not run in a background tab, so the panel could stay parked off-screen.
+  void panel.offsetWidth
+  scrim.classList.add('in'); panel.classList.add('in')
 
-  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closeSheet() } }
+  const onKey = e => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeSheet(); return }
+    // The sheet is a dialog with a scrim, so Tab must not walk out of it into
+    // the page it is covering. <dialog> gets this for free; this does not.
+    if (e.key !== 'Tab') return
+    const f = [...panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter(el => el.offsetParent !== null || el === document.activeElement)
+    if (!f.length) return
+    const first = f[0], last = f[f.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
   panel.addEventListener('keydown', onKey)
+  // anything behind the scrim is unreachable while the sheet is open
+  const appEl = document.querySelector('.app')
+  if (appEl) appEl.inert = true
 
   open = {
     panel, scrim, onClose,
-    dispose: () => { panel.removeEventListener('keydown', onKey); opener?.isConnected && opener.focus() },
+    dispose: () => {
+      panel.removeEventListener('keydown', onKey)
+      if (appEl) appEl.inert = false
+      opener?.isConnected && opener.focus()
+    },
   }
 
   holder.replaceChildren(typeof body === 'function' ? await body() : body)

@@ -206,6 +206,25 @@ export async function contextTips(env: BlockhouseEnv, panel: string): Promise<st
   const site = await env.site()
   const docs = await env.content.listDocs()
   switch (panel) {
+    case 'content':
+      return [
+        `${docs.length} document(s) across ${(await env.content.concepts()).length} type(s). The left rail filters; the counts are live.`,
+        'Tick several rows to publish them together — useful after a round of edits.',
+        'Documents with unpublished edits show an "edits" chip: the draft is newer than what visitors see.',
+        'Sort by Title, Status or Updated from the column headings; the choice is remembered.',
+      ]
+    case 'chrome':
+      return [
+        'This is the CONTENT poured into the header and footer — the structure around it is a template file under Templates.',
+        'Each slot is a place the template calls for content; an empty slot renders nothing at all.',
+        'Changes here apply to every page on the site at once.',
+      ]
+    case 'deploy':
+      return [
+        'Run the checks before deploying — they catch missing URLs, oversized pages and insecure settings.',
+        `This site is configured for ${site.url || 'no canonical URL yet'}.`,
+        'A static export writes a flat site you can host anywhere; the live server is only needed for the studio.',
+      ]
     case 'editor':
       return [
         'Double-click any heading or paragraph in the preview to edit it in place.',

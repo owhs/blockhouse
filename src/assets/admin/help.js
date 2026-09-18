@@ -77,13 +77,3 @@ export function helpButton(panel, title) {
   }, iconEl('help', 15))
 }
 
-/** Small contextual tips block other views can drop inline. */
-export async function tipsFor(panel) {
-  const { tips } = await get(`/help/tips?panel=${panel}`).catch(() => ({ tips: [] }))
-  if (!tips.length) return h('span')
-  return h('details.card', { style: { marginBottom: '1rem', padding: '0.7rem 0.9rem' } },
-    h('summary', { style: { cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: 'var(--mut)', display: 'flex', gap: '0.45rem', alignItems: 'center' } },
-      iconEl('info', 14), 'Tips for this screen'),
-    h('ul', { style: { margin: '0.5rem 0 0 1.1rem', display: 'grid', gap: '0.3rem', fontSize: '0.83rem', color: 'var(--mut)' } },
-      ...tips.map(t => h('li', {}, t))))
-}

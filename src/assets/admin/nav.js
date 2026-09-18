@@ -46,6 +46,12 @@ export function allItems() {
     })),
     { key: 'media', section: 'content', icon: 'image', label: 'Assets', hash: '#/media', tip: 'Images, files and everything uploaded' },
   ]
+  if (m.concepts.length > 1) {
+    out.splice(1 + m.concepts.length, 0, {
+      key: 'c/all', section: 'content', icon: 'list', label: 'All content',
+      hash: '#/c/all', tip: 'Every type in one list — sort, filter and publish in bulk',
+    })
+  }
 
   if (m.perms.settings) out.push({ key: 'types', section: 'content', icon: 'layout', label: 'Content types', hash: '#/types', tip: 'Define your own types — products, projects, docs' })
   if (m.perms.menus) out.push({ key: 'menus', section: 'site', icon: 'menu', label: 'Menus', hash: '#/menus', tip: 'Navigation, with a live preview' })
@@ -55,9 +61,14 @@ export function allItems() {
   if (m.perms.seo) out.push({ key: 'seo', section: 'site', icon: 'compass', label: 'SEO & redirects', hash: '#/seo', tip: 'Audit, feeds and redirects' })
 
   for (const p of m.panels || []) {
+    const section = PLUGIN_SECTION[p.plugin] || 'content'
     out.push({
-      key: `p/${p.key}`, section: PLUGIN_SECTION[p.plugin] || 'content',
+      key: `p/${p.key}`, section,
       icon: PLUGIN_ICONS[p.plugin] || p.icon || 'plug', label: p.label, hash: `#/p/${p.key}`,
+      // say where it came from, so an app sitting in Content is explained
+      // rather than merely placed
+      tip: `From the ${p.plugin} app · filed under ${SECTIONS.find(x => x.key === section)?.title || section}`,
+      plugin: p.plugin,
     })
   }
 

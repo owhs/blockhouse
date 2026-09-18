@@ -64,6 +64,30 @@ async function liveRows() {
     rows.push({ kind: 'block', group: 'Blocks', label: b.label, sub: b.description || b.group || '',
       icon: b.icon || 'layout', keywords: `${b.type} block ${b.group || ''}`, blockType: b.type })
   }
+  // Settings contributed by plugins are declared at runtime, so they cannot
+  // live in the static catalogue — index them from /meta instead, or they stay
+  // the one class of setting search cannot reach.
+  for (const sec of meta.settingsSections || []) {
+    for (const f of sec.fields || []) {
+      rows.push({
+        kind: 'setting', group: 'Settings', label: f.label || f.key,
+        sub: `${sec.label} · from the ${sec.plugin} app`, icon: 'plug',
+        keywords: `${f.key} ${sec.plugin} ${sec.label} ${f.help || ''}`,
+        hash: `#/settings/pluginsx?f=${encodeURIComponent(f.key)}`, perm: 'settings',
+      })
+    }
+  }
+  // Custom fields on a content type are where a lot of a site's real data lives
+  for (const c of meta.concepts || []) {
+    for (const f of c.fields || []) {
+      rows.push({
+        kind: 'setting', group: 'Content types', label: `${f.label || f.key}`,
+        sub: `A field on ${c.labelPlural || c.label}`, icon: conceptIcon(c),
+        keywords: `${f.key} ${c.name} field ${f.type || ''}`,
+        hash: `#/types/${c.name}`, perm: 'settings',
+      })
+    }
+  }
   contentCache = rows
   contentAt = Date.now()
   return rows

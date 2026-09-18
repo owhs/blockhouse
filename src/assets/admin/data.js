@@ -3,7 +3,7 @@
 // data plugin panel (main.js imports this; views.js looks it up).
 
 import { get, post, put, del } from './api.js'
-import { h, dialog, confirmDialog, toast, emptyState, fmtDate, makeSortable, contextMenu } from './ui.js'
+import { h, dialog, confirmDialog, toast, emptyState, fmtDate, makeSortable, contextMenu, skeleton } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { renderField } from './fields.js'
 import { tryEval } from './expr.js'
@@ -32,7 +32,7 @@ registerDataSection(async () => {
 
   async function load() {
     renderTabs()
-    body.replaceChildren(h('div.spin'))
+    body.replaceChildren(skeleton('rows', 6))
     const { table, items } = await get(`/x/data/rows/${current.id}`)
     current = table
     allItems = items

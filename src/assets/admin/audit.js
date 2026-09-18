@@ -4,7 +4,7 @@
 // users or change settings (see GRANTABLE in views.js).
 
 import { get } from './api.js'
-import { h, emptyState } from './ui.js'
+import { h, emptyState, skeleton } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView } from './state.js'
 
@@ -34,7 +34,7 @@ registerView('audit', async root => {
 
   body.replaceChildren(
     h('div.page-head', {}, h('div', {}, h('h1', {}, 'Audit log'), h('p.sub', {}, 'What happened, when, and who did it.'))),
-    h('div.spin'))
+    skeleton('rows', 8))
 
   let entries
   try { ({ entries } = await get('/audit')) }

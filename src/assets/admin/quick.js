@@ -1,0 +1,126 @@
+// Quick edits, in a side sheet, without leaving the page you were working on.
+//
+// The provenance dialog used to be a set of doors *out* of the document: click
+// the footer, land in another view, lose your place. These panels bring the
+// control to the work instead. Each is the same data and the same endpoint as
+// its full view — this is a second door, never a second source of truth.
+
+import { get, put } from './api.js'
+import { h, debounce, toast } from './ui.js'
+import { iconEl } from './icons.js'
+import { openSheet, closeSheet } from './sheet.js'
+import { renderFields } from './fields.js'
+
+/**
+ * Palette and corner radius, injected live into whichever preview iframe you
+ * are already looking at. Design owns these values; this edits the same ones.
+ */
+export async function quickDesign(previewFrame) {
+  const { settings } = await get('/settings')
+  const theme = settings.theme || {}
+  const tokens = { ...(theme.tokens || {}) }
+  const num = (k, d) => (tokens[k] === undefined || tokens[k] === '' ? d : parseFloat(String(tokens[k])))
+  const work = { hue: num('hue', 275), chroma: num('accent-chroma', 0.16), radius: num('radius', 14) }
+  let dirty = false
+
+  const push = debounce(() => {
+    previewFrame?.contentWindow?.postMessage({
+      blockhouse: 'tokens',
+      tokens: { hue: String(work.hue), 'accent-chroma': String(work.chroma), radius: `${work.radius}px` },
+    }, '*')
+  }, 50)
+
+  const saveBtn = h('button.btn.primary', { onclick: save }, 'Save to the site')
+  const mark = () => { dirty = true; saveBtn.textContent = 'Save to the site •'; push() }
+
+  async function save() {
+    const next = { ...tokens, hue: String(work.hue), 'accent-chroma': String(work.chroma), radius: `${work.radius}px` }
+    await put('/settings', { patch: { theme: { ...theme, tokens: next } } })
+    Object.assign(tokens, next)
+    dirty = false
+    saveBtn.textContent = 'Saved'
+    toast('Design saved — every page now uses it', 'ok')
+    setTimeout(() => { saveBtn.textContent = 'Save to the site' }, 1400)
+  }
+
+  const slider = (label, min, max, step, key, fmt) => {
+    const out = h('output', { style: { font: '600 0.78rem var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(work[key]))
+    const input = h('input', {
+      type: 'range', min, max, step, value: work[key], 'aria-label': label,
+      oninput: e => { work[key] = parseFloat(e.target.value); out.value = fmt(work[key]); mark() },
+    })
+    return h('div.design-slider', {}, h('label', {}, label),
+      h('div', { style: { display: 'flex', gap: '0.7rem', alignItems: 'center' } }, input, out))
+  }
+
+  const hue = slider('Accent hue', 0, 360, 1, 'hue', v => `${Math.round(v)}°`)
+  hue.querySelector('input').classList.add('hue-track')
+
+  await openSheet({
+    title: 'Colour & shape',
+    sub: 'Changes show in the preview immediately; nothing is live until you save',
+    body: h('div', { style: { display: 'grid', gap: '0.9rem' } },
+      hue,
+      slider('Colour intensity', 0.01, 0.2, 0.005, 'chroma', v => v.toFixed(3)),
+      slider('Corner radius', 0, 24, 1, 'radius', v => `${Math.round(v)}px`),
+      h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } }, saveBtn,
+        h('a.btn.ghost.small', { href: '#/design', onclick: () => closeSheet() }, 'Open Design', iconEl('external', 12))),
+      h('p.fnt', { style: { fontSize: '0.75rem' } },
+        'Two numbers drive the whole palette. Templates, fonts and colour scheme live in Design.')),
+    onClose: () => { if (dirty) toast('Colour changes were not saved', 'info') },
+  })
+}
+
+/**
+ * The blocks in one header/footer slot — the thing you actually clicked —
+ * beside the page rather than three routes away.
+ */
+export async function quickChrome(slotKey, onSaved) {
+  const NICE = {
+    'header.announce': 'Announcement bar',
+    'header.after': 'Below the header',
+    'footer.before': 'Above the footer',
+    'footer.social': 'Footer links & social',
+  }
+  const { slots } = await get('/chrome')
+  const { blocks } = await import('./state.js').then(m => ({ blocks: m.state.meta.blocks }))
+  const byType = Object.fromEntries(blocks.map(b => [b.type, b]))
+  const list = slots[slotKey] || []
+  let dirty = false
+
+  const saveBtn = h('button.btn.primary', {
+    onclick: async () => {
+      await put('/chrome', { slots })
+      dirty = false
+      saveBtn.textContent = 'Saved'
+      toast('Header and footer updated on every page', 'ok')
+      onSaved?.()
+      setTimeout(() => { saveBtn.textContent = 'Save to every page' }, 1400)
+    },
+  }, 'Save to every page')
+  const mark = () => { dirty = true; saveBtn.textContent = 'Save to every page •' }
+
+  const body = h('div', { style: { display: 'grid', gap: '0.6rem' } })
+  const paint = () => {
+    body.replaceChildren(
+      ...(list.length ? list.map(node => {
+        const def = byType[node.type] || { label: node.type, fields: [] }
+        return h('details.insp-group', { open: list.length === 1 },
+          h('summary', {}, def.label || node.type),
+          def.fields?.length
+            ? renderFields(def.fields, node.props ||= {}, () => mark())
+            : h('p.mut', { style: { fontSize: '0.82rem' } }, 'This block has no options.'))
+      }) : [h('p.mut', {}, 'Nothing in this slot yet.')]),
+      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.4rem' } }, saveBtn,
+        h('a.btn.ghost.small', { href: `#/chrome/${encodeURIComponent(slotKey)}`, onclick: () => closeSheet() },
+          'Add or reorder blocks', iconEl('external', 12))))
+  }
+  paint()
+
+  await openSheet({
+    title: NICE[slotKey] || slotKey,
+    sub: 'The content in this slot, on every page',
+    body,
+    onClose: () => { if (dirty) toast('Header and footer changes were not saved', 'info') },
+  })
+}

@@ -42,7 +42,6 @@ registerView('dashboard', async root => {
   const published = docs.filter(d => d.status === 'published')
   const inReview = docs.filter(d => d.status === 'review')
   const stale = docs.filter(d => d.stale)
-  const firstConcept = meta.concepts[0]?.name || 'page'
 
   const onboarding = []
   if (!docs.length) onboarding.push(['Create your first page', () => newDocWizard('page')])
@@ -67,10 +66,10 @@ registerView('dashboard', async root => {
       ...onboarding.map(([label, fn]) => h('p', { style: { marginTop: '0.5rem' } }, h('a', { href: '#', onclick: e => { e.preventDefault(); fn() } }, `→ ${label}`)))) : '',
 
     h('div.cards', {},
-      stat(docs.length, 'Documents', `#/c/${firstConcept}`, 'Browse everything'),
-      stat(published.length, 'Published', `#/c/${firstConcept}?filter=published`, 'Live on the site'),
-      stat(inReview.length, 'Awaiting review', `#/c/${firstConcept}?filter=review`, 'Submitted and waiting for you'),
-      stat(stale.length, 'Unpublished edits', `#/c/${firstConcept}?filter=stale`, 'Drafts newer than what visitors see')),
+      stat(docs.length, 'Documents', '#/c/all', 'Browse everything, of every type'),
+      stat(published.length, 'Published', '#/c/all?filter=published', 'Live on the site'),
+      stat(inReview.length, 'Awaiting review', '#/c/all?filter=review', 'Submitted and waiting for you'),
+      stat(stale.length, 'Unpublished edits', '#/c/all?filter=stale', 'Drafts newer than what visitors see')),
 
     inReview.length && meta.perms.publish ? h('div', {},
       h('h2', { style: { fontSize: '0.95rem', margin: '1.6rem 0 0.6rem' } }, 'Waiting for review'),
@@ -100,11 +99,16 @@ const STATUS_ICON = { published: 'check', draft: 'pen', review: 'clock' }
 
 registerView('contentList', async (root, [conceptName], query) => {
   const meta = state.meta
-  const concept = meta.concepts.find(c => c.name === conceptName)
+  // `all` is a real destination, not a concept: the dashboard counts every
+  // type, so the list it links to has to show every type too.
+  const isAll = conceptName === 'all'
+  const concept = isAll
+    ? { name: 'all', label: 'Document', labelPlural: 'All content', urlPattern: '', fields: [] }
+    : meta.concepts.find(c => c.name === conceptName)
   if (!concept) { location.hash = '#/'; return }
-  if (query?.get('new')) { newDocWizard(conceptName); history.replaceState(null, '', `#/c/${conceptName}`) }
+  if (query?.get('new')) { newDocWizard(isAll ? meta.concepts[0]?.name : conceptName); history.replaceState(null, '', `#/c/${conceptName}`) }
 
-  let docs = (await get(`/content?concept=${conceptName}`)).docs
+  let docs = (await get(isAll ? '/content' : `/content?concept=${conceptName}`)).docs
   let filter = query?.get('filter') || 'all'
   let sort = prefs().listSort || 'updated'
   let q = ''
@@ -183,7 +187,8 @@ registerView('contentList', async (root, [conceptName], query) => {
           onclick: () => { hooks.pushReturn?.(concept.labelPlural || concept.label, location.hash); location.hash = `#/e/${d.id}` },
         },
           h('span.row-ico', { html: icon(STATUS_ICON[d.status] || 'page', 15) }),
-          h('span.row-label', {}, d.title, h('div.row-sub', {}, `${d.path} · ${fmtDate(d.updatedAt)}`)),
+          h('span.row-label', {}, d.title,
+            h('div.row-sub', {}, isAll ? `${d.concept} · ${d.path} · ${fmtDate(d.updatedAt)}` : `${d.path} · ${fmtDate(d.updatedAt)}`)),
           d.stale ? h('span.chip.stale', {}, 'edits') : '',
           h('span.chip', { class: d.status }, d.status)))),
       !items.length
@@ -193,7 +198,7 @@ registerView('contentList', async (root, [conceptName], query) => {
             : filter === 'stale' ? 'Nothing is waiting to go live.'
               : 'Create the first one and it will show up here.',
           q ? h('button.btn.ghost.small', { onclick: () => { q = ''; search.value = ''; paintList() } }, 'Clear the filter')
-            : h('button.btn.primary', { onclick: () => newDocWizard(conceptName) }, iconEl('plus', 13), `New ${concept.label}`))
+            : h('button.btn.primary', { onclick: () => newDocWizard(isAll ? meta.concepts[0]?.name : conceptName) }, iconEl('plus', 13), `New ${concept.label}`))
         : '')
     paintBulk()
   }
@@ -210,7 +215,7 @@ registerView('contentList', async (root, [conceptName], query) => {
           let n = 0
           for (const id of ids) { try { await post(`/content/${id}/publish`); n++ } catch {} }
           toast(`Published ${n} of ${ids.length}`, n === ids.length ? 'ok' : 'err')
-          docs = (await get(`/content?concept=${conceptName}`)).docs
+          docs = (await get(isAll ? '/content' : `/content?concept=${conceptName}`)).docs
           selected.clear(); paintRail(); paintList()
           hooks.refreshCounts?.()
         },
@@ -219,7 +224,8 @@ registerView('contentList', async (root, [conceptName], query) => {
   }
 
   const search = h('input.input', {
-    placeholder: `Filter ${concept.labelPlural || concept.label}…`, 'aria-label': 'Filter documents',
+    placeholder: isAll ? 'Filter every document…' : `Filter ${concept.labelPlural || concept.label}…`,
+    'aria-label': 'Filter documents',
     style: { width: '100%' },
     oninput: e => { q = e.target.value; paintList() },
   })
@@ -227,7 +233,7 @@ registerView('contentList', async (root, [conceptName], query) => {
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, concept.labelPlural || concept.label),
-        h('button.btn.primary.small', { onclick: () => newDocWizard(conceptName) }, iconEl('plus', 12), 'New')),
+        h('button.btn.primary.small', { onclick: () => newDocWizard(isAll ? meta.concepts[0]?.name : conceptName) }, iconEl('plus', 12), 'New')),
       railEl),
     h('div.main', {}, h('div.main-pad', {},
       h('div.page-head', {},
@@ -238,15 +244,21 @@ registerView('contentList', async (root, [conceptName], query) => {
           h('button.btn.ghost.small.panel-toggle', {
             'aria-label': 'Filters', onclick: () => root.querySelector('.split').classList.toggle('panel-open'),
           }, iconEl('filter', 12), 'Filters'),
-          h('button.btn.ghost.small', { onclick: () => exportCsv(concept, docs) }, iconEl('download', 12), 'CSV'),
-          h('button.btn.ghost.small', { onclick: () => importCsv(concept) }, iconEl('upload', 12), 'Import'),
+          isAll ? '' : h('button.btn.ghost.small', { onclick: () => exportCsv(concept, docs) }, iconEl('download', 12), 'CSV'),
+          isAll ? '' : h('button.btn.ghost.small', { onclick: () => importCsv(concept) }, iconEl('upload', 12), 'Import'),
           helpButton('content', concept.labelPlural || concept.label))),
       h('div', { style: { marginBottom: '0.6rem' } }, search),
       listEl,
       bulkEl))))
 
+  hooks.reloadList = async () => {
+    docs = (await get(isAll ? '/content' : `/content?concept=${conceptName}`)).docs
+    selected.clear(); paintRail(); paintList()
+  }
+
   paintRail()
   paintList()
+  return () => { hooks.reloadList = null }
 })
 
 // ---------- media ----------
@@ -327,8 +339,12 @@ function importCsv(concept) {
           fields: Object.fromEntries((concept.fields || []).map(f => [f.key, mapping[f.key] !== undefined ? r[mapping[f.key]] : undefined]).filter(([, v]) => v !== undefined && v !== '')),
         })).filter(d => d.title)
         const res = await post('/content/bulk', { concept: concept.name, docs })
-        toast(`Imported ${res.created} draft(s)`, 'ok', 4000)
-        location.reload()
+        // repaint the list we are already looking at, rather than rebooting the
+        // studio and dumping the user back on the dashboard
+        hooks.invalidateSearch?.()
+        hooks.refreshCounts?.()
+        hooks.reloadList?.()
+        toast(`Imported ${res.created} draft${res.created === 1 ? '' : 's'} — they are in Drafts, nothing is live yet`, 'ok', 6000)
         return true
       },
     }],
@@ -369,7 +385,7 @@ registerView('users', async root => {
   const holder = h('div')
   const refresh = async () => {
     const { users } = await get('/users')
-    holder.replaceChildren(h('div.table-wrap', {}, h('table.data-table.users-table', {},
+    holder.replaceChildren(h('div.table-wrap', {}, h('table.data-table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'Person'), h('th', {}, 'Role'), h('th', {}, 'Last sign-in'), h('th', {}, 'Status'), h('th', {}, ''))),
       h('tbody', {}, ...users.map(u => {
         const roleSel = h('select.input', {
@@ -839,7 +855,7 @@ function schemeSection(s, save) {
 function systemPagesSection(s, save) {
   const sys = { ...(s.systemPages || {}) }
   const m = { enabled: false, message: '', retryAfter: 600, allow: [], ...(s.maintenance || {}) }
-  const holder = h('div', {}, h('div.spin'))
+  const holder = h('div', {}, skeleton('rows', 5))
 
   get('/content').then(({ docs }) => {
     const options = [{ value: '', label: 'Use the template file' },
@@ -1122,6 +1138,12 @@ function buildSection(s, save) {
 
 // ---------- plugins (permission approval) ----------
 
+/** What a role may not do, said out loud rather than left as an absence. */
+export function permissionNote(what) {
+  return h('p.fnt', { style: { fontSize: '0.78rem', marginTop: '0.4rem' } },
+    `Your account (${state.user.role}) cannot ${what}. An owner or admin can change that under Apps & permissions.`)
+}
+
 registerView('plugins', async root => {
   const holder = h('div.cards', { style: { gridTemplateColumns: 'repeat(auto-fill, minmax(19rem, 1fr))' } })
   let all = []
@@ -1156,7 +1178,7 @@ registerView('plugins', async root => {
   const paint = () => {
     const needle = q.trim().toLowerCase()
     const list = all.filter(p => !needle || `${p.id} ${p.name} ${p.description} ${PLUGIN_TAGS[p.id] || ''}`.toLowerCase().includes(needle))
-    holder.replaceChildren(...list.map(p => h('div.card.plug-card', { onclick: () => openPlugin(p) },
+    holder.replaceChildren(...list.map(p => h('button.card.plug-card', { onclick: () => openPlugin(p) },
       h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.35rem' } },
         h('span.row-ico', { html: icon(p.state.enabled ? 'plug' : 'lock', 17) }),
         h('strong', {}, p.name),
@@ -1408,8 +1430,8 @@ const CUSTOM_SECTIONS = {
     const { actions } = await get('/x/automations/actions').catch(() => ({ actions: [] }))
     const wrap = h('div')
 
-    const listHolder = h('div', {}, h('div.spin'))
-    const runsHolder = h('div', {}, h('div.spin'))
+    const listHolder = h('div', {}, skeleton('rows', 5))
+    const runsHolder = h('div', {}, skeleton('rows', 4))
 
     const refreshList = async () => {
       const { items } = await get('/res/automations/recipes')
@@ -1753,7 +1775,7 @@ const CUSTOM_SECTIONS = {
   },
 
   integrations: async () => {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 5))
     const refresh = async () => {
       const { connectors } = await get('/x/integrations/connectors')
       holder.replaceChildren(...connectors.map(cn => {
@@ -1911,7 +1933,7 @@ const CUSTOM_SECTIONS = {
   },
 
   members: async () => {
-    const listHolder = h('div', {}, h('div.spin'))
+    const listHolder = h('div', {}, skeleton('rows', 5))
     const refresh = async () => {
       const [{ members }, { items: groups }] = await Promise.all([
         get('/x/members/list'),
@@ -1966,7 +1988,7 @@ const CUSTOM_SECTIONS = {
   },
 
   analytics: async () => {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 5))
     let days = 30
 
     const load = () => {
@@ -2006,7 +2028,7 @@ const CUSTOM_SECTIONS = {
       onclick: e => {
         days = d
         for (const b of seg.children) b.classList.toggle('active', b === e.currentTarget)
-        holder.replaceChildren(h('div.spin')); load()
+        holder.replaceChildren(skeleton('rows', 5)); load()
       },
     }, `${d} days`)))
 
@@ -2019,9 +2041,9 @@ const CUSTOM_SECTIONS = {
   },
 
   ops: Object.assign(async () => {
-    const statusHolder = h('div', {}, h('div.spin'))
-    const branchesHolder = h('div', {}, h('div.spin'))
-    const backupsHolder = h('div', {}, h('div.spin'))
+    const statusHolder = h('div', {}, skeleton('rows', 3))
+    const branchesHolder = h('div', {}, skeleton('rows', 3))
+    const backupsHolder = h('div', {}, skeleton('rows', 4))
     const canRestore = state.user.role === 'admin' || state.user.role === 'owner' || (state.user.grants || []).includes('settings.write')
     const syncMessage = h('input.input', { placeholder: 'Commit message (optional)', style: { marginBottom: '0.5rem', width: '100%' } })
 

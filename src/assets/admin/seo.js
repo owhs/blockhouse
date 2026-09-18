@@ -1,7 +1,7 @@
 // SEO suite view: site-wide audit with broken-link detection + redirects manager.
 
 import { get, put } from './api.js'
-import { h, toast, undoToast, confirmDialog, emptyState, fmtDate } from './ui.js'
+import { h, toast, undoToast, confirmDialog, emptyState, fmtDate, skeleton } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView, state, hooks } from './state.js'
 
@@ -46,7 +46,7 @@ registerView('seo', async root => {
   paintFeeds()
 
   // ---------- audit ----------
-  const auditHolder = h('div', {}, h('div.spin'))
+  const auditHolder = h('div', {}, skeleton('rows', 6))
   main.append(h('div.card', { style: { marginBottom: '1rem' } },
     h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Content audit'), h('span.fnt', { id: 'audit-sum' })),
     auditHolder))

@@ -12,6 +12,8 @@ import { renderFields } from './fields.js'
 import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { registerCommands } from './search.js'
+import { helpButton } from './help.js'
+import { quickDesign, quickChrome } from './quick.js'
 import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard } from './docops.js'
 
 registerView('editor', async (root, [docId, tabParam], query) => {
@@ -57,6 +59,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   function restore(json) {
     Object.assign(doc, JSON.parse(json))
     titleInput.value = doc.title
+    structuralSinceVersion = true
     renderTree(); renderInspector(); refreshPreview()
     scheduleSave()
     renderActions()
@@ -69,6 +72,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   const saveState = h('span.save-state', { role: 'status', 'aria-live': 'polite' })
   let lastSaveAt = null
+  let lastVersionAt = null
   let structuralSinceVersion = false
 
   function paintSaveState(kind, text, retry) {
@@ -77,7 +81,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       kind === 'error' ? h('span', { html: icon('warn', 12) }) : '',
       h('span', {}, text))
     saveState.onclick = retry || null
-    saveState.title = kind === 'saved' && lastSaveAt ? `Last saved ${lastSaveAt.toLocaleTimeString()}` : ''
+    saveState.title = kind === 'saved' && lastSaveAt
+      ? `Saved at ${lastSaveAt.toLocaleTimeString()}${lastVersionAt ? ` · restore point at ${lastVersionAt.toLocaleTimeString()}` : ' · press ⌘S to make a restore point'}`
+      : ''
   }
 
   async function save(explicit = false) {
@@ -94,7 +100,8 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       dirty = false
       lastSaveAt = new Date()
       if (wantVersion) structuralSinceVersion = false
-      paintSaveState('saved', explicit ? 'Saved' : wantVersion ? 'Saved' : 'Saved (no restore point)')
+      if (wantVersion) lastVersionAt = lastSaveAt
+      paintSaveState('saved', 'Saved')
       renderStatus()
       if (inspTab === 'seo') renderInspector()
     } catch (e) {
@@ -194,7 +201,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     setPref('inspHidden', anyOpen)
     setTimeout(paintScale, 280)
   }
-  const onResize = debounce(() => { paintScale() }, 200)
+  const onResize = debounce(() => { paintScale(); renderActions() }, 200)
   addEventListener('resize', onResize)
 
   const refreshPreview = () => { scheduleSave.now?.(); iframe.contentWindow?.location.reload() }
@@ -389,6 +396,12 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     return rows
   }
 
+  /** Ids of every container this node sits inside, outermost first. */
+  function ancestorsOf(id) {
+    const f = ops.find(id)
+    return f ? f.parents.map(p => p.id) : []
+  }
+
   function renderTree() {
     const rows = visibleRows()
     const tree = h('div.tree', { role: 'tree', 'aria-label': 'Page outline' })
@@ -423,8 +436,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
             'aria-label': `Actions for ${labelOf(node, def)}`,
             onclick: e => { e.stopPropagation(); blockMenu(e, node.id) },
           }, iconEl('more', 13))))
-      // marks the whole subtree so a node can never be dropped inside itself
-      tree.appendChild(node.children?.length ? h('div', { dataset: { subtree: node.id } }, row) : row)
+      // Every row records its ancestors, so the drop logic can tell a
+      // descendant from a cousin. Wrapping only the node's own row (as this
+      // did) meant dragging onto your own child looked like a valid drop.
+      row.dataset.ancestors = ancestorsOf(node.id).join(' ')
+      tree.appendChild(row)
     }
     outlineBody.replaceChildren(
       doc.blocks.length ? tree : h('div', { style: { padding: '0.6rem 0.4rem' } },
@@ -433,7 +449,10 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
     makeTreeSortable(tree, {
       canDrop: (id, parentId) => !parentId || !!byType[ops.find(parentId)?.node.type]?.container,
-      onMove: (id, parentId, index) => { ops.move(id, parentId, index); selectBlock(id) },
+      onMove: (id, parentId, index) => {
+        if (ops.move(id, parentId, index)) selectBlock(id)
+        else toast('A block cannot be moved inside itself', 'info', 2400)
+      },
     })
   }
 
@@ -832,18 +851,24 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       stale ? h('span.chip.stale', { title: 'The published version is older than this draft' }, 'unpublished edits') : '')
   }
 
+  function setDevice(k) {
+    setPref('device', k)
+    previewWrap.className = 'preview-wrap' + (k ? ` w-${k}` : '')
+    fitForDevice(k)
+    deviceSeg.querySelectorAll('button').forEach(b => {
+      const on = b.dataset.device === k
+      b.classList.toggle('active', on)
+      b.setAttribute('aria-checked', String(on))
+    })
+  }
   const deviceSeg = h('div.seg', { role: 'radiogroup', 'aria-label': 'Preview width' },
     ...[['', 'desktop', 'Desktop'], ['tablet', 'tablet', 'Tablet'], ['mobile', 'phone', 'Mobile']].map(([k, icoName, title]) =>
       h('button', {
-        title, 'aria-label': title, role: 'radio', 'aria-checked': String((prefs().device || '') === k),
+        title, 'aria-label': `Preview at ${title.toLowerCase()} width`, role: 'radio',
+        dataset: { device: k },
+        'aria-checked': String((prefs().device || '') === k),
         class: (prefs().device || '') === k ? 'active' : '',
-        onclick: e => {
-          setPref('device', k)
-          previewWrap.className = 'preview-wrap' + (k ? ` w-${k}` : '')
-          fitForDevice(k)
-          deviceSeg.querySelectorAll('button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-checked', 'false') })
-          e.currentTarget.classList.add('active'); e.currentTarget.setAttribute('aria-checked', 'true')
-        },
+        onclick: () => setDevice(k),
       }, iconEl(icoName, 14))))
 
   async function publishFlow() {
@@ -885,7 +910,18 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       actionsHolder.replaceChildren(h('span.chip', { title: 'Your account can read this but not change it' }, 'Read only'))
       return
     }
+    // Below 860px the toolbar sheds the device segment, the status chip and the
+    // Save button to fit. They reappear here, so nothing is ever simply gone.
+    const narrow = () => innerWidth <= 860
     const more = e => contextMenu(e.clientX, e.clientY, [
+      ...(narrow() ? [
+        { icon: icon(doc.status === 'published' ? 'check' : 'pen', 14), label: `Status: ${doc.status}${stale ? ' · unpublished edits' : ''}`, disabled: true, onClick: () => {} },
+        { icon: icon('save', 14), label: 'Save', shortcut: '⌘S', onClick: () => save(true) },
+        { icon: icon('desktop', 14), label: 'Preview at desktop width', onClick: () => setDevice('') },
+        { icon: icon('tablet', 14), label: 'Preview at tablet width', onClick: () => setDevice('tablet') },
+        { icon: icon('phone', 14), label: 'Preview at phone width', onClick: () => setDevice('mobile') },
+        '-',
+      ] : []),
       { icon: icon('undo', 14), label: 'Undo', shortcut: '⌘Z', disabled: !undoStack.length, onClick: doUndo },
       { icon: icon('redo', 14), label: 'Redo', shortcut: '⇧⌘Z', disabled: !redoStack.length, onClick: doRedo },
       '-',
@@ -995,6 +1031,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState),
         h('span.editor-top-group', {}, deviceSeg,
           h('button.icon-btn', {
+            title: 'Colour & shape', 'aria-label': 'Change colour and shape',
+            onclick: () => quickDesign(iframe),
+          }, iconEl('palette', 15)),
+          helpButton('editor', 'the editor'),
+          h('button.icon-btn', {
             title: 'Show or hide the inspector', 'aria-label': 'Toggle inspector',
             class: prefs().inspHidden ? 'on' : '',
             onclick: e => {
@@ -1077,10 +1118,15 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         add(`Edit the “${mm?.label || o.key}” menu`, 'menu', () => goTo(`#/menus/${o.key}`), 'Structure, panels and links — with live preview')
       }
       if ((o.kind === 'header' || o.kind === 'footer') && meta.perms.settings) {
-        add(`Edit the ${o.kind} content`, 'layout', () => goTo(`#/chrome/${o.kind === 'header' ? 'header.announce' : 'footer.social'}`), 'Announcement bar, footer rows and links')
+        const slot = o.kind === 'header' ? 'header.announce' : 'footer.social'
+        add(`Edit the ${o.kind} text`, 'layout', () => quickChrome(slot, () => refreshPreview()), 'Here, without leaving this page')
+        add(`Open the full ${o.kind} editor`, 'external', () => goTo(`#/chrome/${slot}`), 'Add, remove and reorder blocks')
         add(`Edit the ${o.kind} template`, 'code', () => goTo(`#/tpl/${encodeURIComponent('partials/' + o.kind + '.liquid')}`), 'The structure — a safe override, the built-in file is untouched')
       }
-      if (o.kind === 'design' && meta.perms.settings) add('Open Design', 'palette', () => goTo('#/design'), 'Palette, template, colour scheme')
+      if (o.kind === 'design' && meta.perms.settings) {
+        add('Change the colour & shape', 'palette', () => quickDesign(iframe), 'Here, beside the page — the preview updates as you drag')
+        add('Open the Design studio', 'external', () => goTo('#/design'), 'Templates, fonts and colour scheme')
+      }
     }
     if (m.href && /\/(feed|sitemap)\.xml$/.test(m.href.split('?')[0]) && meta.perms.settings) {
       const which = m.href.includes('feed') ? 'RSS feeds' : 'The sitemap'
@@ -1132,6 +1178,15 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); const s = ops.siteFor(selectedId); return pasteFrom(s.parentId, s.index) }
     if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); return ops.nudge(selectedId, -1) }
     if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); return ops.nudge(selectedId, 1) }
+    // walking the page works from anywhere in the editor, not only when a tree
+    // row happens to hold focus
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const list = flatten(doc.blocks)
+      const i = list.findIndex(x => x.node.id === selectedId)
+      const next = list[Math.max(0, Math.min(i + (e.key === 'ArrowDown' ? 1 : -1), list.length - 1))]
+      if (next) { e.preventDefault(); selectBlock(next.node.id) }
+      return
+    }
     if (e.key === 'Escape') {
       const f = ops.find(selectedId)
       if (f?.parents.length) { e.preventDefault(); return selectBlock(f.parents[f.parents.length - 1].id) }

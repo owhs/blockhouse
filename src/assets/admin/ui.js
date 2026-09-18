@@ -88,7 +88,8 @@ export function toast(message, kind = 'info', opts = 3200) {
     }, o.action.label) : '',
     h('button.toast-x', { 'aria-label': 'Dismiss', onclick: close, html: icon('x', 12) }))
   holder.appendChild(t)
-  requestAnimationFrame(() => t.classList.add('in'))
+  void t.offsetWidth
+  t.classList.add('in')
   if (ms > 0) setTimeout(close, ms)
   return { close, el: t, set text(v) { t.querySelector('.toast-msg').textContent = v } }
 }
@@ -168,7 +169,8 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
   document.body.appendChild(dlg)
   dlgStack.push(dlg)
   dlg.showModal()
-  requestAnimationFrame(() => dlg.classList.add('in'))
+  void dlg.offsetWidth   // see sheet.js: rAF does not run in a background tab
+  dlg.classList.add('in')
   dlg.closeWith = close
   return dlg
 }
@@ -319,7 +321,8 @@ export function makeTreeSortable(root, { onMove, canDrop = () => true } = {}) {
     drop = null
     if (!row) return
     // never drop a node into itself or its own descendants
-    if (row.dataset.nodeId === dragId || row.closest(`[data-subtree="${dragId}"]`)) return
+    const ancestors = (row.dataset.ancestors || '').split(' ').filter(Boolean)
+    if (row.dataset.nodeId === dragId || ancestors.includes(dragId)) return
 
     const r = row.getBoundingClientRect()
     const rel = (e.clientY - r.top) / r.height

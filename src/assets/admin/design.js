@@ -5,6 +5,7 @@
 import { get, put, post, del } from './api.js'
 import { h, debounce, toast, fitPreviewFrame, dialog, confirmDialog } from './ui.js'
 import { registerView, registerGuard } from './state.js'
+import { helpButton } from './help.js'
 import { icon, iconEl } from './icons.js'
 
 const TEMPLATES = [
@@ -213,7 +214,7 @@ registerView('design', async root => {
   const controls = h('div.design-controls', {},
     h('div.page-head', { style: { marginBottom: '0.8rem' } },
       h('div', {}, h('h1', {}, 'Design'), h('p.sub', {}, 'Template, palette and scheme — previewed on the real site.')),
-      saveBtn),
+      h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } }, helpButton('design', 'Design'), saveBtn)),
 
     h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
       h('h2.design-h', {}, 'Template'), installThemeBtn),

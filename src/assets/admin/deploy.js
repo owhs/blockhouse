@@ -3,7 +3,7 @@
 // reflects what would actually happen, not what a README once claimed.
 
 import { get, post, put, del } from './api.js'
-import { h, emptyState, toast, dialog, confirmDialog } from './ui.js'
+import { h, emptyState, toast, dialog, confirmDialog, skeleton } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView, state, prefs, setPref } from './state.js'
 import { renderFields } from './fields.js'
@@ -61,7 +61,7 @@ registerView('deploy', async root => {
         h('h1', {}, 'Deploy'),
         h('p.sub', {}, 'Where this site runs, whether it is ready, and the files to get it there.'))),
       targetCards(),
-      h('div.spin'))
+      skeleton('rows', 4))
 
     let data
     try { data = await get(`/doctor?target=${target}${deep ? '&deep=1' : ''}`) }
@@ -112,7 +112,7 @@ registerView('deploy', async root => {
 
   // ---------- saved deploy targets (encrypted credentials, one-click runs) ----------
   function deployTargets() {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 4))
     const paint = async () => {
       const { profiles } = await get('/deploy/profiles').catch(() => ({ profiles: [] }))
       holder.replaceChildren(
@@ -228,7 +228,7 @@ registerView('deploy', async root => {
   }
 
   function weightSection() {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 4))
     get('/budget').then(({ pages, budget, median, failures }) => {
       const bar = p => {
         const pct = Math.min(100, Math.round((p.total / budget.total) * 100))
