@@ -2,7 +2,7 @@
 // md→html for display, DOM→md serializer on edit. Deliberately small surface:
 // p, h2–h4, bold/italic/code, links, ul/ol, blockquote.
 
-import { h } from './ui.js'
+import { h, promptDialog } from './ui.js'
 import { post } from './api.js'
 
 export function mountRichtext(md, onChange, opts = {}) {
@@ -45,10 +45,10 @@ export function mountRichtext(md, onChange, opts = {}) {
     btn('1.', 'Numbered list', () => cmd('insertOrderedList')),
     btn('❝', 'Quote', () => block('blockquote')),
     h('span.rt-sep'),
-    btn('🔗', 'Link', () => {
+    btn('🔗', 'Link', async () => {
       const sel = window.getSelection()
       if (!sel || sel.isCollapsed) return
-      const url = prompt('Link URL')
+      const url = await promptDialog({ title: 'Add a link', label: 'URL', placeholder: 'https://… or /path', confirmLabel: 'Link' })
       if (url) cmd('createLink', url)
     }),
     btn('⌫', 'Clear formatting', () => cmd('removeFormat')),

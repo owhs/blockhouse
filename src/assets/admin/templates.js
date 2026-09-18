@@ -167,7 +167,7 @@ registerView('templates', async (root, [relParam]) => {
   }
 
   async function openFile(rel) {
-    if (dirty && !confirm('Discard unsaved changes?')) return
+    if (dirty && !(await confirmDialog('Unsaved changes', 'This file has changes you have not saved. Switch files and discard them?', 'Discard'))) return
     await del('/templates/draft').catch(() => {})
     activeRel = rel
     current = await get(`/templates/file?rel=${encodeURIComponent(rel)}`)

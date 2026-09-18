@@ -4,9 +4,9 @@
 // every edit repaints the actual header within half a second.
 
 import { get, put, del } from './api.js'
-import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame } from './ui.js'
+import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame, confirmDialog } from './ui.js'
 import { renderFields } from './fields.js'
-import { registerView, state } from './state.js'
+import { registerView, state, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
 
 const uid = () => 'mi' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -110,8 +110,8 @@ registerView('menus', async (root, [menuKey]) => {
           item.mega ? h('span.mrow-tag', {}, item.mega.layout === 'catalogue' || item.mega.tabs?.length ? 'catalogue' : item.mega.layout || 'mega') : '',
           item.visibility && item.visibility !== 'all' ? h('span.mrow-tag', {}, item.visibility) : '',
           h('span.mrow-tools', {},
-            h('button.icon-btn', { title: 'Move up', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('back', 11, 'rot90') }),
-            h('button.icon-btn', { title: 'Move down', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i < items.length - 1) { items.splice(i + 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('fwd', 11, 'rot90') }),
+            h('button.icon-btn', { title: 'Move up', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('up', 13) }),
+            h('button.icon-btn', { title: 'Move down', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i < items.length - 1) { items.splice(i + 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('down', 13) }),
             h('button.icon-btn', { title: 'Remove', onclick: e => { e.stopPropagation(); items.splice(items.indexOf(item), 1); if (sel?.ref === item) sel = null; markDirty(); paintTree(); paintInspector() }, html: icon('trash', 12) }))))
 
         // nested structure
@@ -421,11 +421,26 @@ registerView('menus', async (root, [menuKey]) => {
 
   paintTree()
   paintInspector()
+  // The view promises "the site changes when you save". Publishing silently on
+  // the way out broke that promise with the site's live navigation.
+  const disposeGuard = registerGuard('menus', async () => {
+    if (!dirty) return true
+    const go = await confirmDialog('Unsaved menu changes',
+      `“${active.label || active.key}” has changes that are not live yet. Publish them to the site now, or keep them as a draft?`,
+      'Publish now')
+    if (go) await put(`/menus/${active.key}`, { menu: active }).catch(() => {})
+    else await put(`/menus/${active.key}/draft`, { menu: active }).catch(() => {})
+    return true
+  })
+  const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+  addEventListener('beforeunload', beforeUnload)
+
   refreshPreview()
 
   return () => {
     unfit?.()
     del(`/menus/${active.key}/draft`).catch(() => {})
-    if (dirty) put(`/menus/${active.key}`, { menu: active }).catch(() => {})
+    disposeGuard()
+    removeEventListener('beforeunload', beforeUnload)
   }
 })

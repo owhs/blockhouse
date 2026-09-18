@@ -56,6 +56,22 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'code': case 'markdown': case 'svg': {
+      // A real editor ships in ide.js — highlighting, completion, colour
+      // swatches. The code field was a plain textarea, so per-page CSS was
+      // written in Notepad-with-extra-steps while the good editor sat unused.
+      if (def.type === 'code' && def.lang) {
+        const holder = h('div.field-code')
+        wrap.append(labelRow(def), holder)
+        import('./ide.js').then(({ codeEditor }) => {
+          const ed = codeEditor({ rel: `x.${def.lang}`, value: String(val ?? ''), onChange: v => deb(v), rows: def.rows || 8 })
+          holder.replaceChildren(ed.el || ed)
+        }).catch(() => {
+          const ta2 = h('textarea.mono', { rows: def.rows || 8, spellcheck: 'false' }, String(val ?? ''))
+          ta2.addEventListener('input', () => deb(ta2.value))
+          holder.replaceChildren(ta2)
+        })
+        return wrap
+      }
       const ta = h('textarea.mono', { rows: def.rows || (def.type === 'svg' ? 6 : 8), spellcheck: 'false' }, String(val ?? ''))
       ta.addEventListener('keydown', e => {
         if (e.key === 'Tab') { e.preventDefault(); insertAt(ta, '  ') }
@@ -108,11 +124,22 @@ export function renderField(def, values, onChange, opts = {}) {
     case 'json': {
       const ta = h('textarea.mono', { rows: def.rows || 3, spellcheck: 'false' },
         typeof val === 'string' ? val : (val && Object.keys(val).length ? JSON.stringify(val, null, 2) : ''))
+      const jsonErr = h('span.help', { role: 'status', style: { color: 'var(--err)' } })
       ta.addEventListener('input', () => {
-        try { deb(ta.value.trim() ? JSON.parse(ta.value) : null); ta.style.borderColor = '' }
-        catch { ta.style.borderColor = 'var(--err)' }
+        const raw = ta.value.trim()
+        if (!raw) { jsonErr.textContent = ''; ta.style.borderColor = ''; deb(null); return }
+        try {
+          const parsed = JSON.parse(raw)
+          jsonErr.textContent = ''
+          ta.style.borderColor = ''
+          deb(parsed)
+        } catch (e) {
+          // say what is wrong and warn that nothing is being saved meanwhile
+          jsonErr.textContent = `Not valid JSON yet — ${String(e.message).replace(/^JSON\.parse: /, '')}. Nothing is saved until it parses.`
+          ta.style.borderColor = 'var(--err)'
+        }
       })
-      wrap.append(labelRow(def), ta)
+      wrap.append(labelRow(def), ta, jsonErr)
       return wrap
     }
     case 'image': {
@@ -177,6 +204,10 @@ export function renderField(def, values, onChange, opts = {}) {
   }
 }
 
+function iconGrip() {
+  return '<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></svg>'
+}
+
 function insertAt(ta, text) {
   const s = ta.selectionStart, e = ta.selectionEnd
   ta.value = ta.value.slice(0, s) + text + ta.value.slice(e)
@@ -202,10 +233,10 @@ function listEditor(def, values, onChange, opts) {
     const body = h('div.list-row-body', { style: { display: 'none' } })
     const label = h('span.lr-label', {}, itemLabel(def, item))
     const head = h('div.list-row-head', {},
-      h('span.t-grip', {}, '⋮⋮'), label,
+      h('span.t-grip', { html: iconGrip(), 'aria-hidden': 'true' }), label,
       h('button.icon-btn', {
         onclick: e => { e.stopPropagation(); rows.splice(rows.indexOf(item), 1); el.remove(); commit() },
-        title: 'Remove',
+        title: 'Remove', 'aria-label': `Remove ${itemLabel(def, item)}`,
       }, '✕'))
     head.addEventListener('click', () => {
       const open = body.style.display === 'none'
@@ -220,6 +251,7 @@ function listEditor(def, values, onChange, opts) {
 
   for (const item of rows) holder.appendChild(rowEl(item))
   makeSortable(holder, {
+    handle: '.t-grip',
     onMove: (from, to) => { const [m] = rows.splice(from, 1); rows.splice(to, 0, m); commit() },
   })
 

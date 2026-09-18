@@ -5,7 +5,7 @@
 
 import { get, put } from './api.js'
 import { h, dialog, confirmDialog, toast, emptyState, fitPreviewFrame } from './ui.js'
-import { registerView, state } from './state.js'
+import { registerView, state, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { renderFields } from './fields.js'
 
@@ -69,12 +69,12 @@ registerView('chrome', async (root, [slotParam]) => {
       return h('div', { style: { marginBottom: '0.5rem' } },
         h('div.mrow', {},
           h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
-          h('strong', { style: { flex: 1, cursor: 'pointer' }, onclick: () => (open.hidden = !open.hidden) }, def.label || node.type),
+          h('button', { style: { flex: 1, cursor: 'pointer', textAlign: 'left', fontWeight: 660 }, 'aria-expanded': 'false', onclick: e => { open.hidden = !open.hidden; e.currentTarget.setAttribute('aria-expanded', String(!open.hidden)) } }, def.label || node.type),
           h('span.mrow-tools', {},
-            h('button.icon-btn', { title: 'Move up', onclick: () => { if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; mark(); paintBlocks() } } }, iconEl('up', 13)),
-            h('button.icon-btn', { title: 'Move down', onclick: () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; mark(); paintBlocks() } } }, iconEl('down', 13)),
-            h('button.icon-btn', { title: 'Edit', onclick: () => (open.hidden = !open.hidden) }, iconEl('pen', 13)),
-            h('button.icon-btn', { title: 'Remove', onclick: async () => { if (await confirmDialog('Remove block', `Remove this ${def.label || node.type}?`, 'Remove')) { list.splice(i, 1); mark(); paintBlocks() } } }, iconEl('trash', 13)))),
+            h('button.icon-btn', { title: 'Move up', 'aria-label': 'Move this block up', onclick: () => { if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; mark(); paintBlocks() } } }, iconEl('up', 13)),
+            h('button.icon-btn', { title: 'Move down', 'aria-label': 'Move this block down', onclick: () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; mark(); paintBlocks() } } }, iconEl('down', 13)),
+            h('button.icon-btn', { title: 'Edit', 'aria-label': 'Edit this block', onclick: () => (open.hidden = !open.hidden) }, iconEl('pen', 13)),
+            h('button.icon-btn', { title: 'Remove', 'aria-label': 'Remove this block', onclick: async () => { if (await confirmDialog('Remove block', `Remove this ${def.label || node.type}?`, 'Remove')) { list.splice(i, 1); mark(); paintBlocks() } } }, iconEl('trash', 13)))),
         open)
     })
     blocksEl.replaceChildren(
@@ -114,7 +114,7 @@ registerView('chrome', async (root, [slotParam]) => {
 
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
-      h('div.panel-head', {}, h('span.panel-title', {}, 'Site chrome'),
+      h('div.panel-head', {}, h('span.panel-title', {}, 'Header & footer'),
         h('span.fnt', { style: { fontSize: '0.7rem' } }, 'slots')),
       slotList),
     h('div.main', { style: { display: 'grid', gridTemplateRows: 'auto 1fr', gap: '0.9rem', padding: '1rem' } },
@@ -126,5 +126,15 @@ registerView('chrome', async (root, [slotParam]) => {
   )
   paint()
 
-  return () => { unfit(); if (dirty) save() }
+  // Removing a footer block and wandering off used to ship it to every page.
+  const disposeGuard = registerGuard('chrome', async () => {
+    if (!dirty) return true
+    const go = await confirmDialog('Unsaved header & footer changes',
+      'These are not live yet. Save them to every page now, or discard them?', 'Save now')
+    if (go) await save()
+    return true
+  })
+  const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+  addEventListener('beforeunload', beforeUnload)
+  return () => { unfit(); disposeGuard(); removeEventListener('beforeunload', beforeUnload) }
 })

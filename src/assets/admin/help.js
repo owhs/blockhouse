@@ -49,7 +49,35 @@ function sectionIcon(id) {
   return { overview: 'home', content: 'page', menus: 'menu', blocks: 'layout', brand: 'palette', deploy: 'rocket', security: 'key', health: 'check' }[id] || 'book'
 }
 
-/** Small contextual tips block other views can drop in. */
+/**
+ * A "?" for the current screen, opening its tips beside the work rather than
+ * routing you away to Help. The server has produced these tips all along; until
+ * now nothing in the studio rendered them.
+ */
+export function helpButton(panel, title) {
+  return h('button.icon-btn', {
+    title: `Help with ${title || panel}`, 'aria-label': `Help with ${title || panel}`,
+    onclick: async () => {
+      const { openSheet } = await import('./sheet.js')
+      openSheet({
+        title: `About ${title || panel}`,
+        sub: 'Written from this site’s live configuration',
+        body: async () => {
+          const { tips } = await get(`/help/tips?panel=${encodeURIComponent(panel)}`).catch(() => ({ tips: [] }))
+          return h('div', {},
+            tips.length
+              ? h('ul', { style: { margin: '0 0 1rem 1.1rem', display: 'grid', gap: '0.5rem', fontSize: '0.87rem', color: 'var(--mut)' } },
+                ...tips.map(t => h('li', {}, t)))
+              : h('p.mut', { style: { marginBottom: '1rem' } }, 'No tips for this screen yet.'),
+            h('a.btn.ghost.small', { href: `#/help`, onclick: async () => (await import('./sheet.js')).closeSheet() },
+              iconEl('book', 13), 'Open the full handbook'))
+        },
+      })
+    },
+  }, iconEl('help', 15))
+}
+
+/** Small contextual tips block other views can drop inline. */
 export async function tipsFor(panel) {
   const { tips } = await get(`/help/tips?panel=${panel}`).catch(() => ({ tips: [] }))
   if (!tips.length) return h('span')

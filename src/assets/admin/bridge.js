@@ -53,8 +53,13 @@
     el.appendChild(tip)
     toolbar = document.createElement('div')
     toolbar.className = 'wb-toolbar'
-    toolbar.style.top = '-1.7rem'
+    // A hero at the top of the page put its toolbar above the document, where
+    // it could not be clicked — flip both chrome pieces inside when there is no
+    // room above.
+    const flip = el.getBoundingClientRect().top < 34
+    toolbar.style.top = flip ? '4px' : '-1.7rem'
     toolbar.style.right = '0'
+    if (flip) tip.style.top = '4px'
     const actions = [['up', 'Move up', I.up], ['down', 'Move down', I.down], ['add-after', 'Add block after', I.plus], ['duplicate', 'Duplicate', I.copy], ['delete', 'Delete', I.trash]]
     for (const [action, title, d] of actions) {
       const b = document.createElement('button')
@@ -215,6 +220,21 @@
       }
     }
     if (m.blockhouse === 'clear') select(null, false)
+
+    // Targeted patch: the studio sends one changed prop and we update the node
+    // in place. Reloading the whole iframe on every keystroke is what made
+    // typing feel like it was fighting the preview.
+    if (m.blockhouse === 'patch' && m.id) {
+      const block = document.querySelector(`[data-wb="${CSS.escape(m.id)}"]`)
+      const target = block?.querySelector(`[data-wbe="${CSS.escape(m.prop)}"]`)
+        || (block?.dataset.wbe === m.prop ? block : null)
+      if (target && target !== editing) {
+        if (target.dataset.wbeMode === 'md') parent.postMessage({ blockhouse: 'needsreload' }, '*')
+        else { target.textContent = m.value; parent.postMessage({ blockhouse: 'patched', id: m.id }, '*') }
+      } else if (!target) {
+        parent.postMessage({ blockhouse: 'needsreload' }, '*')
+      }
+    }
   })
 
   parent.postMessage({ blockhouse: 'ready' }, '*')

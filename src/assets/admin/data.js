@@ -327,8 +327,18 @@ function boardView(table, items, reload) {
     col.addEventListener('drop', async e => {
       e.preventDefault(); col.classList.remove('over')
       const id = e.dataTransfer.getData('text/plain')
-      try { await post(`/x/data/rows/${table.id}/${id}/state`, { to: st.key }); reload() }
-      catch (err) { toast(err.message, 'err') }
+      // Move the card now and reconcile after. Waiting for the server meant the
+      // card snapped back to its old column and the whole board then redrew.
+      const card = board.querySelector(`.kb-card[data-id="${CSS.escape(id)}"]`)
+      const home = card?.parentElement
+      const target = col.querySelector('.kb-cards') || col
+      if (card) target.appendChild(card)
+      try { await post(`/x/data/rows/${table.id}/${id}/state`, { to: st.key }) }
+      catch (err) {
+        if (card && home) home.appendChild(card)
+        toast(`Could not move that card: ${err.message || err}`, 'err')
+      }
+      reload()
     })
     board.appendChild(col)
   }

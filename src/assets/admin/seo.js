@@ -1,16 +1,16 @@
 // SEO suite view: site-wide audit with broken-link detection + redirects manager.
 
 import { get, put } from './api.js'
-import { h, toast, emptyState, fmtDate } from './ui.js'
+import { h, toast, undoToast, confirmDialog, emptyState, fmtDate } from './ui.js'
 import { icon, iconEl } from './icons.js'
-import { registerView, state } from './state.js'
+import { registerView, state, hooks } from './state.js'
 
 registerView('seo', async root => {
   const main = h('div.main-pad', { style: { maxWidth: '72rem' } })
   root.replaceChildren(h('div.main', {}, main))
 
   main.append(h('div.page-head', {},
-    h('div', {}, h('h1', {}, 'SEO'), h('p.sub', {}, 'Site-wide audit, internal link checks and redirect management. Per-page controls live in each document’s SEO tab.')),
+    h('div', {}, h('h1', {}, 'SEO & redirects'), h('p.sub', {}, 'Site-wide audit, internal link checks and redirect management. Per-page controls live in each document’s SEO tab.')),
     h('div', { style: { display: 'flex', gap: '0.5rem' } },
       h('a.btn.ghost.small', { href: '/sitemap.xml', target: '_blank' }, 'sitemap.xml'),
       h('a.btn.ghost.small', { href: '/robots.txt', target: '_blank' }, 'robots.txt'))))
@@ -64,11 +64,18 @@ registerView('seo', async root => {
           d.warns ? h('span', { style: { color: 'var(--warn)', fontWeight: 700 } }, `${d.warns} `, 'warning' + (d.warns > 1 ? 's' : '')) : '',
           !d.errors && !d.warns ? h('span', { style: { color: 'var(--ok)', fontWeight: 700, display: 'inline-flex', gap: '0.3rem', alignItems: 'center' } }, iconEl('check', 13), 'clean') : '',
         ]
-        return h('tr', { onclick: () => (location.hash = `#/e/${d.id}`) },
+        return h('tr', {
+          tabindex: '0', role: 'link',
+          onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click() } },
+          // you clicked this row because of an SEO problem, so open the SEO panel
+          onclick: () => { hooks.pushReturn?.('SEO audit', location.hash); location.hash = `#/e/${d.id}/seo` },
+        },
           h('td', {}, h('strong', {}, d.title), h('div.row-sub', {}, `${d.concept} · ${d.path}`)),
           h('td', {}, ...dots),
           h('td', { style: { maxWidth: '28rem' } }, ...(d.issues.slice(0, 3).map(i =>
-            h('div.seo-check', { class: i.level, style: { padding: '0.15rem 0' } }, h('span.dot'), h('span', {}, i.label)))),
+            h('div.seo-check', { class: i.level, style: { padding: '0.15rem 0' } },
+              h('span.seo-ico', { html: icon(i.level === 'error' ? 'warn' : i.level === 'warn' ? 'info' : 'check', 12) }),
+              h('span', {}, h('span.sr-only', {}, `${i.level}: `), i.label)))),
             d.issues.length > 3 ? h('span.fnt', {}, `+${d.issues.length - 3} more…`) : ''))
       })))))
   }).catch(() => auditHolder.replaceChildren(emptyState(icon('warn', 26), 'Audit failed', '')))
@@ -85,7 +92,13 @@ registerView('seo', async root => {
           h('td.mono', { style: { fontSize: '0.78rem' } }, r.from),
           h('td.mono', { style: { fontSize: '0.78rem' } }, r.to),
           h('td', {}, String(r.code || 301)),
-          h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', { onclick: () => { rows.splice(i, 1); render(); save() } }, iconEl('trash', 14))))))))
+          h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', { onclick: async () => {
+            const gone = rows[i]
+            if (!(await confirmDialog('Delete redirect',
+              `Stop redirecting ${gone.from} to ${gone.to}? Anyone following an old link will get a “not found” instead.`))) return
+            rows.splice(i, 1); render(); save()
+            undoToast(`Deleted the redirect from ${gone.from}`, () => { rows.splice(i, 0, gone); render(); save() })
+          } }, iconEl('trash', 14))))))))
         : h('p.mut', {}, 'No redirects yet. Slug changes create automatic 301s on top of these.'))
   }
   const save = async () => { await put('/redirects', { redirects: rows }); toast('Redirects saved', 'ok') }

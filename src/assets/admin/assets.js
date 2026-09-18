@@ -3,7 +3,7 @@
 // image processing wizard (crop · resize · rotate · format · quality · watermark).
 
 import { get, post, patch, del } from './api.js'
-import { h, dialog, confirmDialog, toast, emptyState, debounce } from './ui.js'
+import { h, dialog, confirmDialog, toast, emptyState, debounce, promptDialog, undoToast } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView, state } from './state.js'
 
@@ -93,13 +93,29 @@ registerView('media', async root => {
     bulkBar.replaceChildren(
       h('strong', {}, `${selection.size} selected`),
       h('button.btn.ghost.small', { onclick: async () => {
-        const folder = prompt('Move to folder (e.g. brand/logos, blank = unfiled)', filter.folder || '')
+        const folder = await promptDialog({
+          title: 'Move to a folder',
+          label: 'Folder',
+          value: filter.folder || '',
+          placeholder: 'brand/logos',
+          help: 'Leave blank to move these out of any folder.',
+          confirmLabel: 'Move',
+          datalist: idx?.folders || [],
+        })
         if (folder === null) return
         await post('/media/bulk', { ids: [...selection], action: 'move', value: folder })
         selection.clear(); toast('Moved', 'ok'); refresh()
       } }, iconEl('folder', 13), 'Move'),
       h('button.btn.ghost.small', { onclick: async () => {
-        const tag = prompt('Add tag'); if (!tag) return
+        const tag = await promptDialog({
+          title: 'Add a tag',
+          label: 'Tag',
+          placeholder: 'logo',
+          help: 'Tags let you filter the library later.',
+          confirmLabel: 'Add tag',
+          datalist: idx?.tags || [],
+        })
+        if (!tag) return
         await post('/media/bulk', { ids: [...selection], action: 'tag', value: tag })
         selection.clear(); toast('Tagged', 'ok'); refresh()
       } }, iconEl('hash', 13), 'Tag'),
@@ -166,14 +182,19 @@ registerView('media', async root => {
   // ---------- upload ----------
   const fileInput = h('input', { type: 'file', multiple: true, style: { display: 'none' } })
   const upload = async files => {
+    const done = [], failed = []
+    const prog = toast(`Uploading 0 of ${files.length}…`, 'info', { ms: 0 })
     for (const f of files) {
       const fd = new FormData()
       fd.append('file', f)
       if (filter.folder) fd.append('folder', filter.folder)
-      toast(`Uploading ${f.name}…`)
-      await post('/media', fd).catch(() => {})
+      try { await post('/media', fd); done.push(f.name) }
+      catch (err) { failed.push(`${f.name} (${err.message || 'failed'})`) }
+      prog.text = `Uploading ${done.length + failed.length} of ${files.length}…`
     }
-    toast('Upload complete', 'ok'); refresh()
+    prog.close()
+    if (failed.length) toast(`Uploaded ${done.length} of ${files.length}. Failed: ${failed.join(', ')}`, 'err')
+    else toast(`Uploaded ${done.length} file${done.length === 1 ? '' : 's'}`, 'ok'); refresh()
   }
   fileInput.addEventListener('change', () => upload([...fileInput.files]))
   const drop = h('div.dropzone', {}, 'Drag & drop files here, or ', h('a', { href: '#', onclick: e => { e.preventDefault(); fileInput.click() } }, 'browse'),

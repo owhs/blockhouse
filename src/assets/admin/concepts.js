@@ -66,7 +66,7 @@ registerView('concepts', async (root, [typeName]) => {
     listEl.replaceChildren(
       ...concepts.map(cc => h('button.row-item', {
         class: active?.name === cc.name ? 'active' : '',
-        onclick: () => { if (guardDirty()) { active = cc; dirty = false; paintList(); paintMain() } },
+        onclick: async () => { if (await guardDirty()) { active = cc; dirty = false; paintList(); paintMain() } },
       },
         h('span.row-ico', { html: icon(conceptIcon(cc), 15) }),
         h('span.row-label', {}, cc.labelPlural || cc.label),
@@ -74,7 +74,7 @@ registerView('concepts', async (root, [typeName]) => {
       h('button.tree-add', { style: { margin: '0.5rem' }, onclick: createWizard }, '＋ New content type'))
   }
 
-  const guardDirty = () => !dirty || confirm('Discard unsaved changes to this type?')
+  const guardDirty = async () => !dirty || await confirmDialog('Unsaved changes', 'This content type has changes you have not saved. Leave and discard them?', 'Discard')
 
   function urlPreview(cc) {
     const fill = (cc.urlPattern || '/{slug}').replace('{slug}', 'example-item').replace('{concept}', cc.name)
@@ -285,5 +285,5 @@ registerView('concepts', async (root, [typeName]) => {
     h('div.main', {}, mainEl)))
   paintList()
   paintMain()
-  if (!concepts.length || location.hash.endsWith('/new')) createWizard()
+  if (location.hash.endsWith('/new')) createWizard()
 })

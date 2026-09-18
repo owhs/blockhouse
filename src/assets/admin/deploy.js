@@ -30,7 +30,7 @@ const LEVEL = {
 }
 
 registerView('deploy', async root => {
-  let target = prefs.deployTarget || 'server'
+  let target = prefs().deployTarget || 'server'
   let deep = false
   const body = h('div.main-pad', { style: { maxWidth: '64rem' } })
   root.replaceChildren(h('div.main', {}, body))

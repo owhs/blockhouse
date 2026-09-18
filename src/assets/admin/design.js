@@ -4,7 +4,7 @@
 
 import { get, put, post, del } from './api.js'
 import { h, debounce, toast, fitPreviewFrame, dialog, confirmDialog } from './ui.js'
-import { registerView } from './state.js'
+import { registerView, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
 
 const TEMPLATES = [
@@ -51,8 +51,7 @@ registerView('design', async root => {
 
   // ---------- save ----------
 
-  const saveBtn = h('button.btn.primary', {
-    onclick: async () => {
+  async function saveDesign() {
       const nextTokens = { ...tokens }
       const d = tplDef()
       // only persist tokens that differ from the template's own defaults —
@@ -75,9 +74,9 @@ registerView('design', async root => {
       saveBtn.textContent = 'Saved ✓'
       setTimeout(() => (saveBtn.textContent = 'Save design'), 1400)
       iframe.src = `/?__ts=${++seq}`
-      toast('Design saved — the live site now matches the preview', 'ok')
-    },
-  }, 'Save design')
+    toast('Design saved — the live site now matches the preview', 'ok')
+  }
+  const saveBtn = h('button.btn.primary', { onclick: saveDesign }, 'Save design')
 
   // ---------- controls ----------
 
@@ -137,7 +136,12 @@ registerView('design', async root => {
   const paintTpls = () => {
     tplGrid.replaceChildren(...allTemplates.map(t => h('button.design-tpl', {
       class: pendingTemplate === t.name ? 'active' : '',
-      onclick: () => {
+      onclick: async () => {
+        const tuned = Object.keys(tokens).length > 0 || dirty
+        if (tuned && t.name !== pendingTemplate &&
+          !(await confirmDialog('Use this template’s palette?',
+            `“${t.title}” brings its own hue, intensity and corner radius. Applying it replaces the values you have dialled in.`,
+            'Use its palette'))) return
         pendingTemplate = t.name
         work.hue = t.hue; work.chroma = t.chroma; work.radius = t.radius
         paintTpls(); paintSliders()
@@ -246,5 +250,16 @@ registerView('design', async root => {
 
   paintTpls()
   paintSliders()
-  return () => unfit()
+  // `dirty` was written in four places and read in none: every unsaved palette
+  // tweak vanished on the next click with nothing said.
+  const disposeGuard = registerGuard('design', async () => {
+    if (!dirty) return true
+    const go = await confirmDialog('Unsaved design changes',
+      'The template, palette or colour scheme has changes that are not live yet. Save them, or discard?', 'Save design')
+    if (go) await saveDesign()
+    return true
+  })
+  const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+  addEventListener('beforeunload', beforeUnload)
+  return () => { unfit(); disposeGuard(); removeEventListener('beforeunload', beforeUnload) }
 })

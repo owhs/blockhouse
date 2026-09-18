@@ -1,12 +1,20 @@
-// The document editor: block tree + inspector + annotated live preview.
+// The document editor: outline rail + canvas + inspector.
+//
+// Three durable surfaces. The outline is always there (it used to live inside
+// an inspector tab and vanish whenever you looked at SEO); the canvas is the
+// point of the screen; the inspector only ever shows properties of the selected
+// thing. Every mutation goes through docops so a shortcut, a drag, a right
+// click and a palette entry are the same operation with the same undo entry.
 
 import { get, put, post, del } from './api.js'
-import { h, debounce, dialog, confirmDialog, contextMenu, makeSortable, toast, fmtDate, fitPreviewFrame } from './ui.js'
+import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, fitPreviewFrame, makeTreeSortable, skeleton } from './ui.js'
 import { renderFields } from './fields.js'
-import { registerView, state, prefs, setPref } from './state.js'
+import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn } from './state.js'
 import { icon, iconEl } from './icons.js'
+import { registerCommands } from './search.js'
+import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard } from './docops.js'
 
-registerView('editor', async (root, [docId]) => {
+registerView('editor', async (root, [docId, tabParam], query) => {
   const meta = state.meta
   let { doc, path, href, exportFile, shortlink, seo, stale } = await get(`/content/${docId}`)
   let baseVersion = doc.version
@@ -16,410 +24,665 @@ registerView('editor', async (root, [docId]) => {
   const catalogue = meta.blocks
   const byType = Object.fromEntries(catalogue.map(b => [b.type, b]))
 
-  // ---------- helpers ----------
+  const canWrite = meta.perms.publish || meta.perms.settings || !!state.meta.perms.menus
+    || ['owner', 'admin', 'editor', 'author'].includes(state.user.role)
+  const readOnly = !canWrite
 
-  const uid = () => 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+  // ---------- undo ----------
 
-  function findNode(id, blocks = doc.blocks, parents = []) {
-    for (const b of blocks) {
-      if (b.id === id) return { node: b, parents, siblings: blocks }
-      if (b.children) {
-        const r = findNode(id, b.children, [...parents, b])
-        if (r) return r
-      }
-    }
-    return null
-  }
-
-  function stateJson() { return JSON.stringify({ blocks: doc.blocks, fields: doc.fields, seo: doc.seo, title: doc.title, slug: doc.slug }) }
-  function snapshot() {
-    undoStack.push(stateJson())
-    if (undoStack.length > 60) undoStack.shift()
+  function stateJson() { return JSON.stringify({ blocks: doc.blocks, fields: doc.fields, seo: doc.seo, title: doc.title, slug: doc.slug, custom: doc.custom, access: doc.access, aliases: doc.aliases }) }
+  function snapshot(label = 'Edit') {
+    undoStack.push({ json: stateJson(), label })
+    if (undoStack.length > 80) undoStack.shift()
     redoStack.length = 0
+    renderActions()
   }
-  function doUndo() { if (undoStack.length) { redoStack.push(stateJson()); restore(undoStack.pop()) } }
-  function doRedo() { if (redoStack.length) { undoStack.push(stateJson()); restore(redoStack.pop()) } }
+  let snapshotArmed = true
+  function snapshotOnce(label) {
+    if (snapshotArmed) { snapshot(label); snapshotArmed = false; setTimeout(() => (snapshotArmed = true), 1200) }
+  }
+  function doUndo() {
+    if (!undoStack.length) return toast('Nothing to undo', 'info', 1600)
+    const entry = undoStack.pop()
+    redoStack.push({ json: stateJson(), label: entry.label })
+    restore(entry.json)
+    toast(`Undid: ${entry.label.toLowerCase()}`, 'info', { ms: 3000, action: { label: 'Redo', onClick: doRedo } })
+  }
+  function doRedo() {
+    if (!redoStack.length) return
+    const entry = redoStack.pop()
+    undoStack.push({ json: stateJson(), label: entry.label })
+    restore(entry.json)
+  }
   function restore(json) {
-    const s = JSON.parse(json)
-    Object.assign(doc, s)
+    Object.assign(doc, JSON.parse(json))
     titleInput.value = doc.title
     renderTree(); renderInspector(); refreshPreview()
     scheduleSave()
+    renderActions()
   }
 
   // ---------- saving ----------
+  // One honest indicator. A failed save used to be painted the same amber as a
+  // save in progress, and "Autosaved" implied a restore point that autosave
+  // never created.
 
-  const saveState = h('span.save-state', {}, '')
+  const saveState = h('span.save-state', { role: 'status', 'aria-live': 'polite' })
+  let lastSaveAt = null
+  let structuralSinceVersion = false
+
+  function paintSaveState(kind, text, retry) {
+    saveState.className = `save-state ${kind}`
+    saveState.replaceChildren(
+      kind === 'error' ? h('span', { html: icon('warn', 12) }) : '',
+      h('span', {}, text))
+    saveState.onclick = retry || null
+    saveState.title = kind === 'saved' && lastSaveAt ? `Last saved ${lastSaveAt.toLocaleTimeString()}` : ''
+  }
+
   async function save(explicit = false) {
-    saveState.textContent = 'Saving…'; saveState.className = 'save-state saving'
+    if (readOnly) return
+    paintSaveState('saving', 'Saving…')
+    // Autosave writes a restore point whenever the structure changed, so a
+    // deleted block always has a floor beneath it.
+    const wantVersion = explicit || structuralSinceVersion
     try {
-      const r = await put(`/content/${doc.id}`, { doc, baseVersion, snapshot: explicit }, )
+      const r = await put(`/content/${doc.id}`, { doc, baseVersion, snapshot: wantVersion })
       doc.version = r.doc.version; doc.updatedAt = r.doc.updatedAt; doc.slug = r.doc.slug
       baseVersion = r.doc.version
       path = r.path; seo = r.seo; stale = r.stale
       dirty = false
-      saveState.textContent = explicit ? 'Saved ✓' : 'Autosaved'
-      saveState.className = 'save-state saved'
+      lastSaveAt = new Date()
+      if (wantVersion) structuralSinceVersion = false
+      paintSaveState('saved', explicit ? 'Saved' : wantVersion ? 'Saved' : 'Saved (no restore point)')
       renderStatus()
       if (inspTab === 'seo') renderInspector()
     } catch (e) {
-      if (e.status === 409) {
-        saveState.textContent = 'Conflict'
-        dialog({
-          title: 'Edited elsewhere',
-          body: h('p.dlg-text', {}, `This document changed on the server (v${e.data.serverVersion}, ${fmtDate(e.data.serverUpdatedAt)}) while you were editing. Load the newer version, or overwrite it with yours?`),
-          actions: [
-            { label: 'Load newer', onClick: () => { location.reload(); return true } },
-            { label: 'Overwrite', kind: 'danger', onClick: async () => { baseVersion = e.data.serverVersion; await save(true); return true } },
-          ],
-        })
-      } else { saveState.textContent = 'Save failed'; saveState.className = 'save-state saving' }
+      if (e.status === 409) return onConflict(e)
+      paintSaveState('error', 'Not saved — retry', () => save(explicit))
     }
   }
+
+  async function onConflict(e) {
+    paintSaveState('error', 'Someone else saved — resolve', () => onConflict(e))
+    const who = e.data?.serverAuthor || e.data?.author
+    const when = e.data?.serverUpdatedAt ? fmtDate(e.data.serverUpdatedAt) : 'just now'
+    const mine = JSON.parse(stateJson())
+    dialog({
+      title: 'Edited somewhere else',
+      dismissable: false,   // a choice is required; dismissing used to leave the doc permanently un-saveable
+      body: h('div', {},
+        h('p.dlg-text', {}, who ? `${who} saved a newer version ${when}.` : `A newer version was saved ${when} — from another tab or another person.`),
+        h('p.dlg-text', { style: { marginTop: '0.5rem' } }, 'Nothing is thrown away either way: keeping yours stores theirs as a restore point first.')),
+      actions: [
+        {
+          label: 'Take theirs', onClick: async () => {
+            const fresh = await get(`/content/${doc.id}`)
+            Object.assign(doc, fresh.doc)
+            baseVersion = fresh.doc.version
+            path = fresh.path; seo = fresh.seo; stale = fresh.stale
+            dirty = false
+            titleInput.value = doc.title
+            renderTree(); renderInspector(); renderStatus(); refreshPreview()
+            paintSaveState('saved', 'Loaded theirs')
+            toast('Loaded the newer version — your copy is in the undo history', 'ok')
+            undoStack.push({ json: JSON.stringify(mine), label: 'your version' })
+            return true
+          },
+        },
+        {
+          label: 'Keep mine', kind: 'primary', onClick: async () => {
+            baseVersion = e.data.serverVersion
+            await save(true)
+            return true
+          },
+        },
+      ],
+    })
+  }
+
   const scheduleSave = debounce(() => save(false), 900)
-  let suppressPreview = false   // true while typing inline in the canvas
-  const markDirty = () => { dirty = true; saveState.textContent = 'Unsaved…'; saveState.className = 'save-state'; scheduleSave(); if (!suppressPreview) refreshPreviewSoon() }
+  let suppressPreview = false
+
+  /** One entry point for "something changed". */
+  const markDirty = (opts = {}) => {
+    if (readOnly) return
+    dirty = true
+    if (opts.structural) structuralSinceVersion = true
+    paintSaveState('', 'Unsaved…')
+    scheduleSave()
+    if (suppressPreview) return
+    if (opts.patch) patchPreview(opts.patch)
+    else if (opts.structural !== false) refreshPreviewSoon()
+    else refreshPreviewSoon()
+  }
 
   // ---------- preview ----------
 
   let focusedMode = !!prefs().focusedMode
   const previewSrc = () => `/preview/${doc.id}?editor=1${focusedMode ? '&bare=1' : ''}`
   const iframe = h('iframe', { src: previewSrc(), title: 'Page preview' })
+  const scaleBadge = h('button.preview-scale', {
+    title: 'Give the canvas more room', 'aria-label': 'Widen the canvas',
+    onclick: () => widenCanvas(),
+  })
   const frameHolder = h('div.preview-frame-holder', {}, iframe)
-  const previewWrap = h('div.preview-wrap', { class: prefs().device ? `w-${prefs().device}` : '' }, frameHolder)
-  // Desktop preview renders at real desktop width and scales down, so a narrow
-  // pane never flips the site into its mobile layout (tablet/mobile are exact).
+  const previewWrap = h('div.preview-wrap', { class: prefs().device ? `w-${prefs().device}` : '' }, frameHolder, scaleBadge)
   let unfitPreview = null
   const fitForDevice = k => {
     unfitPreview?.(); unfitPreview = null
     iframe.style.width = ''; iframe.style.height = ''; iframe.style.transform = ''
-    if (!k) unfitPreview = fitPreviewFrame(frameHolder, iframe, 1280)
+    if (!k) unfitPreview = fitPreviewFrame(frameHolder, iframe, 1280, paintScale)
+    paintScale()
   }
-  fitForDevice(prefs().device || '')
+  function paintScale(pct) {
+    const s = pct != null ? String(pct) : frameHolder.dataset.scale
+    const tight = s && +s < 96
+    scaleBadge.textContent = tight ? `${s}% · widen` : ''
+    scaleBadge.hidden = !tight
+    scaleBadge.title = tight ? 'The preview is scaled down to fit. Collapse the side panels for a bigger canvas.' : ''
+  }
+
+  /** One press reclaims every pixel the chrome was using. */
+  function widenCanvas() {
+    const appEl = document.querySelector('.app')
+    const anyOpen = outlineOpen || !appEl.classList.contains('insp-hidden')
+    outlineOpen = !anyOpen
+    setDisclosure('outline', outlineOpen)
+    outlineEl.classList.toggle('closed', !outlineOpen)
+    appEl.classList.toggle('insp-hidden', anyOpen)
+    setPref('inspHidden', anyOpen)
+    setTimeout(paintScale, 280)
+  }
+  const onResize = debounce(() => { paintScale() }, 200)
+  addEventListener('resize', onResize)
+
   const refreshPreview = () => { scheduleSave.now?.(); iframe.contentWindow?.location.reload() }
-  const refreshPreviewSoon = debounce(() => iframe.contentWindow?.location.reload(), 1100)
-
-  addEventListener('message', onBridgeMsg)
-  function onBridgeMsg(e) {
-    const m = e.data || {}
-    if (m.blockhouse === 'select' && m.id) { selectBlock(m.id, { fromPreview: true }) }
-    if (m.blockhouse === 'ready' && selectedId) iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: selectedId }, '*')
-
-    // “what is this / where do I edit it” — clicks on non-content chrome
-    if (m.blockhouse === 'provenance') {
-      const opts = []
-      const seen = new Set()
-      const add = (label2, icon2, go, hint) => { if (!seen.has(label2)) { seen.add(label2); opts.push({ label: label2, icon: icon2, go, hint }) } }
-      for (const o of m.options || []) {
-        if (o.kind === 'menu' && meta.perms.menus) {
-          const mm = meta.menus.find(x => x.key === o.key)
-          add(`Edit the “${mm?.label || o.key}” menu`, 'menu', () => (location.hash = `#/menus/${o.key}`), 'Structure, panels and links — with live preview')
-        }
-        if ((o.kind === 'header' || o.kind === 'footer') && meta.perms.settings) {
-          add(`Edit the ${o.kind} content`, 'layout', () => (location.hash = `#/chrome/${o.kind === 'header' ? 'header.announce' : 'footer.social'}`), 'Announcement bar, footer rows and links — the content poured into the template')
-          add(`Edit the ${o.kind} template`, 'code', () => (location.hash = `#/tpl/${encodeURIComponent('partials/' + o.kind + '.liquid')}`), 'The structure — a safe override, the built-in file is untouched')
-        }
-        if (o.kind === 'design' && meta.perms.settings) {
-          add('Open Design', 'palette', () => (location.hash = '#/design'), 'Palette, template, colour scheme')
-        }
-      }
-      if (m.href && /\/(feed|sitemap)\.xml$/.test(m.href.split('?')[0]) && meta.perms.settings) {
-        const which = m.href.includes('feed') ? 'RSS feeds' : 'The sitemap'
-        add(`${which} — turn on or off in Features`, 'bolt', () => (location.hash = '#/settings/features'), 'When a feature is off, blockhouse removes its links site-wide')
-      }
-      if (m.href && /^\//.test(m.href)) {
-        add(`Go edit the page at ${m.href}`, 'page', async () => {
-          const { docs } = await get('/content')
-          const target = docs.find(d2 => d2.path === m.href.replace(/\/$/, '') || d2.path === m.href)
-          if (target) location.hash = `#/e/${target.id}`
-          else toast('That link doesn’t point at a page in this site', 'err')
-        }, 'Follow the link into its editor, not the live site')
-      }
-      if (meta.perms.settings) add('Site settings', 'gear', () => (location.hash = '#/settings'), 'Identity, features, everything else')
-      const dlg = dialog({
-        title: m.text ? `“${m.text}”` : 'This part of the page',
-        body: h('div', {},
-          h('p.dlg-text', { style: { marginBottom: '0.6rem' } }, opts.length > 1 ? 'This element is controlled in more than one place — pick where to edit:' : 'Edit it here:'),
-          h('div', { style: { display: 'grid', gap: '0.3rem' } },
-            ...(opts.length ? opts : [{ label: 'This comes from the template', icon: 'info', go: null, hint: 'It isn’t page content — template files or Design control it.' }])
-              .map(o => h('button.row-item', {
-                style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '0.6rem 0.7rem' },
-                onclick: () => { if (o.go) { dlg.closeWith(); o.go() } },
-              },
-                h('span.row-ico', { html: icon(o.icon, 16) }),
-                h('div', { style: { textAlign: 'left' } },
-                  h('div', { style: { fontWeight: 640, fontSize: '0.86rem' } }, o.label),
-                  o.hint ? h('div.fnt', { style: { fontSize: '0.74rem' } }, o.hint) : ''))))),
-      })
-    }
-
-    // inline canvas editing
-    if (m.blockhouse === 'editstart') { snapshotOnce(); suppressPreview = true }
-    if (m.blockhouse === 'edit' && m.id && m.prop) {
-      const found = findNode(m.id)
-      if (found) {
-        found.node.props[m.prop] = m.value
-        dirty = true
-        saveState.textContent = 'Unsaved…'; saveState.className = 'save-state'
-        scheduleSave()
-      }
-    }
-    if (m.blockhouse === 'editend') {
-      suppressPreview = false
-      refreshPreviewSoon()
-      if (inspTab === 'block') renderInspector()
-      renderTree()
-    }
-
-    // floating toolbar actions from the canvas
-    if (m.blockhouse === 'blockaction' && m.id) {
-      const found = findNode(m.id)
-      if (!found) return
-      const { node, siblings } = found
-      const i = siblings.indexOf(node)
-      if (m.action === 'delete') { snapshot(); siblings.splice(i, 1); if (selectedId === m.id) selectedId = null; markDirty(); renderTree(); renderInspector() }
-      if (m.action === 'duplicate') { snapshot(); const copy = JSON.parse(JSON.stringify(node)); reId(copy); siblings.splice(i + 1, 0, copy); markDirty(); renderTree() }
-      if (m.action === 'add-after') addBlock(siblings, i + 1)
-      if (m.action === 'up' && i > 0) { snapshot(); siblings.splice(i, 1); siblings.splice(i - 1, 0, node); markDirty(); renderTree() }
-      if (m.action === 'down' && i < siblings.length - 1) { snapshot(); siblings.splice(i, 1); siblings.splice(i + 1, 0, node); markDirty(); renderTree() }
-    }
+  const refreshPreviewSoon = debounce(() => iframe.contentWindow?.location.reload(), 500)
+  /** Send one changed prop instead of reloading the whole page. */
+  function patchPreview({ id, prop, value }) {
+    refreshPreviewSoon.cancel()
+    iframe.contentWindow?.postMessage({ blockhouse: 'patch', id, prop, value }, '*')
   }
 
-  // ---------- block ops ----------
+  // ---------- block operations ----------
+
+  const ops = makeOps({
+    doc, byType, snapshot, markDirty,
+    onTreeChange: () => { renderTree(); renderInspector() },
+    onSelect: id => selectBlock(id),
+  })
 
   function selectBlock(id, opts = {}) {
     selectedId = id
-    inspTab = 'block'
     renderTree()
     renderInspector()
     if (!opts.fromPreview) iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id }, '*')
   }
 
-  function addBlock(intoChildren, index, restrictTypes) {
+  function removeWithUndo(id) {
+    const name = ops.remove(id)
+    if (!name) return
+    if (selectedId === id) selectedId = null
+    renderInspector()
+    undoToast(`Deleted ${name}`, doUndo)
+  }
+
+  async function pasteFrom(parentId, index) {
+    const blocks = await readClipboard()
+    if (!blocks?.length) return toast('Nothing to paste — copy a block first (⌘C)', 'info')
+    let last = null
+    blocks.forEach((b, i) => { last = ops.insert(reId(JSON.parse(JSON.stringify(b))), parentId, index + i) })
+    if (last) selectBlock(last.id)
+    toast(`Pasted ${blocks.length} block${blocks.length > 1 ? 's' : ''}`, 'ok')
+  }
+
+  /** One action registry — the toolbar, the menu, the keyboard and the palette all read it. */
+  function blockActions(id) {
+    const f = ops.find(id)
+    if (!f) return []
+    const def = byType[f.node.type]
+    return [
+      { key: 'addAfter', label: 'Add block after', icon: icon('plus', 14), shortcut: '⌘⏎', run: () => { const s = ops.siteFor(id); addBlock(s.parentId, s.index) } },
+      ...(def?.container ? [{ key: 'addInside', label: 'Add block inside', icon: icon('layout', 14), run: () => addBlock(id, (f.node.children || []).length, def.childTypes) }] : []),
+      { key: 'duplicate', label: 'Duplicate', icon: icon('copy', 14), shortcut: '⌘D', run: () => ops.duplicate(id) },
+      '-',
+      { key: 'copy', label: 'Copy', icon: icon('copy', 14), shortcut: '⌘C', run: async () => { await copyBlocks([f.node]); toast('Block copied', 'ok', 1800) } },
+      { key: 'cut', label: 'Cut', icon: icon('x', 14), shortcut: '⌘X', run: async () => { await copyBlocks([f.node]); removeWithUndo(id) } },
+      { key: 'paste', label: 'Paste after', icon: icon('download', 14), shortcut: '⌘V', run: () => { const s = ops.siteFor(id); pasteFrom(s.parentId, s.index) } },
+      '-',
+      { key: 'up', label: 'Move up', icon: icon('up', 14), shortcut: '⌥↑', run: () => ops.nudge(id, -1) },
+      { key: 'down', label: 'Move down', icon: icon('down', 14), shortcut: '⌥↓', run: () => ops.nudge(id, 1) },
+      { key: 'moveTo', label: 'Move into…', icon: icon('swap', 14), run: () => moveIntoDialog(id) },
+      '-',
+      { key: 'delete', label: 'Delete', icon: icon('trash', 14), shortcut: 'Del', danger: true, run: () => removeWithUndo(id) },
+    ]
+  }
+
+  function blockMenu(e, id) {
+    e.preventDefault()
+    const acts = blockActions(id)
+    contextMenu(e.clientX, e.clientY, acts.map(a => a === '-' ? '-' : ({
+      icon: a.icon, label: a.label, shortcut: a.shortcut, danger: a.danger, onClick: a.run,
+    })))
+  }
+
+  /** Drag is not the only way to restructure a page — especially in a drawer. */
+  function moveIntoDialog(id) {
+    const targets = [{ id: '', label: 'Top level of the page', depth: 0 }]
+    for (const { node, depth } of flatten(doc.blocks)) {
+      if (node.id === id) continue
+      if (byType[node.type]?.container && !findNode(id, [node])) {
+        targets.push({ id: node.id, label: labelOf(node, byType[node.type]), depth: depth + 1 })
+      }
+    }
+    const body = h('div', { style: { display: 'grid', gap: '0.2rem' } },
+      ...targets.map(t => h('button.row-item', {
+        style: { paddingLeft: `${0.65 + t.depth * 0.8}rem` },
+        onclick: () => { ops.move(id, t.id, 0); selectBlock(id); dlg.closeWith() },
+      }, h('span.row-ico', { html: icon(t.id ? 'layout' : 'page', 15) }), h('span.row-label', {}, t.label))))
+    const dlg = dialog({ title: 'Move this block into…', body })
+  }
+
+  // ---------- block picker ----------
+
+  function addBlock(parentId, index, restrictTypes) {
     const groups = {}
     for (const b of catalogue) {
       if (restrictTypes && !restrictTypes.includes(b.type)) continue
-      ;(groups[b.group] ??= []).push(b)
+      ;(groups[b.group || 'Other'] ??= []).push(b)
     }
-    const search = h('input.pal-input', { placeholder: 'Search blocks…' })
+    const recent = (prefs().recentBlocks || []).map(t => catalogue.find(b => b.type === t)).filter(Boolean)
+    const search = h('input.pal-input', { placeholder: 'Search blocks…', 'aria-label': 'Search blocks' })
     const holder = h('div.picker-groups')
-    const renderPicker = () => {
-      const q = search.value.toLowerCase()
-      holder.replaceChildren(...Object.entries(groups).map(([g, items]) => {
-        const vis = items.filter(b => !q || b.label.toLowerCase().includes(q) || b.type.includes(q))
-        if (!vis.length) return ''
-        return h('div', {}, h('div.picker-group-title', {}, g), h('div.picker-grid', {},
-          vis.map(b => h('button.picker-item', {
-            onclick: () => {
-              snapshot()
-              const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
-              if (b.container) node.children = []
-              if (b.type === 'faq') node.children = [{ id: uid(), type: 'faq-item', props: { question: 'A good question?' }, children: [{ id: uid(), type: 'richtext', props: { md: 'A clear answer.' } }] }]
-              if (b.type === 'tabs') node.children = [{ id: uid(), type: 'tab', props: { label: 'Tab 1' }, children: [] }, { id: uid(), type: 'tab', props: { label: 'Tab 2' }, children: [] }]
-              intoChildren.splice(index ?? intoChildren.length, 0, node)
-              dlg.closeWith()
-              markDirty(); renderTree(); selectBlock(node.id)
-            },
-          }, h('span.p-ico', { html: icon(b.icon || 'layout', 17) }), h('span.p-label', {}, b.label), b.description ? h('span.p-desc', {}, b.description) : '')),
-        ))
-      }).filter(Boolean))
+    let flat = [], active = 0
+
+    const make = b => {
+      setPref('recentBlocks', [b.type, ...(prefs().recentBlocks || []).filter(t => t !== b.type)].slice(0, 8))
+      const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
+      if (b.container) node.children = []
+      if (b.type === 'faq') node.children = [{ id: uid(), type: 'faq-item', props: { question: 'A good question?' }, children: [{ id: uid(), type: 'richtext', props: { md: 'A clear answer.' } }] }]
+      if (b.type === 'tabs') node.children = [{ id: uid(), type: 'tab', props: { label: 'Tab 1' }, children: [] }, { id: uid(), type: 'tab', props: { label: 'Tab 2' }, children: [] }]
+      ops.insert(node, parentId, index)
+      dlg.closeWith()
+      selectBlock(node.id)
     }
-    search.addEventListener('input', renderPicker)
+
+    const renderPicker = () => {
+      const q = search.value.toLowerCase().trim()
+      const match = b => !q || b.label.toLowerCase().includes(q) || b.type.includes(q)
+        || (b.description || '').toLowerCase().includes(q) || (b.group || '').toLowerCase().includes(q)
+      const sections = []
+      if (!q && recent.length) sections.push(['Recently used', recent])
+      for (const [g, items] of Object.entries(groups)) {
+        const vis = items.filter(match)
+        if (vis.length) sections.push([g, vis])
+      }
+      flat = sections.flatMap(([, items]) => items)
+      active = Math.min(active, Math.max(0, flat.length - 1))
+      let i = -1
+      holder.replaceChildren(...(sections.length ? sections : []).map(([g, items]) =>
+        h('div', {}, h('div.picker-group-title', {}, g), h('div.picker-grid', {},
+          items.map(b => {
+            i++
+            const idx = i
+            return h('button.picker-item', {
+              class: idx === active ? 'active' : '',
+              onmousemove: () => { if (active !== idx) { active = idx; paintActive() } },
+              onclick: () => make(b),
+            }, h('span.p-ico', { html: icon(b.icon || 'layout', 17) }), h('span.p-label', {}, b.label),
+              b.description ? h('span.p-desc', {}, b.description) : '')
+          })))))
+      if (!flat.length) holder.replaceChildren(h('div.pal-empty', {}, h('p', {}, 'No block matches that.')))
+    }
+    const paintActive = () => {
+      const items = [...holder.querySelectorAll('.picker-item')]
+      items.forEach((el, i2) => el.classList.toggle('active', i2 === active))
+      items[active]?.scrollIntoView({ block: 'nearest' })
+    }
+    search.addEventListener('input', () => { active = 0; renderPicker() })
+    search.addEventListener('keydown', e => {
+      const cols = 3
+      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + cols, flat.length - 1); paintActive() }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - cols, 0); paintActive() }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); active = Math.min(active + 1, flat.length - 1); paintActive() }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); active = Math.max(active - 1, 0); paintActive() }
+      else if (e.key === 'Enter' && flat[active]) { e.preventDefault(); make(flat[active]) }
+    })
     const dlg = dialog({ title: 'Add a block', width: 'min(44rem, 94vw)', body: [search, holder] })
     renderPicker()
     search.focus()
   }
-
-  function blockMenu(e, node, siblings) {
-    e.preventDefault()
-    contextMenu(e.clientX, e.clientY, [
-      { icon: icon('plus', 14), label: 'Add block after', onClick: () => addBlock(siblings, siblings.indexOf(node) + 1) },
-      { icon: icon('copy', 14), label: 'Duplicate', onClick: () => { snapshot(); const copy = JSON.parse(JSON.stringify(node)); reId(copy); siblings.splice(siblings.indexOf(node) + 1, 0, copy); markDirty(); renderTree() } },
-      '-',
-      { icon: icon('undo', 14), label: 'Move up', onClick: () => { const i = siblings.indexOf(node); if (i > 0) { snapshot(); siblings.splice(i, 1); siblings.splice(i - 1, 0, node); markDirty(); renderTree() } } },
-      { icon: icon('redo', 14), label: 'Move down', onClick: () => { const i = siblings.indexOf(node); if (i < siblings.length - 1) { snapshot(); siblings.splice(i, 1); siblings.splice(i + 1, 0, node); markDirty(); renderTree() } } },
-      '-',
-      { icon: icon('trash', 14), label: 'Delete', danger: true, onClick: () => { snapshot(); siblings.splice(siblings.indexOf(node), 1); if (selectedId === node.id) selectedId = null; markDirty(); renderTree(); renderInspector() } },
-    ])
+  hooks.addBlockByType = type => {
+    const b = catalogue.find(x => x.type === type)
+    if (!b) return
+    const site = ops.siteFor(selectedId)
+    const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
+    if (b.container) node.children = []
+    ops.insert(node, site.parentId, site.index)
+    selectBlock(node.id)
   }
-  function reId(node) { node.id = uid(); for (const c of node.children || []) reId(c) }
 
-  // ---------- tree ----------
+  // ---------- the outline rail ----------
 
-  const treeHolder = h('div')
+  const outlineBody = h('div.outline-body', {})
+  let outlineOpen = disclosure('outline', innerWidth >= 1600)
+
+  const folded = () => prefs().foldedBlocks || {}
+  const toggleFold = id => {
+    const f = { ...folded() }
+    f[id] = !f[id]
+    setPref('foldedBlocks', f)
+    renderTree()
+  }
+
+  function visibleRows() {
+    const rows = []
+    const walk = (blocks, parentId, depth) => {
+      blocks.forEach((node, index) => {
+        rows.push({ node, parentId, index, depth })
+        const def = byType[node.type]
+        if (def?.container && !folded()[node.id]) walk(node.children ??= [], node.id, depth + 1)
+      })
+    }
+    walk(doc.blocks, '', 0)
+    return rows
+  }
+
   function renderTree() {
-    treeHolder.replaceChildren(buildTree(doc.blocks, []), h('button.tree-add', { onclick: () => addBlock(doc.blocks) }, '＋ Add block'))
-  }
-  function buildTree(blocks, parents) {
-    const holder = h('div.tree')
-    for (const node of blocks) {
+    const rows = visibleRows()
+    const tree = h('div.tree', { role: 'tree', 'aria-label': 'Page outline' })
+    for (const { node, parentId, index, depth } of rows) {
       const def = byType[node.type]
-      const label = blockLabel(node, def)
-      const row = h('div.tree-item', {
-        class: node.id === selectedId ? 'selected' : '',
+      const isContainer = !!def?.container
+      const isFolded = !!folded()[node.id]
+      const selected = node.id === selectedId
+      const row = h('button.tree-item', {
+        class: selected ? 'selected' : '',
+        role: 'treeitem', 'aria-selected': String(selected), 'aria-level': String(depth + 1),
+        ...(isContainer ? { 'aria-expanded': String(!isFolded) } : {}),
+        tabindex: selected ? '0' : '-1',
         draggable: 'true',
+        dataset: { nodeId: node.id, parentId, index: String(index), container: isContainer ? '1' : '0' },
+        style: { paddingLeft: `${0.3 + depth * 0.7}rem` },
         onclick: () => selectBlock(node.id),
-        oncontextmenu: e => blockMenu(e, node, blocks),
+        oncontextmenu: e => blockMenu(e, node.id),
+        onkeydown: e => treeKeys(e, node.id, rows),
       },
+        isContainer
+          ? h('span.t-fold', {
+            onclick: e => { e.stopPropagation(); toggleFold(node.id) },
+            html: icon(isFolded ? 'chevR' : 'chevD', 11),
+          })
+          : h('span.t-fold'),
         h('span.t-grip', { html: icon('grip', 13) }),
         h('span.t-ico', { html: icon(def?.icon || 'layout', 14) }),
-        h('span.t-label', {}, label, ' ', h('span.t-type', {}, def?.label || node.type)),
-      )
-      const wrap = h('div', {}, row)
-      if (def?.container) {
-        const kids = buildTree(node.children ?? (node.children = []), [...parents, node])
-        kids.className = 'tree-kids tree'
-        wrap.appendChild(kids)
-        wrap.appendChild(h('div.tree-kids', {}, h('button.tree-add', { onclick: () => addBlock(node.children, undefined, def.childTypes) }, '＋ inside')))
-      }
-      holder.appendChild(wrap)
+        h('span.t-label', {}, labelOf(node, def), ' ', h('span.t-type', {}, def?.label || node.type)),
+        h('span.mrow-tools', {},
+          h('button.icon-btn', {
+            'aria-label': `Actions for ${labelOf(node, def)}`,
+            onclick: e => { e.stopPropagation(); blockMenu(e, node.id) },
+          }, iconEl('more', 13))))
+      // marks the whole subtree so a node can never be dropped inside itself
+      tree.appendChild(node.children?.length ? h('div', { dataset: { subtree: node.id } }, row) : row)
     }
-    makeSortable(holder, {
-      onMove: (from, to) => { snapshot(); const [m] = blocks.splice(from, 1); blocks.splice(to, 0, m); markDirty(); renderTree() },
+    outlineBody.replaceChildren(
+      doc.blocks.length ? tree : h('div', { style: { padding: '0.6rem 0.4rem' } },
+        h('p.fnt', { style: { fontSize: '0.78rem' } }, 'This page is empty.')),
+      h('button.tree-add', { onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 12), ' Add block'))
+
+    makeTreeSortable(tree, {
+      canDrop: (id, parentId) => !parentId || !!byType[ops.find(parentId)?.node.type]?.container,
+      onMove: (id, parentId, index) => { ops.move(id, parentId, index); selectBlock(id) },
     })
-    return holder
   }
-  function blockLabel(node, def) {
-    const p = node.props || {}
-    return String(p.title || p.text || p.question || p.label || p.md || '').replace(/[#*_>`]/g, '').slice(0, 26) || ''
+
+  function treeKeys(e, id, rows) {
+    // The window-level handler below owns the same keys. Without this, a single
+    // Alt+Down in the outline nudged the block twice.
+    const OWNED = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Delete', 'Backspace']
+    if (OWNED.includes(e.key) || (e.shiftKey && e.key === 'F10')) e.stopPropagation()
+    const i = rows.findIndex(r => r.node.id === id)
+    const focusAt = j => {
+      const r = rows[Math.max(0, Math.min(j, rows.length - 1))]
+      if (r) { selectBlock(r.node.id); setTimeout(() => outlineBody.querySelector('.tree-item.selected')?.focus(), 0) }
+    }
+    const def = byType[rows[i]?.node.type]
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault(); ops.nudge(id, e.key === 'ArrowDown' ? 1 : -1)
+      setTimeout(() => outlineBody.querySelector('.tree-item.selected')?.focus(), 0)
+    } else if (e.key === 'ArrowDown') { e.preventDefault(); focusAt(i + 1) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); focusAt(i - 1) }
+    else if (e.key === 'Home') { e.preventDefault(); focusAt(0) }
+    else if (e.key === 'End') { e.preventDefault(); focusAt(rows.length - 1) }
+    else if (e.key === 'ArrowRight' && def?.container && folded()[id]) { e.preventDefault(); toggleFold(id) }
+    else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      if (def?.container && !folded()[id]) toggleFold(id)
+      else if (rows[i]?.parentId) selectBlock(rows[i].parentId)
+    } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeWithUndo(id) }
+    else if (e.shiftKey && e.key === 'F10') { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); blockMenu({ preventDefault() {}, clientX: r.left + 20, clientY: r.bottom }, id) }
   }
+
+  const outlineEl = h('aside.outline', { class: outlineOpen ? '' : 'closed' },
+    h('div.outline-head', {},
+      h('span.panel-title', { style: { flex: 1 } }, 'Outline'),
+      h('button.icon-btn', { 'aria-label': 'Add block', title: 'Add block', onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 14))),
+    outlineBody)
 
   // ---------- inspector ----------
 
-  let inspTab = 'block'
-  const inspBody = h('div.insp-body')
-  const crumbs = h('div.insp-crumbs')
-  const tabs = h('div.insp-tabs')
+  let inspTab = ['block', 'page', 'seo'].includes(tabParam) ? tabParam : 'block'
+  const inspBody = h('div.insp-body', { id: 'insp-body', role: 'tabpanel' })
+  const crumbs = h('div.insp-crumbs', { 'aria-label': 'Selected block path' })
+  const tabs = h('div.insp-tabs', { role: 'tablist', 'aria-label': 'Inspector' })
 
-  function renderInspector() {
-    tabs.replaceChildren(...[['block', 'Block'], ['page', 'Page'], ['seo', 'SEO']].map(([k, label]) =>
-      h('button', { class: inspTab === k ? 'active' : '', onclick: () => { inspTab = k; renderInspector() } }, label)))
-
-    if (inspTab === 'block') {
-      const found = selectedId ? findNode(selectedId) : null
-      crumbs.style.display = ''
-      crumbs.replaceChildren(
-        h('button', { onclick: () => { selectedId = null; renderTree(); renderInspector(); iframe.contentWindow?.postMessage({ blockhouse: 'clear' }, '*') } }, 'Page'),
-        ...(found ? found.parents.flatMap(p => [h('span.sep', {}, '›'), h('button', { onclick: () => selectBlock(p.id) }, byType[p.type]?.label || p.type)]) : []),
-        ...(found ? [h('span.sep', {}, '›'), h('button', { style: { color: 'var(--acc-strong)' } }, byType[found.node.type]?.label || found.node.type)] : []))
-
-      if (!found) {
-        inspBody.replaceChildren(
-          h('div.insp-section-title', {}, 'Content blocks'),
-          treeHolder)
-        renderTree()
-        return
-      }
-      const def = byType[found.node.type]
-      const propsForm = def?.fields?.length
-        ? renderFields(def.fields, found.node.props, () => { snapshotOnce(); markDirty() })
-        : h('p.mut', {}, 'This block has no options.')
-      inspBody.replaceChildren(
-        h('div.insp-section-title', {}, def?.label || found.node.type,
-          h('button.icon-btn', { title: 'Delete block', onclick: () => { snapshot(); found.siblings.splice(found.siblings.indexOf(found.node), 1); selectedId = null; markDirty(); renderTree(); renderInspector() } }, iconEl('trash', 14))),
-        propsForm,
-        h('div.insp-section-title', {}, 'Structure'),
-        treeHolder)
-      renderTree()
-    }
-
-    if (inspTab === 'page') {
-      crumbs.style.display = 'none'
-      const concept = meta.concepts.find(c => c.name === doc.concept)
-      const pageVals = { slug: doc.slug, publishAt: doc.publishAt || '', template: doc.template || '' }
-      if (!window.__blockhousePageTpls) {
-        window.__blockhousePageTpls = ['']
-        get('/templates/pages').then(r => { window.__blockhousePageTpls = ['', ...r.pages]; renderInspector() }).catch(() => {})
-      }
-      inspBody.replaceChildren(
-        h('div.insp-section-title', {}, 'Document'),
-        renderFields([
-          { key: 'slug', type: 'text', label: 'Slug', help: 'Old slugs 301-redirect automatically' },
-          { key: 'publishAt', type: 'date', label: 'Publish at (scheduled)' },
-          {
-            key: 'template', type: 'select', label: 'Page template',
-            options: (window.__blockhousePageTpls || ['']).map(t => ({ value: t, label: t || `Default (${concept?.template || concept?.name || 'page'})` })),
-            help: 'Templates live under Site → Templates; add pages/<name>.liquid and it appears here.',
-          },
-        ], pageVals, (k, v) => {
-          if (k === 'slug') doc.slug = String(v).toLowerCase().replace(/[^a-z0-9-]+/g, '-')
-          else if (v) doc[k] = v; else delete doc[k]
-          markDirty()
-        }),
-        ...(concept?.fields?.length ? [
-          h('div.insp-section-title', {}, `${concept.label} fields`),
-          renderFields(concept.fields, doc.fields, () => { snapshotOnce(); markDirty() }),
-        ] : []),
-        h('div.insp-section-title', {}, 'Addresses'),
-        routingPanel(),
-        h('div.insp-section-title', {}, 'Access'),
-        accessPanel(),
-        h('div.insp-section-title', {}, 'Custom code (this page only)'),
-        renderFields([
-          { key: 'css', type: 'code', label: 'CSS', rows: 4, help: 'Injected on this page after the theme' },
-          ...(meta.perms.html ? [{ key: 'js', type: 'code', label: 'JavaScript', rows: 4, help: 'Runs as a module on this page (editors+)' }] : []),
-        ], (doc.custom ??= {}), () => markDirty()),
-        h('div.insp-section-title', {}, 'Versions'),
-        versionsPanel())
-    }
-
-    if (inspTab === 'seo') {
-      crumbs.style.display = 'none'
-      doc.seo ??= {}
-      const site = meta.site
-      const title = doc.seo.title || doc.title
-      inspBody.replaceChildren(
-        h('div.serp', {},
-          h('div.serp-url', {}, (site.url || '') + path),
-          h('div.serp-title', {}, title.length > 60 ? title.slice(0, 57) + '…' : title),
-          h('div.serp-desc', {}, (doc.seo.description || 'No meta description set — search engines will improvise one.').slice(0, 160))),
-        // social share preview
-        (() => {
-          const ogImg = h('div.og-img', {}, doc.seo.image ? '' : 'no share image set')
-          if (doc.seo.image) {
-            get('/media').then(r => {
-              const mm = r.media.find(x => x.id === doc.seo.image)
-              if (mm) ogImg.style.backgroundImage = `url(/media/${mm.file})`
-            }).catch(() => {})
-          }
-          return h('div.og-card', {}, ogImg,
-            h('div.og-body', {},
-              h('div.og-domain', {}, (site.url || '').replace(/^https?:\/\//, '')),
-              h('div.og-title', {}, doc.seo.title || doc.title),
-              h('div.og-desc', {}, doc.seo.description || '')))
-        })(),
-        renderFields([
-          { key: 'title', type: 'text', label: 'SEO title', help: 'Defaults to the document title' },
-          { key: 'description', type: 'textarea', label: 'Meta description', rows: 3 },
-          { key: 'keyword', type: 'text', label: 'Focus keyword', help: 'Enables keyword checks below' },
-          { key: 'image', type: 'image', label: 'Social share image' },
-          { key: 'canonical', type: 'text', label: 'Canonical URL override' },
-          { key: 'noindex', type: 'boolean', label: 'Hide from search engines (noindex)' },
-        ], doc.seo, k => { markDirty(); if (k === 'keyword' || k === 'image') scheduleSave.now?.() }),
-        h('button.btn.ghost.small', {
-          onclick: async e => {
-            const b = e.currentTarget; b.disabled = true
-            try {
-              const text = JSON.stringify(doc.blocks).slice(0, 8000)
-              const r = await post('/x/ai/assist', { task: 'meta', text: `Title: ${doc.title}\n${text}` })
-              doc.seo.description = r.result.slice(0, 160)
-              markDirty(); renderInspector()
-            } catch {}
-            b.disabled = false
-          },
-        }, '✦ Draft description with AI'),
-        h('div.insp-section-title', {}, 'Checks'),
-        h('div', {}, ...seo.map(chk => h('div.seo-check', { class: chk.level },
-          h('span.dot'), h('span', {}, chk.label, chk.detail ? h('span.detail', {}, chk.detail) : '')))))
-    }
+  const setTab = k => {
+    inspTab = k
+    const base = `#/e/${doc.id}/${k}`
+    if (location.hash.split('?')[0] !== base) history.replaceState(null, '', base)
+    renderInspector()
   }
 
-  let snapshotArmed = true
-  function snapshotOnce() { if (snapshotArmed) { snapshot(); snapshotArmed = false; setTimeout(() => (snapshotArmed = true), 1500) } }
+  function renderInspector() {
+    const sel = selectedId ? ops.find(selectedId) : null
+    tabs.replaceChildren(...[['block', 'Block'], ['page', 'Page'], ['seo', 'SEO']].map(([k, label]) =>
+      h('button', {
+        role: 'tab', 'aria-selected': String(inspTab === k), 'aria-controls': 'insp-body',
+        tabindex: inspTab === k ? '0' : '-1',
+        class: inspTab === k ? 'active' : '',
+        onclick: () => setTab(k),
+        onkeydown: e => {
+          const order = ['block', 'page', 'seo']
+          const i = order.indexOf(inspTab)
+          if (e.key === 'ArrowRight') { e.preventDefault(); setTab(order[(i + 1) % 3]); tabs.querySelector('[aria-selected="true"]')?.focus() }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); setTab(order[(i + 2) % 3]); tabs.querySelector('[aria-selected="true"]')?.focus() }
+        },
+      }, label, k === 'block' && sel ? h('span.dot-mark') : '')))
 
-  // Where this page lives: canonical address, the static file it becomes, its
-  // shortlink, and any extra addresses (301 redirects, or mirrors that render
-  // the page in place at a second URL).
+    if (inspTab === 'block') return renderBlockTab(sel)
+    if (inspTab === 'page') return renderPageTab()
+    return renderSeoTab()
+  }
+
+  function renderBlockTab(found) {
+    crumbs.style.display = ''
+    crumbs.replaceChildren(
+      h('button', {
+        onclick: () => { selectedId = null; renderTree(); renderInspector(); iframe.contentWindow?.postMessage({ blockhouse: 'clear' }, '*') },
+      }, 'Page'),
+      ...(found ? found.parents.flatMap(p => [h('span.sep', {}, '›'), h('button', { onclick: () => selectBlock(p.id) }, byType[p.type]?.label || p.type)]) : []),
+      ...(found ? [h('span.sep', {}, '›'), h('button', { 'aria-current': 'true', style: { color: 'var(--acc-strong)' } }, byType[found.node.type]?.label || found.node.type)] : []))
+
+    if (!found) {
+      inspBody.replaceChildren(
+        h('div.empty', { style: { padding: '2.4rem 1rem' } },
+          h('div.empty-ico', {}, iconEl('layout', 26)),
+          h('h3', {}, doc.blocks.length ? 'Nothing selected' : 'This page is empty'),
+          h('p', {}, doc.blocks.length
+            ? 'Pick a block in the outline, or click one in the preview.'
+            : 'Start with a layout, or add a single block.'),
+          h('div', { style: { display: 'grid', gap: '0.35rem', marginTop: '0.6rem', width: '100%' } },
+            ...(doc.blocks.length ? [] : STARTERS.map(s => h('button.btn.ghost.small', { onclick: () => applyStarter(s) }, s.label))),
+            h('button.btn.primary.small', { onclick: () => addBlock('', doc.blocks.length) }, 'Add a block'))))
+      return
+    }
+
+    const def = byType[found.node.type]
+    const propsForm = def?.fields?.length
+      ? renderFields(def.fields, found.node.props, (key, value) => {
+        snapshotOnce(`Edit ${labelOf(found.node, def)}`)
+        markDirty({ patch: { id: found.node.id, prop: key, value } })
+      })
+      : h('div', { style: { padding: '0.2rem 0' } },
+        h('p.mut', { style: { fontSize: '0.82rem' } }, 'This block’s text is edited straight on the page.'),
+        h('button.btn.ghost.small', {
+          style: { marginTop: '0.4rem' },
+          onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: found.node.id }, '*'),
+        }, 'Show it in the preview'))
+
+    inspBody.replaceChildren(
+      h('div.insp-section-title', {}, def?.label || found.node.type,
+        h('button.icon-btn', {
+          'aria-label': 'Block actions', title: 'Block actions',
+          onclick: e => blockMenu(e, found.node.id),
+        }, iconEl('more', 14))),
+      propsForm)
+  }
+
+  const STARTERS = [
+    { label: 'Hero + paragraph', types: ['section', 'heading', 'richtext'] },
+    { label: 'Two columns', types: ['columns'] },
+    { label: 'Full-width image', types: ['image'] },
+  ]
+  function applyStarter(s) {
+    snapshot('Add starter layout')
+    for (const t of s.types) {
+      const b = catalogue.find(x => x.type === t)
+      if (!b) continue
+      const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
+      if (b.container) node.children = []
+      doc.blocks.push(node)
+    }
+    markDirty({ structural: true })
+    renderTree(); renderInspector()
+  }
+
+  /** Persisted disclosure group. Mara's screen stays clean; Priya's levers stay one click away. */
+  function group(key, title, open, ...body) {
+    const d = h('details.insp-group', { open: disclosure(`e.${key}`, open) },
+      h('summary', {}, title), h('div', { style: { paddingTop: '0.3rem' } }, ...body))
+    d.addEventListener('toggle', () => setDisclosure(`e.${key}`, d.open))
+    return d
+  }
+
+  function renderPageTab() {
+    crumbs.style.display = 'none'
+    const concept = meta.concepts.find(c => c.name === doc.concept)
+    const pageVals = { slug: doc.slug, publishAt: doc.publishAt || '', template: doc.template || '' }
+    const tplSelect = h('div')
+    const drawTpl = tpls => tplSelect.replaceChildren(renderFields([{
+      key: 'template', type: 'select', label: 'Page template',
+      options: tpls.map(t => ({ value: t, label: t || `Default (${concept?.template || concept?.name || 'page'})` })),
+      help: 'Add pages/<name>.liquid under Templates and it appears here.',
+    }], pageVals, (k, v) => { if (v) doc.template = v; else delete doc.template; snapshotOnce('Change template'); markDirty() }))
+    drawTpl(window.__blockhousePageTpls || [''])
+    if (!window.__blockhousePageTpls) {
+      // fill the select in place — re-rendering the whole tab used to steal the
+      // caret out of whatever field you were typing in
+      get('/templates/pages').then(r => { window.__blockhousePageTpls = ['', ...r.pages]; drawTpl(window.__blockhousePageTpls) }).catch(() => {})
+    }
+
+    inspBody.replaceChildren(
+      h('div.insp-section-title', {}, 'Publishing'),
+      renderFields([
+        { key: 'slug', type: 'text', label: 'Slug', help: 'The last part of the address. Old slugs redirect automatically.' },
+        { key: 'publishAt', type: 'date', label: 'Publish at', help: publishAtHelp() },
+      ], pageVals, (k, v) => {
+        snapshotOnce('Edit page settings')
+        if (k === 'slug') doc.slug = String(v).toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+        else if (v) doc[k] = v; else delete doc[k]
+        markDirty()
+        renderStatus()
+      }),
+      ...(concept?.fields?.length ? [
+        h('div.insp-section-title', {}, `${concept.label} fields`),
+        renderFields(concept.fields, doc.fields, () => { snapshotOnce('Edit fields'); markDirty() }),
+      ] : []),
+      h('div.insp-section-title', {}, 'Appearance'),
+      tplSelect,
+      group('addresses', 'Addresses & redirects', false, routingPanel()),
+      group('access', 'Who can see this page', false, accessPanel()),
+      group('code', 'Custom code for this page only', false,
+        h('p.fnt', { style: { fontSize: '0.74rem', marginBottom: '0.4rem' } },
+          'Runs on this page for every visitor. Site-wide code lives in Settings → Custom code.'),
+        renderFields([
+          { key: 'css', type: 'code', lang: 'css', label: 'CSS', rows: 4 },
+          ...(meta.perms.html ? [{ key: 'js', type: 'code', lang: 'js', label: 'JavaScript', rows: 4 }] : []),
+        ], (doc.custom ??= {}), () => { snapshotOnce('Edit custom code'); markDirty() })),
+      group('versions', 'Restore points', false, versionsPanel()))
+  }
+
+  function publishAtHelp() {
+    return doc.publishAt
+      ? `Scheduled — the page stays hidden until then.${meta.scheduler === false ? ' The scheduler is not running on this server, so it will not publish itself.' : ''}`
+      : 'Leave empty to publish immediately when you press Publish.'
+  }
+
+  function renderSeoTab() {
+    crumbs.style.display = 'none'
+    doc.seo ??= {}
+    const site = meta.site
+    const title = doc.seo.title || doc.title
+    inspBody.replaceChildren(
+      h('div.serp', {},
+        h('div.serp-url', {}, (site.url || '') + path),
+        h('div.serp-title', {}, title.length > 60 ? title.slice(0, 57) + '…' : title),
+        h('div.serp-desc', {}, (doc.seo.description || 'No meta description set — search engines will improvise one.').slice(0, 160))),
+      (() => {
+        const ogImg = h('div.og-img', {}, doc.seo.image ? '' : 'no share image set')
+        if (doc.seo.image) {
+          get('/media').then(r => {
+            const mm = r.media.find(x => x.id === doc.seo.image)
+            if (mm) ogImg.style.backgroundImage = `url(/media/${mm.file})`
+          }).catch(() => {})
+        }
+        return h('div.og-card', {}, ogImg,
+          h('div.og-body', {},
+            h('div.og-domain', {}, (site.url || '').replace(/^https?:\/\//, '')),
+            h('div.og-title', {}, doc.seo.title || doc.title),
+            h('div.og-desc', {}, doc.seo.description || '')))
+      })(),
+      renderFields([
+        { key: 'title', type: 'text', label: 'SEO title', help: 'Defaults to the document title' },
+        { key: 'description', type: 'textarea', label: 'Meta description', rows: 3 },
+        { key: 'keyword', type: 'text', label: 'Focus keyword', help: 'Enables the keyword checks below' },
+        { key: 'image', type: 'image', label: 'Social share image' },
+        { key: 'canonical', type: 'text', label: 'Canonical URL override' },
+        { key: 'noindex', type: 'boolean', label: 'Hide from search engines (noindex)' },
+      ], doc.seo, k => { snapshotOnce('Edit SEO'); markDirty(); if (k === 'keyword' || k === 'image') scheduleSave.now?.() }),
+      h('button.btn.ghost.small', {
+        onclick: async e => {
+          const b = e.currentTarget; b.disabled = true; b.classList.add('busy')
+          try {
+            const text = JSON.stringify(doc.blocks).slice(0, 8000)
+            const r = await post('/x/ai/assist', { task: 'meta', text: `Title: ${doc.title}\n${text}` })
+            doc.seo.description = r.result.slice(0, 160)
+            snapshotOnce('AI description'); markDirty(); renderInspector()
+          } catch (err) {
+            toast(err?.status === 404
+              ? 'The AI assist plugin is not installed on this site'
+              : `Could not draft a description: ${err.message || err}`, 'err')
+          }
+          b.disabled = false; b.classList.remove('busy')
+        },
+      }, '✦ Draft description with AI'),
+      h('div.insp-section-title', {}, 'Checks'),
+      h('div', {}, ...seo.map(chk => h('div.seo-check', { class: chk.level },
+        h('span.seo-ico', { html: icon(chk.level === 'error' ? 'warn' : chk.level === 'warn' ? 'info' : 'check', 13), 'aria-hidden': 'true' }),
+        h('span', {}, h('span.sr-only', {}, `${chk.level}: `), chk.label, chk.detail ? h('span.detail', {}, chk.detail) : '')))))
+  }
+
   function routingPanel() {
     const row = (label, value, hint) => h('div', { style: { display: 'grid', gap: '0.1rem', marginBottom: '0.5rem' } },
       h('span.fnt', { style: { fontSize: '0.72rem' } }, label),
@@ -432,9 +695,10 @@ registerView('editor', async (root, [docId]) => {
       aliases.replaceChildren(
         ...list.map((a, i) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
           h('input.input', {
-            value: a, style: { flex: '1' }, placeholder: '/old-url',
+            value: a, style: { flex: '1' }, placeholder: '/old-url', 'aria-label': `Extra address ${i + 1}`,
             onchange: e => {
               const v = e.target.value.trim()
+              snapshotOnce('Edit addresses')
               if (!v) list.splice(i, 1)
               else list[i] = v.startsWith('/') ? v : '/' + v
               doc.aliases = list.filter(Boolean)
@@ -442,7 +706,8 @@ registerView('editor', async (root, [docId]) => {
             },
           }),
           h('button.icon-btn', {
-            title: 'Remove', onclick: () => { list.splice(i, 1); doc.aliases = list; markDirty(); drawAliases() },
+            title: 'Remove address', 'aria-label': `Remove address ${a || i + 1}`,
+            onclick: () => { snapshotOnce('Remove address'); list.splice(i, 1); doc.aliases = list; markDirty(); drawAliases() },
           }, iconEl('trash', 13)))),
         h('button.btn.ghost.small', {
           onclick: () => { doc.aliases = [...(doc.aliases || []), '']; markDirty(); drawAliases() },
@@ -462,14 +727,13 @@ registerView('editor', async (root, [docId]) => {
 
     return h('div', {},
       row('Canonical URL', (meta.site.url || '') + (href || path), 'Changing the slug adds an automatic redirect from the old one.'),
-      row('Static file', exportFile || 'index.html', `URL style: ${meta.urls?.style || 'directory'} · layout: ${meta.urls?.layout || 'pattern'} — change under Settings → URLs.`),
+      row('Static file', exportFile || 'index.html', `URL style: ${meta.urls?.style || 'directory'} · layout: ${meta.urls?.layout || 'pattern'}`),
+      h('a.btn.ghost.small', { href: '#/settings/urls', style: { marginBottom: '0.5rem' } }, 'Change URL style →'),
       shortlink ? row('Shortlink', (meta.site.url || '') + shortlink, 'Stable even if the slug changes.') : '',
       h('span.fnt', { style: { fontSize: '0.72rem', display: 'block', margin: '0.6rem 0 0.3rem' } }, 'Extra addresses'),
       aliases)
   }
 
-  // Who may view the page once published. Requires the Members plugin for
-  // anything other than public.
   function accessPanel() {
     const hasMembers = (meta.panels || []).some(p => p.plugin === 'members')
     doc.access ??= {}
@@ -477,20 +741,23 @@ registerView('editor', async (root, [docId]) => {
     const draw = () => {
       const mode = doc.access.mode || 'public'
       const groups = meta.memberGroups || []
+      const modeSelect = h('div')
+      modeSelect.append(renderFields([{
+        key: 'mode', type: 'select', label: 'Visible to', required: true,
+        options: [
+          { value: 'public', label: 'Everyone' },
+          { value: 'members', label: 'Signed-in members' },
+          { value: 'groups', label: 'Specific member groups' },
+        ],
+        help: hasMembers ? '' : 'Install the Members plugin to use member-only pages.',
+      }], { mode }, (k, v) => {
+        snapshotOnce('Change access')
+        if (v === 'public') doc.access = {}
+        else doc.access.mode = v
+        markDirty(); draw()
+      }))
       wrap.replaceChildren(
-        renderFields([{
-          key: 'mode', type: 'select', label: 'Visible to', required: true,
-          options: [
-            { value: 'public', label: 'Everyone' },
-            { value: 'members', label: 'Signed-in members' },
-            { value: 'groups', label: 'Specific member groups' },
-          ],
-          help: hasMembers ? '' : 'Install the Members plugin to use member-only pages.',
-        }], { mode }, (k, v) => {
-          if (v === 'public') doc.access = {}
-          else doc.access.mode = v
-          markDirty(); draw()
-        }),
+        modeSelect,
         mode === 'groups'
           ? (groups.length
             ? h('div', { style: { display: 'grid', gap: '0.25rem', margin: '0.2rem 0 0.6rem' } },
@@ -522,45 +789,62 @@ registerView('editor', async (root, [docId]) => {
   }
 
   function versionsPanel() {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 3))
     get(`/content/${doc.id}/versions`).then(({ versions }) => {
       holder.replaceChildren(...(versions.length ? versions.slice(0, 10).map(v =>
-        h('button.row-item', {
-          onclick: async () => {
-            if (await confirmDialog('Restore version', `Restore v${v.version} from ${fmtDate(v.savedAt)}? Current state is snapshotted first.`, 'Restore')) {
+        h('div', { style: { display: 'flex', gap: '0.3rem', alignItems: 'center' } },
+          h('button.row-item', {
+            style: { flex: 1 },
+            onclick: () => window.open(`/preview/${doc.id}?version=${encodeURIComponent(v.key)}`, '_blank', 'noopener'),
+            title: 'Preview this version in a new tab',
+          }, h('span.row-ico', { html: icon('clock', 14) }),
+            h('span.row-label', {}, `v${v.version}`, h('div.row-sub', {}, `${fmtDate(v.savedAt)}${v.author ? ` · ${v.author}` : ''}`))),
+          h('button.btn.ghost.small', {
+            onclick: async () => {
+              if (!(await confirmDialog('Restore this version',
+                `Restore v${v.version} from ${fmtDate(v.savedAt)}? Your current version is saved as a restore point first, and you can undo this.`, 'Restore'))) return
+              snapshot(`Restore v${v.version}`)
               await post(`/content/${doc.id}/restore`, { key: v.key })
-              location.reload()
-            }
-          },
-        }, h('span.row-ico', { html: icon('refresh', 14) }), h('span.row-label', {}, `v${v.version}`, h('div.row-sub', {}, fmtDate(v.savedAt))))
-      ) : [h('p.mut', {}, 'No snapshots yet — explicit saves create them.')]))
-    })
+              const fresh = await get(`/content/${doc.id}`)
+              Object.assign(doc, fresh.doc)
+              baseVersion = fresh.doc.version
+              titleInput.value = doc.title
+              renderTree(); renderInspector(); renderStatus(); refreshPreview()
+              undoToast(`Restored v${v.version}`, doUndo)
+            },
+          }, 'Restore'))
+      ) : [h('p.mut', {}, 'No restore points yet — they are written when you press Save and whenever the page structure changes.')]))
+    }).catch(() => holder.replaceChildren(h('p.mut', {}, 'Could not load restore points.')))
     return holder
   }
 
   // ---------- topbar ----------
 
-  const titleInput = h('input.doc-title-input', { value: doc.title })
-  titleInput.addEventListener('input', () => { doc.title = titleInput.value; markDirty() })
+  const titleInput = h('input.doc-title-input', { value: doc.title, 'aria-label': 'Document title', readonly: readOnly })
+  titleInput.addEventListener('input', () => { doc.title = titleInput.value; snapshotOnce('Rename'); markDirty() })
 
   const statusHolder = h('span')
   function renderStatus() {
+    const scheduled = doc.publishAt && new Date(doc.publishAt) > new Date()
     statusHolder.replaceChildren(
-      h('span.chip', { class: doc.status }, doc.status),
-      stale ? h('span.chip.stale', { title: 'Published version is older than this draft' }, 'unpublished edits') : '')
+      h('span.chip', { class: scheduled ? 'review' : doc.status },
+        scheduled ? `Scheduled · ${new Date(doc.publishAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : doc.status),
+      stale ? h('span.chip.stale', { title: 'The published version is older than this draft' }, 'unpublished edits') : '')
   }
 
-  const deviceSeg = h('div.seg', {}, ...[['', 'desktop', 'Desktop'], ['tablet', 'tablet', 'Tablet'], ['mobile', 'phone', 'Mobile']].map(([k, icoName, title]) =>
-    h('button', {
-      title, class: (prefs().device || '') === k ? 'active' : '',
-      onclick: e => {
-        setPref('device', k)
-        previewWrap.className = 'preview-wrap' + (k ? ` w-${k}` : '')
-        fitForDevice(k)
-        deviceSeg.querySelectorAll('button').forEach(b => b.classList.remove('active'))
-        e.currentTarget.classList.add('active')
-      },
-    }, iconEl(icoName, 14))))
+  const deviceSeg = h('div.seg', { role: 'radiogroup', 'aria-label': 'Preview width' },
+    ...[['', 'desktop', 'Desktop'], ['tablet', 'tablet', 'Tablet'], ['mobile', 'phone', 'Mobile']].map(([k, icoName, title]) =>
+      h('button', {
+        title, 'aria-label': title, role: 'radio', 'aria-checked': String((prefs().device || '') === k),
+        class: (prefs().device || '') === k ? 'active' : '',
+        onclick: e => {
+          setPref('device', k)
+          previewWrap.className = 'preview-wrap' + (k ? ` w-${k}` : '')
+          fitForDevice(k)
+          deviceSeg.querySelectorAll('button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-checked', 'false') })
+          e.currentTarget.classList.add('active'); e.currentTarget.setAttribute('aria-checked', 'true')
+        },
+      }, iconEl(icoName, 14))))
 
   async function publishFlow() {
     const errors = seo.filter(s => s.level === 'error')
@@ -568,9 +852,15 @@ registerView('editor', async (root, [docId]) => {
       title: doc.status === 'published' ? 'Republish changes' : 'Publish',
       body: h('div', {},
         h('p.dlg-text', {}, `“${doc.title}” will go live at `, h('code', {}, path), '.'),
+        doc.publishAt && new Date(doc.publishAt) > new Date()
+          ? h('p.dlg-text', { style: { marginTop: '0.5rem' } }, `Scheduled for ${new Date(doc.publishAt).toLocaleString()} — it stays hidden until then.`)
+          : '',
         errors.length ? h('div', { style: { marginTop: '0.7rem' } },
           h('div.insp-section-title', {}, 'SEO issues'),
-          ...errors.map(chk => h('div.seo-check', { class: chk.level }, h('span.dot'), h('span', {}, chk.label)))) : '',
+          h('p.fnt', { style: { fontSize: '0.75rem', marginBottom: '0.3rem' } }, 'Publishing is not blocked — click one to go and fix it.'),
+          ...errors.map(chk => h('button.row-item', {
+            onclick: () => { document.querySelector('dialog.dlg[open]')?.closeWith?.(); setTab('seo') },
+          }, h('span.row-ico', { html: icon('warn', 14) }), h('span.row-label', {}, chk.label)))) : '',
       ),
       actions: [
         { label: 'Cancel', onClick: () => true },
@@ -580,7 +870,8 @@ registerView('editor', async (root, [docId]) => {
             const r = await post(`/content/${doc.id}/publish`)
             doc.status = r.doc.status; stale = false
             renderStatus(); renderActions()
-            toast('Published ✓', 'ok')
+            hooks.refreshCounts?.()
+            toast('Published — it is live now', 'ok')
             return true
           },
         },
@@ -588,37 +879,73 @@ registerView('editor', async (root, [docId]) => {
     })
   }
 
-  const actionsHolder = h('span', { style: { display: 'inline-flex', gap: '0.4rem' } })
+  const actionsHolder = h('span', { style: { display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } })
   function renderActions() {
-    actionsHolder.replaceChildren(
-      h('button.btn.ghost.small', { onclick: () => save(true) }, 'Save'),
-      meta.perms.publish
-        ? h('button.btn.primary.small', { onclick: publishFlow }, doc.status === 'published' ? (stale ? 'Republish' : 'Published ✓') : 'Publish…')
-        : h('button.btn.soft.small', { onclick: async () => { await save(true); await post(`/content/${doc.id}/submit`); doc.status = 'review'; renderStatus(); toast('Submitted for review', 'ok') } }, 'Submit for review'),
-      doc.status === 'published' && meta.perms.publish
-        ? h('button.icon-btn', {
-          title: 'More', onclick: e => contextMenu(e.clientX, e.clientY, [
-            { icon: icon('clock', 14), label: 'Unpublish', onClick: async () => { await post(`/content/${doc.id}/unpublish`); doc.status = 'draft'; renderStatus(); renderActions() } },
-            { icon: icon('home', 14), label: 'Make this the homepage', onClick: async () => { await post(`/content/${doc.id}/make-home`); toast('This is now the homepage', 'ok') } },
-            ...(meta.perms.delete ? [{ icon: icon('trash', 14), label: 'Delete document', danger: true, onClick: deleteDoc }] : []),
-          ]),
-        }, iconEl('more', 15))
-        : h('button.icon-btn', {
-          title: 'More', onclick: e => contextMenu(e.clientX, e.clientY, [
-            { icon: icon('home', 14), label: 'Make this the homepage', onClick: async () => { await post(`/content/${doc.id}/make-home`); toast('This is now the homepage', 'ok') } },
-            ...(meta.perms.delete ? [{ icon: icon('trash', 14), label: 'Delete document', danger: true, onClick: deleteDoc }] : []),
-          ]),
-        }, iconEl('more', 15)))
-  }
-  async function deleteDoc() {
-    if (await confirmDialog('Delete document', `Delete “${doc.title}”? It moves to the site trash folder.`)) {
-      await del(`/content/${doc.id}`)
-      location.hash = `#/c/${doc.concept}`
+    if (readOnly) {
+      actionsHolder.replaceChildren(h('span.chip', { title: 'Your account can read this but not change it' }, 'Read only'))
+      return
     }
+    const more = e => contextMenu(e.clientX, e.clientY, [
+      { icon: icon('undo', 14), label: 'Undo', shortcut: '⌘Z', disabled: !undoStack.length, onClick: doUndo },
+      { icon: icon('redo', 14), label: 'Redo', shortcut: '⇧⌘Z', disabled: !redoStack.length, onClick: doRedo },
+      '-',
+      { icon: icon(focusedMode ? 'eye' : 'eyeOff', 14), label: focusedMode ? 'Show header & footer' : 'Hide header & footer', onClick: toggleFocused },
+      { icon: icon('external', 14), label: 'Open preview in a new tab', onClick: () => window.open(`/preview/${doc.id}`, '_blank', 'noopener') },
+      { icon: icon('swap', 14), label: 'Swap inspector side', onClick: () => { const on = document.querySelector('.app').classList.toggle('insp-left'); setPref('inspLeft', on) } },
+      '-',
+      ...(doc.status === 'published' && meta.perms.publish
+        ? [{ icon: icon('clock', 14), label: 'Unpublish', onClick: async () => { await post(`/content/${doc.id}/unpublish`); doc.status = 'draft'; renderStatus(); renderActions(); toast('Unpublished — the page now 404s for visitors', 'ok') } }]
+        : []),
+      { icon: icon('home', 14), label: 'Make this the homepage', onClick: makeHome },
+      ...(meta.perms.delete ? [{ icon: icon('trash', 14), label: 'Delete document', danger: true, onClick: deleteDoc }] : []),
+    ])
+    actionsHolder.replaceChildren(
+      h('button.btn.ghost.small', { onclick: () => save(true), title: 'Save and create a restore point  ⌘S' }, 'Save'),
+      meta.perms.publish
+        ? h('button.btn.primary.small', { onclick: publishFlow }, doc.status === 'published' ? (stale ? 'Republish' : 'Published') : 'Publish…')
+        : h('button.btn.soft.small', {
+          onclick: async () => { await save(true); await post(`/content/${doc.id}/submit`); doc.status = 'review'; renderStatus(); toast('Submitted for review', 'ok') },
+        }, 'Submit for review'),
+      h('button.icon-btn', { title: 'More', 'aria-label': 'More document actions', onclick: more }, iconEl('more', 15)))
   }
 
-  const inspector = h('aside.inspector', {},
+  function toggleFocused() {
+    focusedMode = !focusedMode
+    setPref('focusedMode', focusedMode)
+    iframe.src = previewSrc()
+    toast(focusedMode ? 'Header and footer hidden while editing' : 'Showing the whole page', 'info', 2000)
+  }
+
+  async function makeHome() {
+    const current = meta.site.homeDocId
+    const currentTitle = current && current !== doc.id ? ` This replaces the current homepage.` : ''
+    if (!(await confirmDialog('Make this the homepage', `“${doc.title}” will be served at /.${currentTitle} You can set a different one at any time.`, 'Make homepage'))) return
+    await post(`/content/${doc.id}/make-home`)
+    toast('This is now the homepage', 'ok')
+  }
+
+  async function deleteDoc() {
+    const live = doc.status === 'published'
+    if (!(await confirmDialog('Delete document',
+      `Delete “${doc.title}”?${live ? ` The live page at ${path} will start returning “not found” immediately.` : ''} A copy is kept in the site’s trash folder.`))) return
+    await del(`/content/${doc.id}`)
+    dirty = false
+    hooks.refreshCounts?.()
+    location.hash = `#/c/${doc.concept}`
+  }
+
+  // ---------- layout ----------
+
+  const inspector = h('aside.inspector', { 'aria-label': 'Inspector' },
     h('div.insp-resize', {
+      role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize inspector', tabindex: '0',
+      onkeydown: e => {
+        const step = e.shiftKey ? 64 : 16
+        const cur = parseInt(getComputedStyle(inspector).width, 10)
+        if (e.key === 'ArrowLeft') { e.preventDefault(); setInspW(cur + step) }
+        if (e.key === 'ArrowRight') { e.preventDefault(); setInspW(cur - step) }
+        if (e.key === 'Home') { e.preventDefault(); setInspW(336) }
+      },
       onpointerdown: e => {
         e.preventDefault()
         const target = e.currentTarget
@@ -626,67 +953,241 @@ registerView('editor', async (root, [docId]) => {
         const startX = e.clientX
         const startW = inspector.getBoundingClientRect().width
         const left = document.querySelector('.app')?.classList.contains('insp-left')
-        const move = ev => {
-          const w = Math.min(560, Math.max(240, startW + (left ? ev.clientX - startX : startX - ev.clientX)))
-          root.style.setProperty('--insp-w', w + 'px')
-        }
+        const move = ev => setInspW(startW + (left ? ev.clientX - startX : startX - ev.clientX))
         const up = () => { target.classList.remove('on'); removeEventListener('pointermove', move); removeEventListener('pointerup', up); setPref('inspW', root.style.getPropertyValue('--insp-w')) }
         addEventListener('pointermove', move); addEventListener('pointerup', up)
       },
     }),
     tabs, crumbs, inspBody)
 
+  function setInspW(px) {
+    const w = Math.min(560, Math.max(240, px))
+    root.style.setProperty('--insp-w', w + 'px')
+    setPref('inspW', w + 'px')
+    setTimeout(paintScale, 60)
+  }
+
+  const backTo = peekReturn()
   const editorEl = h('div.editor', {},
+    outlineEl,
     h('div.editor-mid', {},
       h('div.editor-top', {},
-        h('button.icon-btn', { title: 'Back', onclick: () => (location.hash = `#/c/${doc.concept}`) }, iconEl('back', 16)),
-        titleInput, statusHolder, saveState,
-        h('button.icon-btn', { title: 'Undo (⌘Z)', onclick: doUndo }, iconEl('undo', 15)),
-        h('button.icon-btn', { title: 'Redo (⇧⌘Z)', onclick: doRedo }, iconEl('redo', 15)),
-        deviceSeg,
-        h('button.icon-btn', {
-          title: 'Focused mode — hide the site header/footer while editing',
-          class: focusedMode ? 'active-ic' : '',
-          onclick: e => {
-            focusedMode = !focusedMode
-            setPref('focusedMode', focusedMode)
-            e.currentTarget.classList.toggle('active-ic', focusedMode)
-            iframe.src = previewSrc()
-          },
-        }, iconEl('eye', 15)),
-        h('button.icon-btn', { title: 'Open preview in a new tab', onclick: () => window.open(`/preview/${doc.id}`, '_blank') }, iconEl('external', 15)),
-        h('button.icon-btn', { title: 'Swap inspector side', onclick: () => { const appEl = document.querySelector('.app'); appEl.classList.toggle('insp-left'); setPref('inspLeft', appEl.classList.contains('insp-left')) } }, iconEl('swap', 15)),
-        actionsHolder),
+        h('span.editor-top-group', {},
+          h('button.icon-btn', {
+            title: backTo ? `Back to ${backTo.label}` : 'Back', 'aria-label': backTo ? `Back to ${backTo.label}` : 'Back',
+            onclick: () => { const r = popReturn(); location.hash = r ? r.hash : `#/c/${doc.concept}` },
+          }, iconEl('back', 16)),
+          h('button.icon-btn.outline-toggle', {
+            title: 'Outline', 'aria-label': 'Open the page outline',
+            onclick: () => outlineEl.classList.toggle('open'),
+          }, iconEl('sidebar', 15)),
+          h('button.icon-btn', {
+            title: 'Collapse the outline for a bigger canvas', 'aria-label': 'Collapse outline',
+            class: outlineOpen ? '' : 'on',
+            onclick: e => {
+              outlineOpen = !outlineOpen
+              setDisclosure('outline', outlineOpen)
+              outlineEl.classList.toggle('closed', !outlineOpen)
+              e.currentTarget.classList.toggle('on', !outlineOpen)
+              setTimeout(paintScale, 260)
+            },
+          }, iconEl('list', 15))),
+        h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState),
+        h('span.editor-top-group', {}, deviceSeg,
+          h('button.icon-btn', {
+            title: 'Show or hide the inspector', 'aria-label': 'Toggle inspector',
+            class: prefs().inspHidden ? 'on' : '',
+            onclick: e => {
+              const app2 = document.querySelector('.app')
+              const hidden = app2.classList.toggle('insp-hidden')
+              app2.classList.toggle('insp-open', false)
+              setPref('inspHidden', hidden)
+              e.currentTarget.classList.toggle('on', hidden)
+              setTimeout(paintScale, 260)
+            },
+          }, iconEl('columns', 15)),
+          h('button.icon-btn.insp-toggle', {
+            title: 'Inspector', 'aria-label': 'Open inspector',
+            onclick: () => document.querySelector('.app').classList.toggle('insp-open'),
+          }, iconEl('pen', 15)),
+          actionsHolder)),
       previewWrap),
     inspector)
 
   if (prefs().inspW) root.style.setProperty('--insp-w', prefs().inspW)
-  document.querySelector('.app')?.classList.toggle('insp-left', !!prefs().inspLeft)
+  const appEl = document.querySelector('.app')
+  appEl?.classList.toggle('insp-left', !!prefs().inspLeft)
+  appEl?.classList.toggle('insp-hidden', !!prefs().inspHidden)
+  // While you are editing one document the site-wide rail is not the job —
+  // collapse it to icons and give the pixels to the page you are looking at.
+  const railWasOpen = !appEl?.classList.contains('side-collapsed')
+  appEl?.classList.add('side-collapsed')
   root.replaceChildren(editorEl)
-  renderStatus(); renderActions(); renderInspector()
+  // fit only once the holder is actually in the document — measuring a
+  // detached element gives 0 and the preview never gets scaled at all
+  fitForDevice(prefs().device || '')
+  paintSaveState('saved', readOnly ? 'Read only' : 'Saved')
+  renderStatus(); renderActions(); renderTree(); renderInspector()
 
-  // keyboard
-  const onKey = e => {
-    const mod = e.metaKey || e.ctrlKey
-    if (mod && e.key === 's') { e.preventDefault(); save(true) }
-    if (mod && !e.shiftKey && e.key === 'z' && !isTyping(e)) { e.preventDefault(); doUndo() }
-    if (mod && e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); doRedo() }
-    if (e.key === 'Delete' && selectedId && !isTyping(e)) {
-      const found = findNode(selectedId)
-      if (found) { snapshot(); found.siblings.splice(found.siblings.indexOf(found.node), 1); selectedId = null; markDirty(); renderTree(); renderInspector() }
+  // ---------- preview bridge ----------
+
+  addEventListener('message', onBridgeMsg)
+  function onBridgeMsg(e) {
+    const m = e.data || {}
+    if (m.blockhouse === 'select' && m.id) selectBlock(m.id, { fromPreview: true })
+    if (m.blockhouse === 'ready' && selectedId) iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: selectedId }, '*')
+    if (m.blockhouse === 'needsreload') refreshPreviewSoon()
+    if (m.blockhouse === 'provenance') onProvenance(m)
+
+    if (m.blockhouse === 'editstart') { snapshotOnce('Edit text'); suppressPreview = true }
+    if (m.blockhouse === 'edit' && m.id && m.prop) {
+      const found = ops.find(m.id)
+      if (found) {
+        found.node.props[m.prop] = m.value
+        dirty = true
+        paintSaveState('', 'Unsaved…')
+        scheduleSave()
+      }
+    }
+    if (m.blockhouse === 'editend') {
+      suppressPreview = false
+      if (inspTab === 'block') renderInspector()
+      renderTree()
+    }
+
+    if (m.blockhouse === 'blockaction' && m.id) {
+      const act = blockActions(m.id).find(a => a !== '-' && (
+        (m.action === 'delete' && a.key === 'delete') ||
+        (m.action === 'duplicate' && a.key === 'duplicate') ||
+        (m.action === 'add-after' && a.key === 'addAfter') ||
+        (m.action === 'up' && a.key === 'up') ||
+        (m.action === 'down' && a.key === 'down')))
+      if (m.action === 'delete') removeWithUndo(m.id)
+      else act?.run()
     }
   }
+
+  function onProvenance(m) {
+    const opts = []
+    const seen = new Set()
+    const add = (label2, icon2, go, hint) => { if (!seen.has(label2)) { seen.add(label2); opts.push({ label: label2, icon: icon2, go, hint }) } }
+    for (const o of m.options || []) {
+      if (o.kind === 'menu' && meta.perms.menus) {
+        const mm = meta.menus.find(x => x.key === o.key)
+        add(`Edit the “${mm?.label || o.key}” menu`, 'menu', () => goTo(`#/menus/${o.key}`), 'Structure, panels and links — with live preview')
+      }
+      if ((o.kind === 'header' || o.kind === 'footer') && meta.perms.settings) {
+        add(`Edit the ${o.kind} content`, 'layout', () => goTo(`#/chrome/${o.kind === 'header' ? 'header.announce' : 'footer.social'}`), 'Announcement bar, footer rows and links')
+        add(`Edit the ${o.kind} template`, 'code', () => goTo(`#/tpl/${encodeURIComponent('partials/' + o.kind + '.liquid')}`), 'The structure — a safe override, the built-in file is untouched')
+      }
+      if (o.kind === 'design' && meta.perms.settings) add('Open Design', 'palette', () => goTo('#/design'), 'Palette, template, colour scheme')
+    }
+    if (m.href && /\/(feed|sitemap)\.xml$/.test(m.href.split('?')[0]) && meta.perms.settings) {
+      const which = m.href.includes('feed') ? 'RSS feeds' : 'The sitemap'
+      add(`${which} — turn on or off`, 'bolt', () => goTo('#/settings/features'), 'When a feature is off, Blockhouse removes its links site-wide')
+    }
+    if (m.href && /^\//.test(m.href)) {
+      add(`Go edit the page at ${m.href}`, 'page', async () => {
+        const { docs } = await get('/content')
+        const target = docs.find(d2 => d2.path === m.href.replace(/\/$/, '') || d2.path === m.href)
+        if (target) goTo(`#/e/${target.id}`)
+        else toast('That link does not point at a page in this site', 'err')
+      }, 'Follow the link into its editor, not the live site')
+    }
+    if (meta.perms.settings) add('Site settings', 'gear', () => goTo('#/settings'), 'Identity, features, everything else')
+
+    const dlg = dialog({
+      title: m.text ? `“${m.text}”` : 'This part of the page',
+      body: h('div', {},
+        h('p.dlg-text', { style: { marginBottom: '0.6rem' } }, opts.length > 1 ? 'This is controlled in more than one place — pick where to edit:' : 'Edit it here:'),
+        h('div', { style: { display: 'grid', gap: '0.3rem' } },
+          ...(opts.length ? opts : [{ label: 'This comes from the template', icon: 'info', go: null, hint: 'It is not page content — template files or Design control it.' }])
+            .map(o => h('button.row-item', {
+              style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '0.6rem 0.7rem' },
+              onclick: () => { if (o.go) { dlg.closeWith(); o.go() } },
+            },
+              h('span.row-ico', { html: icon(o.icon, 16) }),
+              h('div', { style: { textAlign: 'left' } },
+                h('div', { style: { fontWeight: 640, fontSize: '0.86rem' } }, o.label),
+                o.hint ? h('div.fnt', { style: { fontSize: '0.74rem' } }, o.hint) : ''))))),
+    })
+  }
+
+  const goTo = hash => { hooks.pushReturn?.(doc.title, `#/e/${doc.id}/${inspTab}`); location.hash = hash }
+
+  // ---------- keyboard ----------
+
   const isTyping = e => /input|textarea|select/i.test(e.target.tagName) || e.target.isContentEditable
+  const onKey = async e => {
+    const mod = e.metaKey || e.ctrlKey
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
+    if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doUndo() }
+    if (mod && e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doRedo() }
+    if (isTyping(e)) return
+    if (mod && e.key === 'Enter') { e.preventDefault(); const s = ops.siteFor(selectedId); return addBlock(s.parentId, s.index) }
+    if (!selectedId) return
+    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); return ops.duplicate(selectedId) }
+    if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); await copyBlocks([ops.find(selectedId).node]); return toast('Block copied', 'ok', 1600) }
+    if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); await copyBlocks([ops.find(selectedId).node]); return removeWithUndo(selectedId) }
+    if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); const s = ops.siteFor(selectedId); return pasteFrom(s.parentId, s.index) }
+    if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); return ops.nudge(selectedId, -1) }
+    if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); return ops.nudge(selectedId, 1) }
+    if (e.key === 'Escape') {
+      const f = ops.find(selectedId)
+      if (f?.parents.length) { e.preventDefault(); return selectBlock(f.parents[f.parents.length - 1].id) }
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); return removeWithUndo(selectedId) }
+  }
   addEventListener('keydown', onKey)
+
+  // ---------- palette commands for this screen ----------
+
+  const disposeCommands = registerCommands('editor', () => {
+    const sel = selectedId ? ops.find(selectedId) : null
+    return [
+      { label: 'Publish this document', icon: 'rocket', keywords: 'publish live go', hint: '', run: publishFlow },
+      { label: 'Save and create a restore point', icon: 'save', keywords: 'save version snapshot', hint: '⌘S', run: () => save(true) },
+      { label: 'Open the SEO panel', icon: 'compass', keywords: 'seo meta description share image', run: () => setTab('seo') },
+      { label: 'Open page settings', icon: 'gear', keywords: 'slug schedule template access redirect', run: () => setTab('page') },
+      ...(sel ? [
+        { label: `Duplicate “${labelOf(sel.node, byType[sel.node.type])}”`, icon: 'copy', keywords: 'duplicate copy block', hint: '⌘D', run: () => ops.duplicate(selectedId) },
+        { label: `Delete “${labelOf(sel.node, byType[sel.node.type])}”`, icon: 'trash', keywords: 'delete remove block', hint: 'Del', run: () => removeWithUndo(selectedId) },
+      ] : []),
+      ...catalogue.slice(0, 40).map(b => ({
+        label: `Add block: ${b.label}`, icon: b.icon || 'layout', group: 'Add a block',
+        keywords: `${b.type} ${b.group || ''} insert add new`,
+        run: () => { const s = ops.siteFor(selectedId); const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }; if (b.container) node.children = []; ops.insert(node, s.parentId, s.index); selectBlock(node.id) },
+      })),
+      ...flatten(doc.blocks).slice(0, 30).map(({ node }) => ({
+        label: `Go to: ${labelOf(node, byType[node.type])}`, icon: byType[node.type]?.icon || 'layout',
+        group: 'Blocks in this page', keywords: node.type, run: () => selectBlock(node.id),
+      })),
+    ]
+  })
+
+  // ---------- leaving ----------
+
+  const disposeGuard = registerGuard('editor', async () => {
+    if (!dirty) return true
+    scheduleSave.cancel()
+    await save(false)
+    return true
+  })
 
   const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
   addEventListener('beforeunload', beforeUnload)
 
   return () => {
+    if (railWasOpen) appEl?.classList.remove('side-collapsed')
+    appEl?.classList.remove('insp-hidden')
     removeEventListener('message', onBridgeMsg)
     removeEventListener('keydown', onKey)
+    removeEventListener('resize', onResize)
     removeEventListener('beforeunload', beforeUnload)
     unfitPreview?.()
+    disposeCommands()
+    disposeGuard()
+    hooks.addBlockByType = null
     scheduleSave.cancel()
     if (dirty) save(false)
   }

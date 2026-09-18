@@ -2,10 +2,12 @@
 // plugins (permission approval) and generic plugin panels.
 
 import { get, post, put, patch, del } from './api.js'
-import { h, dialog, confirmDialog, toast, fmtDate, emptyState, spinner } from './ui.js'
+import { h, dialog, confirmDialog, promptDialog, toast, fmtDate, emptyState, spinner, skeleton } from './ui.js'
 import { renderFields } from './fields.js'
-import { registerView, state, DATA_SECTIONS } from './state.js'
+import { registerView, state, DATA_SECTIONS, prefs, setPref, hooks, registerGuard, refreshMeta } from './state.js'
 import { icon, iconEl } from './icons.js'
+import { SETTINGS_ROWS, assertCatalogue } from './catalog.js'
+import { helpButton } from './help.js'
 
 // ---------- new doc wizard ----------
 
@@ -40,89 +42,211 @@ registerView('dashboard', async root => {
   const published = docs.filter(d => d.status === 'published')
   const inReview = docs.filter(d => d.status === 'review')
   const stale = docs.filter(d => d.stale)
+  const firstConcept = meta.concepts[0]?.name || 'page'
 
   const onboarding = []
   if (!docs.length) onboarding.push(['Create your first page', () => newDocWizard('page')])
   if (docs.length && !published.length) onboarding.push(['Publish your first page', () => (location.hash = `#/e/${docs[0].id}`)])
 
+  // Each number is the answer to a question, so each number is a way in.
+  const stat = (n, label, hash, hint) => {
+    if (!hash || !n) return h('div.card.stat', {}, h('span.n', {}, String(n)), h('span.l', {}, label))
+    return h('button.card.stat.link', { onclick: () => (location.hash = hash), title: hint },
+      h('span.n', {}, String(n)), h('span.l', {}, label, ' ', h('span', { html: icon('chevR', 11) })))
+  }
+
   root.replaceChildren(h('div.main', {}, h('div.main-pad', {},
     h('div.page-head', {},
-      h('div', {}, h('h1', {}, `Hello, ${state.user.name.split(' ')[0]}`), h('p.sub', {}, meta.site.name, ' · ', h('a', { href: meta.site.url, target: '_blank' }, meta.site.url))),
+      h('div', {}, h('h1', {}, `Hello, ${state.user.name.split(' ')[0]}`),
+        h('p.sub', {}, meta.site.name, ' · ', h('a', { href: meta.site.url, target: '_blank', rel: 'noopener' }, meta.site.url))),
       h('div', { style: { display: 'flex', gap: '0.5rem' } },
-        ...meta.concepts.slice(0, 2).map(c => h('button.btn.primary', { onclick: () => newDocWizard(c.name) }, `＋ New ${c.label}`)))),
+        ...meta.concepts.slice(0, 2).map(c => h('button.btn.primary', { onclick: () => newDocWizard(c.name) }, iconEl('plus', 13), `New ${c.label}`)))),
 
     onboarding.length ? h('div.card', { style: { marginBottom: '1rem', borderColor: 'var(--acc)' } },
       h('strong', {}, 'Getting started'),
       ...onboarding.map(([label, fn]) => h('p', { style: { marginTop: '0.5rem' } }, h('a', { href: '#', onclick: e => { e.preventDefault(); fn() } }, `→ ${label}`)))) : '',
 
     h('div.cards', {},
-      h('div.card.stat', {}, h('span.n', {}, String(docs.length)), h('span.l', {}, 'Documents')),
-      h('div.card.stat', {}, h('span.n', {}, String(published.length)), h('span.l', {}, 'Published')),
-      h('div.card.stat', {}, h('span.n', {}, String(inReview.length)), h('span.l', {}, 'Awaiting review')),
-      h('div.card.stat', {}, h('span.n', {}, String(stale.length)), h('span.l', {}, 'With unpublished edits'))),
+      stat(docs.length, 'Documents', `#/c/${firstConcept}`, 'Browse everything'),
+      stat(published.length, 'Published', `#/c/${firstConcept}?filter=published`, 'Live on the site'),
+      stat(inReview.length, 'Awaiting review', `#/c/${firstConcept}?filter=review`, 'Submitted and waiting for you'),
+      stat(stale.length, 'Unpublished edits', `#/c/${firstConcept}?filter=stale`, 'Drafts newer than what visitors see')),
 
     inReview.length && meta.perms.publish ? h('div', {},
       h('h2', { style: { fontSize: '0.95rem', margin: '1.6rem 0 0.6rem' } }, 'Waiting for review'),
-      ...inReview.map(d => docRow(d))) : '',
+      ...inReview.map(d => docRow(d, 'Dashboard'))) : '',
 
     h('h2', { style: { fontSize: '0.95rem', margin: '1.6rem 0 0.6rem' } }, 'Recently edited'),
-    ...(docs.slice(0, 8).map(d => docRow(d))),
+    ...(docs.slice(0, 8).map(d => docRow(d, 'Dashboard'))),
     !docs.length ? emptyState(icon('page', 26), 'Nothing here yet', 'Create your first document to get going.') : '',
   )))
 })
 
-function docRow(d) {
-  return h('button.row-item', { onclick: () => (location.hash = `#/e/${d.id}`) },
-    h('span.row-ico', { html: icon('page', 15) }),
+function docRow(d, from) {
+  return h('button.row-item', {
+    onclick: () => { if (from) hooks.pushReturn?.(from, location.hash); location.hash = `#/e/${d.id}` },
+  },
+    h('span.row-ico', { html: icon(STATUS_ICON[d.status] || 'page', 15) }),
     h('span.row-label', {}, d.title, h('div.row-sub', {}, `${d.concept} · ${d.path} · ${fmtDate(d.updatedAt)}`)),
     d.stale ? h('span.chip.stale', {}, 'edits') : '',
     h('span.chip', { class: d.status }, d.status))
 }
 
-// ---------- content list ----------
+const STATUS_ICON = { published: 'check', draft: 'pen', review: 'clock' }
 
-registerView('contentList', async (root, [conceptName]) => {
+// ---------- content list ----------
+// One list, not two. The left rail filters and groups; the main pane is the
+// single source of truth, with sort, multi-select and bulk actions.
+
+registerView('contentList', async (root, [conceptName], query) => {
   const meta = state.meta
   const concept = meta.concepts.find(c => c.name === conceptName)
   if (!concept) { location.hash = '#/'; return }
-  const { docs } = await get(`/content?concept=${conceptName}`)
-  const search = h('input.input', { placeholder: `Filter ${docs.length}…`, style: { width: '100%', marginBottom: '0.4rem' } })
-  let filter = 'all'
-  const listHolder = h('div.panel-body')
+  if (query?.get('new')) { newDocWizard(conceptName); history.replaceState(null, '', `#/c/${conceptName}`) }
 
-  const renderList = () => {
-    const q = search.value.toLowerCase()
-    const items = docs
-      .filter(d => filter === 'all' || d.status === filter || (filter === 'stale' && d.stale))
-      .filter(d => !q || d.title.toLowerCase().includes(q) || d.slug.includes(q))
-    listHolder.replaceChildren(
-      ...(items.map(d => h('button.row-item', { onclick: () => (location.hash = `#/e/${d.id}`) },
-        h('span.row-label', {}, d.title, h('div.row-sub', {}, d.path)),
-        d.stale ? h('span.chip.stale', { title: 'unpublished edits' }, '●') : '',
-        h('span.chip', { class: d.status }, d.status[0].toUpperCase())))),
-      !items.length ? emptyState(icon('page', 26), 'Nothing here', q ? 'No matches for your filter.' : `No ${concept.labelPlural || concept.label} yet.`) : '')
+  let docs = (await get(`/content?concept=${conceptName}`)).docs
+  let filter = query?.get('filter') || 'all'
+  let sort = prefs().listSort || 'updated'
+  let q = ''
+  const selected = new Set()
+
+  const FILTERS = [
+    ['all', 'All', d => true],
+    ['draft', 'Drafts', d => d.status === 'draft'],
+    ['review', 'In review', d => d.status === 'review'],
+    ['published', 'Published', d => d.status === 'published'],
+    ['stale', 'Unpublished edits', d => d.stale],
+  ]
+
+  const visible = () => {
+    const pred = (FILTERS.find(f => f[0] === filter) || FILTERS[0])[2]
+    const ql = q.toLowerCase()
+    const out = docs.filter(pred).filter(d => !ql || d.title.toLowerCase().includes(ql) || d.slug.includes(ql) || (d.path || '').includes(ql))
+    const by = {
+      updated: (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+      title: (a, b) => a.title.localeCompare(b.title),
+      status: (a, b) => a.status.localeCompare(b.status) || a.title.localeCompare(b.title),
+    }
+    return out.sort(by[sort] || by.updated)
   }
 
-  const seg = h('div.seg', {}, ...['all', 'draft', 'review', 'published'].map(k =>
-    h('button', { class: k === 'all' ? 'active' : '', onclick: e => { filter = k; seg.querySelectorAll('button').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); renderList() } }, k)))
+  const listEl = h('div')
+  const bulkEl = h('div')
+  const countEl = h('p.sub')
+
+  const setFilter = k => {
+    filter = k
+    selected.clear()
+    const base = `#/c/${conceptName}`
+    history.replaceState(null, '', k === 'all' ? base : `${base}?filter=${k}`)
+    paintRail(); paintList()
+  }
+
+  const railEl = h('div.panel-body')
+  function paintRail() {
+    railEl.replaceChildren(
+      ...FILTERS.map(([k, label, pred]) => {
+        const n = docs.filter(pred).length
+        return h('button.row-item', {
+          class: k === filter ? 'active' : '', 'aria-current': k === filter ? 'true' : null,
+          onclick: () => setFilter(k),
+        },
+          h('span.row-ico', { html: icon(k === 'stale' ? 'pen' : k === 'published' ? 'check' : k === 'review' ? 'clock' : 'list', 14) }),
+          h('span.row-label', {}, label),
+          h('span.count', {}, String(n)))
+      }))
+  }
+
+  function paintList() {
+    const items = visible()
+    countEl.textContent = `${items.length} of ${docs.length} · ${concept.urlPattern || ''}`
+
+    const allChecked = items.length > 0 && items.every(d => selected.has(d.id))
+    const head = h('div.list-head', {},
+      h('span.row-check', {}, h('input', {
+        type: 'checkbox', checked: allChecked, 'aria-label': 'Select all shown',
+        onchange: e => { items.forEach(d => e.target.checked ? selected.add(d.id) : selected.delete(d.id)); paintList() },
+      })),
+      h('button', { onclick: () => { sort = 'title'; setPref('listSort', sort); paintList() } }, 'Title', sort === 'title' ? iconEl('check', 11) : ''),
+      h('button', { style: { marginLeft: 'auto' }, onclick: () => { sort = 'status'; setPref('listSort', sort); paintList() } }, 'Status', sort === 'status' ? iconEl('check', 11) : ''),
+      h('button', { onclick: () => { sort = 'updated'; setPref('listSort', sort); paintList() } }, 'Updated', sort === 'updated' ? iconEl('check', 11) : ''))
+
+    listEl.replaceChildren(
+      items.length ? head : '',
+      ...items.map(d => h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.3rem' } },
+        h('span.row-check', {}, h('input', {
+          type: 'checkbox', checked: selected.has(d.id), 'aria-label': `Select ${d.title}`,
+          onchange: e => { e.target.checked ? selected.add(d.id) : selected.delete(d.id); paintBulk() },
+        })),
+        h('button.row-item', {
+          style: { flex: 1 },
+          onclick: () => { hooks.pushReturn?.(concept.labelPlural || concept.label, location.hash); location.hash = `#/e/${d.id}` },
+        },
+          h('span.row-ico', { html: icon(STATUS_ICON[d.status] || 'page', 15) }),
+          h('span.row-label', {}, d.title, h('div.row-sub', {}, `${d.path} · ${fmtDate(d.updatedAt)}`)),
+          d.stale ? h('span.chip.stale', {}, 'edits') : '',
+          h('span.chip', { class: d.status }, d.status)))),
+      !items.length
+        ? emptyState(icon('page', 26),
+          q ? 'No matches' : filter === 'stale' ? 'Everything is published' : `No ${concept.labelPlural || concept.label} yet`,
+          q ? `Nothing in ${concept.labelPlural || concept.label} matches “${q}”.`
+            : filter === 'stale' ? 'Nothing is waiting to go live.'
+              : 'Create the first one and it will show up here.',
+          q ? h('button.btn.ghost.small', { onclick: () => { q = ''; search.value = ''; paintList() } }, 'Clear the filter')
+            : h('button.btn.primary', { onclick: () => newDocWizard(conceptName) }, iconEl('plus', 13), `New ${concept.label}`))
+        : '')
+    paintBulk()
+  }
+
+  function paintBulk() {
+    if (!selected.size) { bulkEl.replaceChildren(); return }
+    const ids = [...selected]
+    const staleSel = ids.filter(id => docs.find(d => d.id === id)?.stale || docs.find(d => d.id === id)?.status !== 'published')
+    bulkEl.replaceChildren(h('div.bulk-bar', {},
+      h('strong', {}, `${ids.length} selected`),
+      meta.perms.publish ? h('button.btn.primary.small', {
+        onclick: async e => {
+          const btn = e.currentTarget; btn.classList.add('busy'); btn.disabled = true
+          let n = 0
+          for (const id of ids) { try { await post(`/content/${id}/publish`); n++ } catch {} }
+          toast(`Published ${n} of ${ids.length}`, n === ids.length ? 'ok' : 'err')
+          docs = (await get(`/content?concept=${conceptName}`)).docs
+          selected.clear(); paintRail(); paintList()
+          hooks.refreshCounts?.()
+        },
+      }, `Publish ${staleSel.length || ids.length}`) : '',
+      h('button.btn.ghost.small', { onclick: () => { selected.clear(); paintList() } }, 'Clear selection')))
+  }
+
+  const search = h('input.input', {
+    placeholder: `Filter ${concept.labelPlural || concept.label}…`, 'aria-label': 'Filter documents',
+    style: { width: '100%' },
+    oninput: e => { q = e.target.value; paintList() },
+  })
 
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, concept.labelPlural || concept.label),
-        h('button.btn.primary.small', { onclick: () => newDocWizard(conceptName) }, '＋ New')),
-      h('div', { style: { padding: '0 0.9rem' } }, search, seg, h('div', { style: { height: '0.5rem' } })),
-      listHolder),
+        h('button.btn.primary.small', { onclick: () => newDocWizard(conceptName) }, iconEl('plus', 12), 'New')),
+      railEl),
     h('div.main', {}, h('div.main-pad', {},
-      h('div.page-head', {}, h('div', {},
-        h('h1', {}, concept.labelPlural || concept.label),
-        h('p.sub', {}, `${docs.length} total · URL pattern `, h('code.mono', {}, concept.urlPattern),
-          concept.indexPath ? [' · index at ', h('code.mono', {}, concept.indexPath)] : '')),
+      h('div.page-head', {},
+        h('div', {},
+          h('h1', {}, concept.labelPlural || concept.label),
+          countEl),
         h('div', { style: { display: 'flex', gap: '0.4rem' } },
+          h('button.btn.ghost.small.panel-toggle', {
+            'aria-label': 'Filters', onclick: () => root.querySelector('.split').classList.toggle('panel-open'),
+          }, iconEl('filter', 12), 'Filters'),
           h('button.btn.ghost.small', { onclick: () => exportCsv(concept, docs) }, iconEl('download', 12), 'CSV'),
-          h('button.btn.ghost.small', { onclick: () => importCsv(concept) }, iconEl('upload', 12), 'Import'))),
-      docs.length ? h('div', {}, ...docs.slice(0, 30).map(d => docRow(d))) :
-        emptyState(icon('page', 26), `No ${concept.labelPlural || concept.label} yet`, 'Create the first one.', h('button.btn.primary', { onclick: () => newDocWizard(conceptName) }, `＋ New ${concept.label}`))))))
-  renderList()
+          h('button.btn.ghost.small', { onclick: () => importCsv(concept) }, iconEl('upload', 12), 'Import'),
+          helpButton('content', concept.labelPlural || concept.label))),
+      h('div', { style: { marginBottom: '0.6rem' } }, search),
+      listEl,
+      bulkEl))))
+
+  paintRail()
+  paintList()
 })
 
 // ---------- media ----------
@@ -357,7 +481,7 @@ registerView('users', async root => {
 
   root.replaceChildren(h('div.main', {}, h('div.main-pad', { style: { maxWidth: '62rem' } },
     h('div.page-head', {},
-      h('div', {}, h('h1', {}, 'Users'), h('p.sub', {}, 'Studio accounts — people who edit this site. Site visitors live under Members.')),
+      h('div', {}, h('h1', {}, 'People'), h('p.sub', {}, 'Studio accounts — people who edit this site. Site visitors live under Members.')),
       h('button.btn.primary', { onclick: invite }, '＋ Invite')),
     h('details.card', { style: { marginBottom: '1rem', padding: '0.7rem 1rem' } },
       h('summary', { style: { cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: 'var(--mut)' } }, 'What can each role do?'),
@@ -370,10 +494,11 @@ registerView('users', async root => {
 
 // ---------- settings ----------
 
-registerView('settings', async (root, [groupKey]) => {
+registerView('settings', async (root, [groupKey], query) => {
   const { settings } = await get('/settings')
   const s = settings
   s.seo ??= {}; s.images ??= {}; s.theme ??= {}; s.theme.tokens ??= {}; s.mail ??= {}; s.features ??= {}; s.plugins ??= {}
+  const dirtyCards = new Set()
   const save = async patchObj => { await put('/settings', { patch: patchObj }); toast('Saved', 'ok') }
 
   const siteVals = { name: s.name || '', url: s.url || '', tagline: s.tagline || '', language: s.language || 'en' }
@@ -386,10 +511,29 @@ registerView('settings', async (root, [groupKey]) => {
   }
   const mailVals = { driver: s.mail.driver || 'console', from: s.mail.from || '', options: s.mail.options || {} }
 
-  const card = (title2, sub, body, onSave) => h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } }, h('div', {}, h('strong', {}, title2), sub ? h('p.sub', {}, sub) : ''),
-      onSave ? h('button.btn.ghost.small', { onclick: onSave }, 'Save') : ''),
-    body)
+  const card = (title2, sub, body, onSave) => {
+    const dot = h('span.dirty-dot', { hidden: true, title: 'Unsaved changes' })
+    const btn = onSave ? h('button.btn.ghost.small', {
+      onclick: async e => {
+        const b = e.currentTarget
+        b.classList.add('busy'); b.disabled = true
+        try {
+          await onSave()
+          dirtyCards.delete(title2); dot.hidden = true
+          b.textContent = 'Saved'; setTimeout(() => { b.textContent = 'Save' }, 1400)
+        } finally { b.classList.remove('busy'); b.disabled = false }
+      },
+    }, 'Save') : ''
+    const el = h('div.card', { style: { marginBottom: '1rem' } },
+      h('div.page-head', { style: { marginBottom: '0.6rem' } },
+        h('div', {}, h('strong', {}, title2, dot), sub ? h('p.sub', {}, sub) : ''), btn),
+      body)
+    // any edit inside the card marks it dirty, so the route guard knows
+    const mark = () => { dirtyCards.add(title2); dot.hidden = false }
+    el.addEventListener('input', mark)
+    el.addEventListener('change', mark)
+    return el
+  }
 
   // ----- Features: one switchboard for the batteries -----
   const featuresCard = () => {
@@ -451,16 +595,17 @@ registerView('settings', async (root, [groupKey]) => {
         { key: 'image', type: 'image', label: 'Default share image' },
       ], seoVals, () => {}), () => save({ seo: { ...s.seo, ...seoVals } })),
     ]},
-    { key: 'features', label: 'Features', icon: 'bolt', body: () => [featuresCard()] },
+    { key: 'features', label: 'What the site does', icon: 'bolt', body: () => [featuresCard()] },
     { key: 'brand', label: 'Brand', icon: 'star', body: () => [brandSection(s, save)] },
     { key: 'appearance', label: 'Appearance', icon: 'palette', body: () => [
       h('div.card', { style: { marginBottom: '1rem', padding: '0.8rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' } },
-        h('div', {}, h('strong', {}, 'Design studio'), h('p.sub', {}, 'Template, palette and scheme moved to their own view — with a live preview.')),
+        h('div', {},
+          h('strong', {}, 'Template, palette and colour scheme'),
+          h('p.sub', {}, `Edited in Design, with the site itself as the preview. Currently: ${s.template || 'aurora'} · ${s.theme.colorScheme || 'auto'} scheme.`)),
         h('a.btn.primary.small', { href: '#/design' }, 'Open Design')),
-      schemeSection(s, save),
       fontsSection(s, save),
     ]},
-    { key: 'urls', label: 'URLs', icon: 'link', body: () => [urlsSection(s, save)] },
+    { key: 'urls', label: 'URLs & addresses', icon: 'link', body: () => [urlsSection(s, save)] },
     { key: 'images', label: 'Images', icon: 'image', body: () => [
       card('Images', 'Applied on upload and on-demand variant generation.', renderFields([
         { key: 'provider', type: 'select', label: 'Provider', options: [{ value: 'local', label: 'Local (sharp)' }, { value: 'cloudflare', label: 'Cloudflare Image Resizing' }], width: 'half' },
@@ -502,8 +647,8 @@ registerView('settings', async (root, [groupKey]) => {
     ]},
     { key: 'code', label: 'Custom code', icon: 'code', body: () => [codeSection(s, save)] },
     { key: 'system', label: 'System pages', icon: 'page', body: () => [systemPagesSection(s, save)] },
-    { key: 'pluginsx', label: 'Plugin settings', icon: 'plug', body: () => pluginCards() },
-    { key: 'build', label: 'Build & export', icon: 'box', body: () => [
+    { key: 'pluginsx', label: 'App settings', icon: 'plug', body: () => pluginCards() },
+    { key: 'build', label: 'Publishing & export', icon: 'box', body: () => [
       buildSection(s, save),
       h('div.card', {},
         h('div.page-head', { style: { marginBottom: '0.4rem' } }, h('div', {}, h('strong', {}, 'Static export'), h('p.sub', {}, 'Build a flat site into dist/ — deploy anywhere static.')),
@@ -515,33 +660,100 @@ registerView('settings', async (root, [groupKey]) => {
             },
           }, 'Export now'))),
     ]},
-    { key: 'interface', label: 'Interface', icon: 'layout', body: () => [modulesSection(s, save)] },
+    { key: 'interface', label: 'Studio interface', icon: 'layout', body: () => [modulesSection(s, save)] },
     { key: 'security', label: 'Security', icon: 'shield', body: () => [securitySection(s, save)] },
   ]
 
   let active = GROUPS.find(g => g.key === groupKey) || GROUPS[0]
   const nav = h('div.panel-body')
   const main = h('div.main-pad', { style: { maxWidth: '54rem' } })
+  let search = ''
+  assertCatalogue(GROUPS.map(g => g.key))
 
-  const paintNav2 = () => nav.replaceChildren(...GROUPS.map(g =>
-    h('button.row-item', {
-      class: g.key === active.key ? 'active' : '',
-      onclick: () => { active = g; location.hash = `#/settings/${g.key}`; },
-    }, h('span.row-ico', { html: icon(g.icon, 15) }), h('span.row-label', {}, g.label))))
+  // Searching settings has to reach FIELDS, not only group names — nobody
+  // guesses that "strip EXIF" lives under Images.
+  const hits = () => {
+    const q = search.toLowerCase().trim()
+    if (!q) return null
+    return SETTINGS_ROWS.filter(r =>
+      r.label.toLowerCase().includes(q) || (r.keywords || '').includes(q) || (r.sub || '').toLowerCase().includes(q))
+  }
 
-  const paintMain2 = () => {
+  const goGroup = (g, fieldKey) => {
+    active = g
+    // swapping the panel in place instead of pushing a hash keeps every other
+    // view's state alive, and keeps back/forward meaningful
+    history.replaceState(null, '', `#/settings/${g.key}`)
+    paintNav2(); paintMain2(fieldKey)
+  }
+
+  const paintNav2 = () => {
+    const found = hits()
+    nav.replaceChildren(
+      h('div.set-search', {}, h('input.input', {
+        placeholder: 'Search every setting...', 'aria-label': 'Search settings', value: search,
+        oninput: e => { search = e.target.value; paintNav2() },
+      })),
+      ...(found
+        ? (found.length
+          ? found.map(r => h('button.row-item', {
+            onclick: () => {
+              const key = r.hash.split('/')[2].split('?')[0]
+              const fieldKey = new URLSearchParams(r.hash.split('?')[1] || '').get('f')
+              const g = GROUPS.find(x => x.key === key)
+              if (g) { search = ''; goGroup(g, fieldKey) }
+            },
+          }, h('span.row-ico', { html: icon('search', 14) }),
+            h('span.row-label', {}, r.label, h('div.row-sub', {}, r.sub))))
+          : [h('p.mut', { style: { padding: '0.6rem 0.7rem', fontSize: '0.82rem' } }, 'No setting matches that.')])
+        : GROUPS.map(g =>
+          h('button.row-item', {
+            class: g.key === active.key ? 'active' : '',
+            'aria-current': g.key === active.key ? 'true' : null,
+            onclick: () => goGroup(g),
+          }, h('span.row-ico', { html: icon(g.icon, 15) }), h('span.row-label', {}, g.label)))))
+  }
+
+  const paintMain2 = (fieldKey) => {
     main.replaceChildren(
-      h('div.page-head', {}, h('div', {},
-        h('h1', {}, active.label),
-        h('p.sub', {}, 'Stored in site/site.json — commit it with your content.'))),
+      h('div.page-head', {},
+        h('div', {},
+          h('h1', {}, active.label),
+          h('p.sub', {}, 'Stored in site/site.json - commit it with your content.')),
+        h('div', { style: { display: 'flex', gap: '0.4rem' } },
+          h('button.btn.ghost.small.panel-toggle', {
+            'aria-label': 'All settings', onclick: () => root.querySelector('.split').classList.toggle('panel-open'),
+          }, iconEl('list', 12), 'All settings'),
+          helpButton('settings', active.label))),
       ...active.body())
+    if (fieldKey) {
+      // a search hit should land ON the control, not merely near it
+      requestAnimationFrame(() => {
+        const want = fieldKey.toLowerCase()
+        const label = [...main.querySelectorAll('.field label span:first-child, .field-check span')]
+          .find(el => el.textContent.toLowerCase().replace(/[^a-z]/g, '').includes(want.replace(/[^a-z]/g, '')))
+        const field = label?.closest('.field') || main.querySelector('.card')
+        field?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        field?.classList.add('flash')
+        setTimeout(() => field?.classList.remove('flash'), 1900)
+      })
+    }
   }
 
   root.replaceChildren(h('div.split', {},
     h('div.panel', {}, h('div.panel-head', {}, h('span.panel-title', {}, 'Settings')), nav),
     h('div.main', {}, main)))
   paintNav2()
-  paintMain2()
+  paintMain2(query?.get('f'))
+
+  // Every card has its own Save; leaving with one untouched used to discard it
+  // in silence. One guard, in one place, for the whole view.
+  const disposeGuard = registerGuard('settings', async () => {
+    if (!dirtyCards.size) return true
+    return await confirmDialog('Unsaved settings',
+      `${dirtyCards.size} card${dirtyCards.size > 1 ? 's have' : ' has'} changes you have not saved. Leave and discard them?`, 'Discard')
+  })
+  return () => disposeGuard()
 })
 
 // ---------- brand variables, colour scheme, URLs, modules, security ----------
@@ -989,7 +1201,7 @@ registerView('plugins', async root => {
 
   root.replaceChildren(h('div.main', {}, h('div.main-pad', {},
     h('div.page-head', {},
-      h('div', {}, h('h1', {}, 'Plugins'), h('p.sub', {}, 'An ecosystem, not a wall of switches: search, click a card for details, approve only the capabilities it should have. Installed packages are checksum-verified.')),
+      h('div', {}, h('h1', {}, 'Apps & permissions'), h('p.sub', {}, 'An ecosystem, not a wall of switches: search, click a card for details, approve only the capabilities it should have. Installed packages are checksum-verified.')),
       h('div', { style: { display: 'flex', gap: '0.5rem' } }, search, installBtn)),
     holder)))
   refresh()
