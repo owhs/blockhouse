@@ -81,7 +81,7 @@ export async function quickDesign(previewFrame) {
       slider('Corner radius', 0, 24, 1, 'radius', v => `${Math.round(v)}px`),
       h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } }, saveBtn,
         h('a.btn.ghost.small', { href: '#/design', onclick: () => closeSheet() }, 'Open Design', iconEl('external', 12))),
-      h('p.fnt', { style: { fontSize: '0.75rem' } },
+      h('p.fnt', { style: { fontSize: 'var(--t-s)' } },
         'Two numbers drive the whole palette. Templates, fonts and colour scheme live in Design.')),
     onClose: async () => {
       dispose()
@@ -136,7 +136,7 @@ export async function quickChrome(slotKey, onSaved) {
           h('summary', {}, def.label || node.type),
           def.fields?.length
             ? renderFields(def.fields, node.props ||= {}, () => mark())
-            : h('p.mut', { style: { fontSize: '0.82rem' } }, 'This block has no options.'))
+            : h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block has no options.'))
       }) : [h('p.mut', {}, 'Nothing in this slot yet.')]),
       h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.4rem' } }, saveBtn,
         h('a.btn.ghost.small', { href: `#/chrome/${encodeURIComponent(slotKey)}`, onclick: () => closeSheet() },
@@ -182,7 +182,12 @@ export async function quickMenu(menuKey, onSaved) {
   const mark = () => { dirty = true; saveBtn.textContent = 'Publish to the site •' }
 
   async function doSave() {
-    await put(`/menus/${menu.key}`, { menu })
+    // Re-read and merge only the links, so a label or structure changed in the
+    // menu studio since this sheet opened is not rolled back by our copy.
+    const fresh = await get('/menus').then(r => r.menus.find(m => m.key === menu.key)).catch(() => null)
+    const merged = fresh ? { ...fresh, items: menu.items } : menu
+    await put(`/menus/${menu.key}`, { menu: merged })
+    Object.assign(menu, merged)
     dirty = false
     saveBtn.textContent = 'Published'
     toast(`The ${menu.label || menu.key} menu is live`, 'ok')

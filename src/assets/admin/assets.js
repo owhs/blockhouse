@@ -18,7 +18,7 @@ registerView('media', async root => {
   const grid = h('div.media-grid')
   const treeHolder = h('div.panel-body')
   const bulkBar = h('div', { style: { display: 'none', gap: '0.5rem', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap' } })
-  const countLabel = h('span.fnt', { style: { fontSize: '0.8rem' } })
+  const countLabel = h('span.fnt', { style: { fontSize: 'var(--t-s)' } })
 
   const qs = () => {
     const p = new URLSearchParams()
@@ -77,7 +77,7 @@ registerView('media', async root => {
           h('div.media-dims', {}, m.width ? `${m.width}×${m.height} · ` : '', humanSize(m.size), (m.tags || []).length ? ` · ${m.tags.length} tag${m.tags.length > 1 ? 's' : ''}` : '')))
       // a small checkbox affordance for selection without modifier keys
       const check = h('span', {
-        style: { position: 'absolute', top: '0.4rem', left: '0.4rem', width: '1.1rem', height: '1.1rem', borderRadius: '5px', border: '1.5px solid var(--line)', background: selection.has(m.id) ? 'var(--acc)' : 'var(--bg-raise)', display: 'grid', placeItems: 'center', color: '#fff' },
+        style: { position: 'absolute', top: '0.4rem', left: '0.4rem', width: '1.1rem', height: '1.1rem', borderRadius: 'var(--r-xs)', border: '1.5px solid var(--line)', background: selection.has(m.id) ? 'var(--acc)' : 'var(--bg-raise)', display: 'grid', placeItems: 'center', color: '#fff' },
         onclick: e => { e.stopPropagation(); toggleSel(m.id) },
         html: selection.has(m.id) ? icon('check', 11) : '',
       })
@@ -138,7 +138,7 @@ registerView('media', async root => {
     const isImage = m.type.startsWith('image/')
 
     const focalPicker = h('div', {
-      style: { position: 'relative', borderRadius: '8px', overflow: 'hidden', cursor: 'crosshair', border: '1px solid var(--line)' },
+      style: { position: 'relative', borderRadius: 'var(--r-s)', overflow: 'hidden', cursor: 'crosshair', border: '1px solid var(--line)' },
       onclick: e => {
         const r = e.currentTarget.getBoundingClientRect()
         focal.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
@@ -146,7 +146,7 @@ registerView('media', async root => {
         dot.style.left = `${focal.x * 100}%`; dot.style.top = `${focal.y * 100}%`
       },
     })
-    const dot = h('span', { style: { position: 'absolute', left: `${focal.x * 100}%`, top: `${focal.y * 100}%`, width: '14px', height: '14px', marginLeft: '-7px', marginTop: '-7px', borderRadius: '99px', border: '2px solid #fff', background: 'var(--acc)', boxShadow: '0 0 0 1px #0006', pointerEvents: 'none' } })
+    const dot = h('span', { style: { position: 'absolute', left: `${focal.x * 100}%`, top: `${focal.y * 100}%`, width: '14px', height: '14px', marginLeft: '-7px', marginTop: '-7px', borderRadius: 'var(--r-pill)', border: '2px solid #fff', background: 'var(--acc)', boxShadow: '0 0 0 1px #0006', pointerEvents: 'none' } })
     if (isImage) focalPicker.append(h('img', { src: `/media/${m.file}`, style: { display: 'block', width: '100%', maxHeight: '13rem', objectFit: 'contain', background: 'var(--bg)' } }), dot)
 
     const { renderFields } = window.__blockhouseFields
@@ -164,7 +164,7 @@ registerView('media', async root => {
           { key: 'tags', type: 'text', label: 'Tags (comma separated)', width: 'half' },
           { key: 'private', type: 'boolean', label: 'Private (delivered only via file links)' },
         ], vals, () => {}),
-        h('p.fnt.mono', { style: { fontSize: '0.72rem' } }, `/media/${m.file} · ${m.type} · ${humanSize(m.size)}${m.width ? ` · ${m.width}×${m.height}` : ''}`)),
+        h('p.fnt.mono', { style: { fontSize: 'var(--t-xs)' } }, `/media/${m.file} · ${m.type} · ${humanSize(m.size)}${m.width ? ` · ${m.width}×${m.height}` : ''}`)),
       actions: [
         isImage ? { label: 'Edit image…', onClick: () => { processWizard(m, refresh); return true } } : null,
         { label: 'Delete', kind: 'danger', onClick: async () => {
@@ -230,7 +230,7 @@ function processWizard(m, onDone) {
   const crop = { x: 0, y: 0, w: 1, h: 1 }
   let cropping = false
 
-  const stage = h('div', { style: { position: 'relative', overflow: 'hidden', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--bg)' } })
+  const stage = h('div', { style: { position: 'relative', overflow: 'hidden', borderRadius: 'var(--r-s)', border: '1px solid var(--line)', background: 'var(--bg)' } })
   const img = h('img', { src: `/media/${m.file}`, style: { display: 'block', width: '100%', maxHeight: '16rem', objectFit: 'contain' } })
   const cropBox = h('div', { style: { position: 'absolute', inset: '0', border: '2px dashed var(--acc)', background: 'color-mix(in oklch, var(--acc) 10%, transparent)', display: 'none', pointerEvents: 'none' } })
   stage.append(img, cropBox)
@@ -254,7 +254,7 @@ function processWizard(m, onDone) {
   stage.addEventListener('pointerup', () => { start = null })
 
   const preset = (label, w, hh) => h('button.btn.ghost.small', { onclick: () => { ops.width = w; ops.height = hh || undefined; sync() } }, label)
-  const out = h('div.fnt', { style: { fontSize: '0.78rem' } })
+  const out = h('div.fnt', { style: { fontSize: 'var(--t-s)' } })
   const sync = () => {
     out.textContent = `→ ${ops.width || 'auto'}${ops.height ? `×${ops.height}` : ''} ${ops.format.toUpperCase()} q${ops.quality}` +
       (crop.w < 1 || crop.h < 1 ? ` · cropped ${Math.round(crop.w * 100)}%×${Math.round(crop.h * 100)}%` : '') +

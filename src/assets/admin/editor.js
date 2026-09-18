@@ -14,6 +14,7 @@ import { icon, iconEl } from './icons.js'
 import { registerCommands } from './search.js'
 import { helpButton } from './help.js'
 import { quickDesign, quickChrome, quickMenu } from './quick.js'
+import { sheetIsOpen } from './sheet.js'
 import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard } from './docops.js'
 
 registerView('editor', async (root, [docId, tabParam], query) => {
@@ -444,7 +445,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     }
     outlineBody.replaceChildren(
       doc.blocks.length ? tree : h('div', { style: { padding: '0.6rem 0.4rem' } },
-        h('p.fnt', { style: { fontSize: '0.78rem' } }, 'This page is empty.')),
+        h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'This page is empty.')),
       h('button.tree-add', { onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 12), ' Add block'))
 
     makeTreeSortable(tree, {
@@ -554,7 +555,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         markDirty({ patch: { id: found.node.id, prop: key, value } })
       })
       : h('div', { style: { padding: '0.2rem 0' } },
-        h('p.mut', { style: { fontSize: '0.82rem' } }, 'This block’s text is edited straight on the page.'),
+        h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block’s text is edited straight on the page.'),
         h('button.btn.ghost.small', {
           style: { marginTop: '0.4rem' },
           onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: found.node.id }, '*'),
@@ -633,7 +634,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       group('addresses', 'Addresses & redirects', false, routingPanel()),
       group('access', 'Who can see this page', false, accessPanel()),
       group('code', 'Custom code for this page only', false,
-        h('p.fnt', { style: { fontSize: '0.74rem', marginBottom: '0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: '0.4rem' } },
           'Runs on this page for every visitor. Site-wide code lives in Settings → Custom code.'),
         renderFields([
           { key: 'css', type: 'code', lang: 'css', label: 'CSS', rows: 4 },
@@ -704,9 +705,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   function routingPanel() {
     const row = (label, value, hint) => h('div', { style: { display: 'grid', gap: '0.1rem', marginBottom: '0.5rem' } },
-      h('span.fnt', { style: { fontSize: '0.72rem' } }, label),
-      h('code', { style: { fontSize: '0.78rem', wordBreak: 'break-all' } }, value),
-      hint ? h('span.fnt', { style: { fontSize: '0.7rem' } }, hint) : '')
+      h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, label),
+      h('code', { style: { fontSize: 'var(--t-s)', wordBreak: 'break-all' } }, value),
+      hint ? h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, hint) : '')
 
     const aliases = h('div', { style: { display: 'grid', gap: '0.35rem' } })
     const drawAliases = () => {
@@ -737,7 +738,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
             onchange: e => { doc.mirror = e.target.checked; if (!doc.mirror) delete doc.mirror; markDirty() },
           }),
           h('span', {}, 'Mirror instead of redirect')) : '',
-        list.length ? h('span.fnt', { style: { fontSize: '0.7rem' } },
+        list.length ? h('span.fnt', { style: { fontSize: 'var(--t-xs)' } },
           doc.mirror
             ? 'Each address renders this page in place (canonical tag still points here).'
             : 'Each address 301-redirects to the canonical URL.') : '')
@@ -749,7 +750,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       row('Static file', exportFile || 'index.html', `URL style: ${meta.urls?.style || 'directory'} · layout: ${meta.urls?.layout || 'pattern'}`),
       h('a.btn.ghost.small', { href: '#/settings/urls', style: { marginBottom: '0.5rem' } }, 'Change URL style →'),
       shortlink ? row('Shortlink', (meta.site.url || '') + shortlink, 'Stable even if the slug changes.') : '',
-      h('span.fnt', { style: { fontSize: '0.72rem', display: 'block', margin: '0.6rem 0 0.3rem' } }, 'Extra addresses'),
+      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', margin: '0.6rem 0 0.3rem' } }, 'Extra addresses'),
       aliases)
   }
 
@@ -791,7 +792,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
                   },
                 }),
                 h('span', {}, g.label))))
-            : h('p.mut', { style: { fontSize: '0.78rem' } }, 'No member groups yet — add them under Members → Groups.'))
+            : h('p.mut', { style: { fontSize: 'var(--t-s)' } }, 'No member groups yet — add them under Members → Groups.'))
           : '',
         mode !== 'public'
           ? renderFields([{ key: 'redirect', type: 'text', label: 'Send visitors to', help: 'Blank uses the Members login page.' }], doc.access, (k, v) => {
@@ -800,7 +801,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           })
           : '',
         mode !== 'public'
-          ? h('p.mut', { style: { fontSize: '0.75rem' } }, 'Gated pages are served with no-store and are skipped by static exports and sitemaps.')
+          ? h('p.mut', { style: { fontSize: 'var(--t-s)' } }, 'Gated pages are served with no-store and are skipped by static exports and sitemaps.')
           : '')
     }
     draw()
@@ -892,7 +893,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           : '',
         errors.length ? h('div', { style: { marginTop: '0.7rem' } },
           h('div.insp-section-title', {}, 'SEO issues'),
-          h('p.fnt', { style: { fontSize: '0.75rem', marginBottom: '0.3rem' } }, 'Publishing is not blocked — click one to go and fix it.'),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.3rem' } }, 'Publishing is not blocked — click one to go and fix it.'),
           ...errors.map(chk => h('button.row-item', {
             onclick: () => { document.querySelector('dialog.dlg[open]')?.closeWith?.(); setTab('seo') },
           }, h('span.row-ico', { html: icon('warn', 14) }), h('span.row-label', {}, chk.label)))) : '',
@@ -1173,8 +1174,8 @@ registerView('editor', async (root, [docId, tabParam], query) => {
             },
               h('span.row-ico', { html: icon(o.icon, 16) }),
               h('div', { style: { textAlign: 'left' } },
-                h('div', { style: { fontWeight: 640, fontSize: '0.86rem' } }, o.label),
-                o.hint ? h('div.fnt', { style: { fontSize: '0.74rem' } }, o.hint) : ''))))),
+                h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, o.label),
+                o.hint ? h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, o.hint) : ''))))),
     })
   }
 
@@ -1188,6 +1189,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const isTyping = e => /input|textarea|select/i.test(e.target.tagName) || e.target.isContentEditable
   const ownsArrows = e => !!e.target.closest?.('[role="radiogroup"], [role="radio"], [role="tablist"], [role="tab"], [role="menu"], .seg')
   const onKey = async e => {
+    // A side sheet lives outside .app, so `inert` does not stop this listener.
+    // Everything typed into a sheet belongs to the sheet.
+    if (sheetIsOpen()) return
     const mod = e.metaKey || e.ctrlKey
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doUndo() }

@@ -105,7 +105,7 @@ registerView('concepts', async (root, [typeName]) => {
       },
     }, 'Save type')
 
-    const urlChip = h('code', { style: { fontSize: '0.78rem' } }, urlPreview(cc))
+    const urlChip = h('code', { style: { fontSize: 'var(--t-s)' } }, urlPreview(cc))
 
     const iconPicker = h('div', { style: { display: 'flex', gap: '0.3rem', flexWrap: 'wrap' } },
       ...TYPE_ICONS.map(name => h('button.icon-btn', {
@@ -156,9 +156,9 @@ registerView('concepts', async (root, [typeName]) => {
       const open = h('details', { open: !f.key },
         h('summary', { style: { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem' } },
           iconEl('grip', 13),
-          h('strong', { style: { fontSize: '0.85rem' } }, f.label || f.key || 'New field'),
-          h('code.fnt', { style: { fontSize: '0.72rem' } }, f.key || ''),
-          h('span.fnt', { style: { fontSize: '0.74rem' } }, FIELD_TYPES.find(t => t.value === f.type)?.label.split(' — ')[0] || f.type),
+          h('strong', { style: { fontSize: 'var(--t-m)' } }, f.label || f.key || 'New field'),
+          h('code.fnt', { style: { fontSize: 'var(--t-xs)' } }, f.key || ''),
+          h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, FIELD_TYPES.find(t => t.value === f.type)?.label.split(' — ')[0] || f.type),
           f.required ? h('span.badge', {}, 'required') : '',
           h('span', { style: { flex: 1 } }),
           h('button.icon-btn', { title: 'Move up', onclick: e => { e.preventDefault(); if (i > 0) { cc.fields.splice(i - 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('back', 12, 'rot90') }),
@@ -189,8 +189,8 @@ registerView('concepts', async (root, [typeName]) => {
     const danger = h('div.card', { style: { padding: '0.8rem 1rem', borderColor: 'color-mix(in oklch, var(--err) 35%, var(--line))' } },
       h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' } },
         h('div', {},
-          h('strong', { style: { fontSize: '0.85rem' } }, 'Delete this type'),
-          h('p.fnt', { style: { fontSize: '0.76rem', margin: 0 } }, (counts[cc.name] ?? 0) > 0 ? `Blocked — ${counts[cc.name]} document(s) still use it.` : 'No documents use it, so this is safe.')),
+          h('strong', { style: { fontSize: 'var(--t-m)' } }, 'Delete this type'),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 0 } }, (counts[cc.name] ?? 0) > 0 ? `Blocked — ${counts[cc.name]} document(s) still use it.` : 'No documents use it, so this is safe.')),
         h('button.btn.ghost.small', {
           disabled: (counts[cc.name] ?? 0) > 0,
           onclick: async () => {
@@ -205,8 +205,8 @@ registerView('concepts', async (root, [typeName]) => {
         }, iconEl('trash', 13), 'Delete')))
 
     const section = (title, sub, body) => h('section', { style: { marginBottom: '1.3rem' } },
-      h('h2', { style: { fontSize: '0.92rem', marginBottom: '0.1rem' } }, title),
-      sub ? h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.55rem' } }, sub) : '',
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.1rem' } }, title),
+      sub ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.55rem' } }, sub) : '',
       h('div.card', { style: { padding: '0.9rem 1rem' } }, body))
 
     mainEl.replaceChildren(
@@ -219,7 +219,7 @@ registerView('concepts', async (root, [typeName]) => {
           saveBtn)),
       section('Basics', null, h('div', {}, basics, h('div.field', {}, h('label', {}, h('span', {}, 'Icon')), iconPicker))),
       section('Addresses', null, h('div', {},
-        h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.6rem' } }, 'Example URL: ', urlChip),
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.6rem' } }, 'Example URL: ', urlChip),
         urls)),
       section('Fields', 'Structured data every document of this type carries — shown as a form in the editor’s Page tab, usable in templates as {{ fields.key }}.', fieldsHolder),
       section('Templates & SEO', null, h('div', {}, tpl, seo)),

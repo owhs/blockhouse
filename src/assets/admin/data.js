@@ -44,7 +44,7 @@ registerDataSection(async () => {
 
     const search = h('input.input', {
       type: 'search', placeholder: `Search ${items.length} records…`, value: q,
-      style: { width: '13rem', padding: '0.35rem 0.6rem', fontSize: '0.82rem' },
+      style: { width: '13rem', padding: '0.35rem 0.6rem', fontSize: 'var(--t-m)' },
       oninput: e => { q = e.target.value; render() },
     })
 
@@ -196,13 +196,13 @@ async function editRow(table, row, reload) {
     recompute()
     const computedCurrency = table.fields.filter(f => f.type === 'computed' && /currency|total|vat|grand/i.test(f.key + f.label))
     totalsBar.replaceChildren(...table.fields.filter(f => f.type === 'computed').map(f =>
-      h('div', {}, h('span.fnt', { style: { fontSize: '0.72rem', display: 'block' } }, f.label || f.key),
-        h('strong', { style: { fontSize: '1.05rem' } }, /currenc|total|price|vat|grand|amount/i.test(f.key + (f.label || '')) ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))))
+      h('div', {}, h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block' } }, f.label || f.key),
+        h('strong', { style: { fontSize: 'var(--t-xl)' } }, /currenc|total|price|vat|grand|amount/i.test(f.key + (f.label || '')) ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))))
   }
   recompute(); rerender()
 
   const workflowBar = row && table.workflow?.states?.length ? h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.7rem', flexWrap: 'wrap' } },
-    h('span.fnt', { style: { fontSize: '0.78rem' } }, 'Status:'), stateChip(table, vals._state),
+    h('span.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Status:'), stateChip(table, vals._state),
     ...nextStates(table, vals._state).map(to => h('button.btn.soft.small', {
       onclick: async () => { try { await post(`/x/data/rows/${table.id}/${row.id}/state`, { to: to.key }); vals._state = to.key; toast(`Moved to ${to.label}`, 'ok'); reload() } catch {} },
     }, `→ ${to.label}`))) : ''
@@ -238,7 +238,7 @@ function fieldControl(table, f, vals, onChange) {
   // computed → read-only display
   if (f.type === 'computed') {
     return h('div.field', {}, h('label', {}, f.label || f.key, h('span.help', {}, 'computed')),
-      h('div', { class: 'input', 'data-computed': f.key, style: { background: 'var(--bg)', fontWeight: 600 } },
+      h('div', { class: 'input', 'data-computed': f.key, style: { background: 'var(--bg)', fontWeight: 'var(--fw-semi)' } },
         f.type === 'currency' ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))
   }
   if (f.type === 'lineitems') return lineItemsField(f, vals, onChange)
@@ -280,7 +280,7 @@ function multiField(f, vals, onChange) {
 function lineItemsField(f, vals, onChange) {
   vals[f.key] = Array.isArray(vals[f.key]) ? vals[f.key] : []
   const cols = f.item || []
-  const table = h('table.data-table', { style: { fontSize: '0.8rem' } })
+  const table = h('table.data-table', { style: { fontSize: 'var(--t-s)' } })
   const render = () => {
     table.replaceChildren(
       h('thead', {}, h('tr', {}, ...cols.map(c => h('th', { class: /number|currency|computed/.test(c.type) ? 'num' : '' }, c.label || c.key)), h('th'))),

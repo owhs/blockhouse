@@ -178,7 +178,7 @@ registerView('design', async root => {
         } }, 'Remove')) : '')))
   }
 
-  const note = h('p.fnt', { style: { fontSize: '0.76rem', margin: '0.4rem 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
+  const note = h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.4rem 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
 
   const slider = (label, min, max, step, getV, setV, fmt) => {
     const out = h('output', { style: { font: '600 0.78rem var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(getV()))
@@ -223,7 +223,7 @@ registerView('design', async root => {
     h('h2.design-h', {}, 'Palette'),
     h('div.card', { style: { padding: '0.9rem 1rem', display: 'grid', gap: '0.8rem' } },
       hueRow, chromaRow, radiusRow,
-      h('p.fnt', { style: { fontSize: '0.74rem', margin: 0 } }, 'Two numbers drive the whole palette: hue rotates every colour together, intensity sets how vivid the accent is. Both work in light and dark automatically.')),
+      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Two numbers drive the whole palette: hue rotates every colour together, intensity sets how vivid the accent is. Both work in light and dark automatically.')),
 
     h('h2.design-h', {}, 'Colour scheme'),
     h('div.card', { style: { padding: '0.9rem 1rem', display: 'grid', gap: '0.55rem' } },
@@ -231,12 +231,12 @@ registerView('design', async root => {
       h('label.field-check', {},
         h('input', { type: 'checkbox', checked: schemeVal.showToggle, onchange: e => { schemeVal.showToggle = e.target.checked; dirty = true; saveBtn.textContent = 'Save design •' } }),
         h('span', {}, 'Show the visitor theme toggle (auto mode)')),
-      h('p.fnt', { style: { fontSize: '0.74rem', margin: 0 } }, 'Locking to one scheme pins the public site and the editor preview to it.')),
+      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Locking to one scheme pins the public site and the editor preview to it.')),
 
     h('h2.design-h', {}, 'More'),
     h('div.card', { style: { padding: '0.7rem 1rem', display: 'grid', gap: '0.35rem' } },
-      h('a', { href: '#/settings', style: { fontSize: '0.83rem', fontWeight: 600 } }, 'Fonts, brand variables, custom CSS/JS →'),
-      h('p.fnt', { style: { fontSize: '0.74rem', margin: 0 } }, 'Custom fonts, {{var.…}} brand values and global code live under Settings.')))
+      h('a', { href: '#/settings', style: { fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)' } }, 'Fonts, brand variables, custom CSS/JS →'),
+      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Custom fonts, {{var.…}} brand values and global code live under Settings.')))
 
   const frameHolder = h('div.design-frame-holder', {}, iframe)
   const unfit = fitPreviewFrame(frameHolder, iframe, 1280)
@@ -245,7 +245,7 @@ registerView('design', async root => {
     controls,
     h('div.design-preview', {},
       h('div.design-preview-bar', {},
-        h('span.fnt', { style: { fontSize: '0.76rem', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview'),
+        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview'),
         h('button.btn.ghost.small', { onclick: () => (iframe.src = `/?__ts=${++seq}`) }, iconEl('refresh', 13), 'Reload')),
       frameHolder)))
 

@@ -72,10 +72,10 @@ registerView('dashboard', async root => {
       stat(stale.length, 'Unpublished edits', '#/c/all?filter=stale', 'Drafts newer than what visitors see')),
 
     inReview.length && meta.perms.publish ? h('div', {},
-      h('h2', { style: { fontSize: '0.95rem', margin: '1.6rem 0 0.6rem' } }, 'Waiting for review'),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.6rem 0 0.6rem' } }, 'Waiting for review'),
       ...inReview.map(d => docRow(d, 'Dashboard'))) : '',
 
-    h('h2', { style: { fontSize: '0.95rem', margin: '1.6rem 0 0.6rem' } }, 'Recently edited'),
+    h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.6rem 0 0.6rem' } }, 'Recently edited'),
     ...(docs.slice(0, 8).map(d => docRow(d, 'Dashboard'))),
     !docs.length ? emptyState(icon('page', 26), 'Nothing here yet', 'Create your first document to get going.') : '',
   )))
@@ -396,7 +396,7 @@ registerView('users', async root => {
       h('tbody', {}, ...users.map(u => {
         const roleSel = h('select.input', {
           disabled: !canTouch(u) || u.id === me.id,
-          style: { fontSize: '0.8rem', width: 'auto', padding: '0.25rem 0.5rem' },
+          style: { fontSize: 'var(--t-s)', width: 'auto', padding: '0.25rem 0.5rem' },
           onchange: async e => {
             if (e.target.value === 'owner' && me.role !== 'owner') { toast('Only owners can promote to owner', 'err'); e.target.value = u.role; return }
             await patch(`/users/${u.id}`, { role: e.target.value })
@@ -408,10 +408,10 @@ registerView('users', async root => {
         return h('tr', {},
           h('td', {}, h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center' } },
             h('span.avatar', {}, initials(u.name)),
-            h('div', {}, h('strong', { style: { fontSize: '0.86rem' } }, u.name, u.id === me.id ? h('span.fnt', { style: { fontWeight: 400 } }, '  (you)') : ''),
-              h('div.mut', { style: { fontSize: '0.76rem' } }, u.email)))),
+            h('div', {}, h('strong', { style: { fontSize: 'var(--t-m)' } }, u.name, u.id === me.id ? h('span.fnt', { style: { fontWeight: 'var(--fw-regular)' } }, '  (you)') : ''),
+              h('div.mut', { style: { fontSize: 'var(--t-s)' } }, u.email)))),
           h('td', {}, roleSel),
-          h('td.fnt', { style: { fontSize: '0.78rem' } }, u.lastLoginAt ? fmtDate(u.lastLoginAt) : 'never'),
+          h('td.fnt', { style: { fontSize: 'var(--t-s)' } }, u.lastLoginAt ? fmtDate(u.lastLoginAt) : 'never'),
           h('td', {}, h('label.switch', { title: u.active ? 'Active — click to disable' : 'Disabled — click to enable' },
             h('input', {
               type: 'checkbox', checked: !!u.active, disabled: !canTouch(u) || u.id === me.id,
@@ -478,7 +478,7 @@ registerView('users', async root => {
       ...ROLES.filter(([r]) => r !== 'owner' || me.role === 'owner').map(([r, label, blurb]) =>
         h('label.role-card', { class: vals.role === r ? 'active' : '' },
           h('input', { type: 'radio', name: 'inv-role', checked: vals.role === r, onchange: () => { vals.role = r; roleCards.querySelectorAll('.role-card').forEach(x => x.classList.remove('active')); event.target.closest('.role-card').classList.add('active') } }),
-          h('div', {}, h('strong', { style: { fontSize: '0.83rem' } }, label), h('p', {}, blurb)))))
+          h('div', {}, h('strong', { style: { fontSize: 'var(--t-m)' } }, label), h('p', {}, blurb)))))
     dialog({
       title: 'Invite someone',
       width: 'min(32rem, 94vw)',
@@ -506,9 +506,9 @@ registerView('users', async root => {
       h('div', {}, h('h1', {}, 'People'), h('p.sub', {}, 'Studio accounts — people who edit this site. Site visitors live under Members.')),
       h('button.btn.primary', { onclick: invite }, '＋ Invite')),
     h('details.card', { style: { marginBottom: '1rem', padding: '0.7rem 1rem' } },
-      h('summary', { style: { cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: 'var(--mut)' } }, 'What can each role do?'),
+      h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, 'What can each role do?'),
       h('div', { style: { marginTop: '0.6rem', display: 'grid', gap: '0.45rem' } },
-        ...ROLES.map(([r, label, blurb]) => h('div', { style: { display: 'grid', gridTemplateColumns: '6rem 1fr', gap: '0.8rem', fontSize: '0.82rem' } },
+        ...ROLES.map(([r, label, blurb]) => h('div', { style: { display: 'grid', gridTemplateColumns: '6rem 1fr', gap: '0.8rem', fontSize: 'var(--t-m)' } },
           h('strong', {}, label), h('span.mut', {}, blurb))))),
     holder)))
   refresh()
@@ -581,14 +581,14 @@ registerView('settings', async (root, [groupKey], query) => {
                 else { f[key] = e.target.checked ? true : false; await save({ features: { ...f } }) }
               },
             }), h('span.switch-track')),
-          h('div', {}, h('strong', { style: { fontSize: '0.85rem' } }, label),
-            h('p.fnt', { style: { fontSize: '0.75rem', margin: 0 } }, blurb))))))
+          h('div', {}, h('strong', { style: { fontSize: 'var(--t-m)' } }, label),
+            h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 0 } }, blurb))))))
   }
 
   // ----- plugin-contributed sections (registered via ctx.settingsSection) -----
   const pluginCards = () => {
     const secs = state.meta.settingsSections || []
-    if (!secs.length) return [h('p.fnt', { style: { fontSize: '0.8rem' } }, 'No plugin settings sections — plugins registering one appear here automatically.')]
+    if (!secs.length) return [h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'No plugin settings sections — plugins registering one appear here automatically.')]
     return secs.map(sec => {
       const store = ((s.plugins[sec.plugin] ??= { enabled: true, approved: [] }).settings ??= {})
       const vals = {}
@@ -727,7 +727,7 @@ registerView('settings', async (root, [groupKey], query) => {
             },
           }, h('span.row-ico', { html: icon('search', 14) }),
             h('span.row-label', {}, r.label, h('div.row-sub', {}, r.sub))))
-          : [h('p.mut', { style: { padding: '0.6rem 0.7rem', fontSize: '0.82rem' } }, 'No setting matches that.')])
+          : [h('p.mut', { style: { padding: '0.6rem 0.7rem', fontSize: 'var(--t-m)' } }, 'No setting matches that.')])
         : GROUPS.map(g =>
           h('button.row-item', {
             class: g.key === active.key ? 'active' : '',
@@ -834,7 +834,7 @@ function brandSection(s, save) {
 function schemeSection(s, save) {
   const theme = s.theme || {}
   const vals = { colorScheme: theme.colorScheme || 'auto', showToggle: theme.showToggle !== false }
-  const note = h('p.fnt', { style: { fontSize: '0.78rem' } })
+  const note = h('p.fnt', { style: { fontSize: 'var(--t-s)' } })
   const sync = () => {
     note.textContent = vals.colorScheme === 'auto'
       ? 'Visitors get their OS preference, and can flip it with the header toggle.'
@@ -881,7 +881,7 @@ function systemPagesSection(s, save) {
       renderFields([
         { key: 'allow', type: 'text', label: 'Paths that stay open', help: 'Comma separated, e.g. /status, /contact' },
       ], allowVal, (k, v) => { m.allow = String(v).split(',').map(x => x.trim()).filter(Boolean) }),
-      h('p.fnt', { style: { fontSize: '0.78rem' } },
+      h('p.fnt', { style: { fontSize: 'var(--t-s)' } },
         'While maintenance mode is on the public site answers 503 with a Retry-After header, so search engines wait rather than de-indexing you. Signed-in studio users, assets and /healthz keep working.'))
   }).catch(() => holder.replaceChildren(h('p.mut', {}, 'Could not load documents.')))
 
@@ -904,7 +904,7 @@ function urlsSection(s, save) {
     style: u.style || 'directory', layout: u.layout || 'pattern',
     lowercase: u.lowercase !== false, shortlinks: !!u.shortlinks, shortlinkPrefix: u.shortlinkPrefix || 's',
   }
-  const preview = h('p.fnt', { style: { fontSize: '0.78rem', fontFamily: 'var(--mono)' } })
+  const preview = h('p.fnt', { style: { fontSize: 'var(--t-s)', fontFamily: 'var(--mono)' } })
   const sync = () => {
     const p = vals.layout === 'flat' ? '/about' : '/blog/my-post'
     const shown = vals.style === 'extension' ? `${p}.html` : vals.style === 'bare' ? p : `${p}/`
@@ -929,7 +929,7 @@ function urlsSection(s, save) {
       { key: 'shortlinkPrefix', type: 'text', label: 'Shortlink prefix', width: 'half' },
     ], vals, () => sync()),
     preview,
-    h('p.fnt', { style: { fontSize: '0.76rem', marginTop: '0.4rem' } },
+    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } },
       'Per-page aliases and mirrors live in the editor’s Page tab. Slug changes keep 301-ing automatically.'))
 }
 
@@ -989,11 +989,11 @@ function securitySection(s, save) {
 
   const previewOut = h('div', { style: { marginTop: '0.5rem' } })
   const renderPreviewLink = token => {
-    if (!token) { previewOut.replaceChildren(h('p.fnt', { style: { fontSize: '0.76rem' } }, 'No link yet — visitors get the plain sign-in wall.')); return }
+    if (!token) { previewOut.replaceChildren(h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'No link yet — visitors get the plain sign-in wall.')); return }
     const url = `${location.origin}/?preview=${token}`
     previewOut.replaceChildren(h('input', {
       type: 'text', readonly: true, value: url,
-      style: { width: '100%', fontFamily: 'var(--mono)', fontSize: '0.78rem' },
+      style: { width: '100%', fontFamily: 'var(--mono)', fontSize: 'var(--t-s)' },
       onclick: e => e.target.select(),
     }))
   }
@@ -1004,7 +1004,7 @@ function securitySection(s, save) {
   const loadLogs = async () => {
     const { lines } = await get('/logs/errors')
     logsOut.replaceChildren(lines.length
-      ? h('div', {}, ...lines.slice(0, 20).map(l => h('div', { style: { fontSize: '0.74rem', fontFamily: 'var(--mono)', padding: '0.2rem 0', borderBottom: '1px solid var(--line-soft)' } },
+      ? h('div', {}, ...lines.slice(0, 20).map(l => h('div', { style: { fontSize: 'var(--t-xs)', fontFamily: 'var(--mono)', padding: '0.2rem 0', borderBottom: '1px solid var(--line-soft)' } },
         h('span.fnt', {}, `${(l.at || '').slice(5, 19)} `), h('strong', {}, l.path || ''), ` — ${l.error || l.raw || ''}`)))
       : h('p.mut', {}, 'No server errors logged. Good.'))
   }
@@ -1041,12 +1041,12 @@ function securitySection(s, save) {
       ], vals, () => {}),
       h('div', { style: { marginTop: '0.7rem' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-          h('strong', { style: { fontSize: '0.85rem' } }, 'Shareable preview link'),
+          h('strong', { style: { fontSize: 'var(--t-m)' } }, 'Shareable preview link'),
           h('button.btn.ghost.small', { onclick: async () => {
             const r = await post('/security/preview-link', {})
             renderPreviewLink(r.token)
           } }, iconEl('link', 13), sec.previewToken ? 'Rotate' : 'Create')),
-        h('p.fnt', { style: { fontSize: '0.76rem', margin: '0.2rem 0 0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.2rem 0 0.4rem' } },
           'Lets anyone with the link view a Staging-gated site without signing in — for handing to a client, or a tool that just needs to fetch a page once. Rotating invalidates the old one immediately.'),
         previewOut),
       h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.8rem' } },
@@ -1056,9 +1056,9 @@ function securitySection(s, save) {
           probeOut.textContent = r.results.map(x => `${x.ok ? '✓' : '✗'} ${x.path} → ${x.status || x.error}`).join('\n') + `\n\n${r.advice}`
           probeOut.style.color = r.ok ? '' : 'var(--err)'
         } }, iconEl('shield', 13), 'Probe my public URL for exposed files'),
-        h('span.fnt', { style: { fontSize: '0.74rem' } }, 'Checks .blockhouse/, secure.db, site JSON, .git and .env from the outside.')),
+        h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'Checks .blockhouse/, secure.db, site JSON, .git and .env from the outside.')),
       probeOut,
-      h('p.fnt', { style: { fontSize: '0.76rem', marginTop: '0.6rem' } },
+      h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.6rem' } },
         'Running behind Cloudflare? Pair this with an Access rule on the studio path and a WAF rule blocking /.blockhouse* and /.git* — blockhouse already refuses to serve them, the rules are belt and braces.')),
 
     h('div.card', { style: { marginBottom: '1rem' } },
@@ -1084,12 +1084,12 @@ function fontsSection(s, save) {
   const list = h('div', { style: { display: 'grid', gap: '0.5rem', marginBottom: '0.7rem' } })
   const render = () => {
     list.replaceChildren(...fonts.map((f, i) => h('div', { style: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 0.8fr 0.9fr auto', gap: '0.4rem', alignItems: 'center' } },
-      h('input.input', { value: f.family || '', placeholder: 'Family name', style: { fontSize: '0.78rem' }, oninput: e => (f.family = e.target.value) }),
-      h('select.input', { style: { fontSize: '0.78rem' }, onchange: e => (f.role = e.target.value || undefined) },
+      h('input.input', { value: f.family || '', placeholder: 'Family name', style: { fontSize: 'var(--t-s)' }, oninput: e => (f.family = e.target.value) }),
+      h('select.input', { style: { fontSize: 'var(--t-s)' }, onchange: e => (f.role = e.target.value || undefined) },
         h('option', { value: '' }, 'no role'),
         ...['body', 'display', 'mono'].map(r => h('option', { value: r, selected: f.role === r }, r))),
-      h('input.input', { value: f.weight || 400, placeholder: 'weight', style: { fontSize: '0.78rem' }, oninput: e => (f.weight = e.target.value) }),
-      h('label.field-check', { style: { margin: 0 } }, h('input', { type: 'checkbox', checked: !!f.preload, onchange: e => (f.preload = e.target.checked) }), h('span', { style: { fontSize: '0.72rem' } }, 'preload')),
+      h('input.input', { value: f.weight || 400, placeholder: 'weight', style: { fontSize: 'var(--t-s)' }, oninput: e => (f.weight = e.target.value) }),
+      h('label.field-check', { style: { margin: 0 } }, h('input', { type: 'checkbox', checked: !!f.preload, onchange: e => (f.preload = e.target.checked) }), h('span', { style: { fontSize: 'var(--t-xs)' } }, 'preload')),
       h('button.icon-btn', { onclick: () => { fonts.splice(i, 1); render() }, html: icon('trash', 14) }))))
   }
   render()
@@ -1146,7 +1146,7 @@ function buildSection(s, save) {
 
 /** What a role may not do, said out loud rather than left as an absence. */
 export function permissionNote(what) {
-  return h('p.fnt', { style: { fontSize: '0.78rem', marginTop: '0.4rem' } },
+  return h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } },
     `Your account (${state.user.role}) cannot ${what}. An owner or admin can change that under Apps & permissions.`)
 }
 
@@ -1192,10 +1192,10 @@ registerView('plugins', async root => {
         p.state.enabled
           ? h('span.mrow-tag', { style: { background: 'color-mix(in oklch, var(--ok) 18%, transparent)' } }, 'on')
           : h('span.mrow-tag', {}, 'off')),
-      h('p.fnt', { style: { fontSize: '0.78rem', minHeight: '2.2em' } }, p.description || ''),
+      h('p.fnt', { style: { fontSize: 'var(--t-s)', minHeight: '2.2em' } }, p.description || ''),
       h('div', { style: { display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.4rem' } },
         h('span.pill-perm', {}, PLUGIN_TAGS[p.id] || 'plugin'),
-        h('span.fnt', { style: { fontSize: '0.72rem' } }, `v${p.version} · ${p.state.approved.length}/${p.permissions.length} perms`))),
+        h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, `v${p.version} · ${p.state.approved.length}/${p.permissions.length} perms`))),
     ), list.length ? '' : emptyState(icon('plug', 24), 'No plugins match', 'Clear the search, or install one below.'))
   }
   const refresh = async () => { ;({ plugins: all } = await get('/plugins')); paint() }
@@ -1263,7 +1263,7 @@ async function resourceSection(panel, res) {
       h('thead', {}, h('tr', {}, h('th', {}, res.labelSingular || 'Item'), h('th', {}, 'ID'), h('th', {}, ''))),
       h('tbody', {}, ...items.map(item => h('tr', { onclick: () => editItem(item) },
         h('td', {}, String(item[res.titleField || 'label'] || item.id)),
-        h('td.mut.mono', { style: { fontSize: '0.74rem' } }, item.id),
+        h('td.mut.mono', { style: { fontSize: 'var(--t-xs)' } }, item.id),
         h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', {
           onclick: async e => { e.stopPropagation(); if (await confirmDialog('Delete', `Delete ${item.id}?`)) { await del(`${base}/${item.id}`); refresh() } },
         }, iconEl('trash', 14))))))))
@@ -1323,26 +1323,26 @@ const CUSTOM_SECTIONS = {
       wrap.replaceChildren(
         pending.length ? h('div.card', { style: { marginBottom: '1rem', borderColor: 'var(--warn)' } },
           h('strong', {}, `Access requests (${pending.length})`),
-          ...pending.map(r => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: '0.84rem' } },
+          ...pending.map(r => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
             h('div', { style: { flex: 1 } }, h('strong', {}, r.email), ` · ${r.role || '—'}${r.company ? ` @ ${r.company}` : ''} → ${r.areaLabel}`,
-              r.note ? h('div.fnt', { style: { fontSize: '0.76rem' } }, `“${r.note}”`) : ''),
+              r.note ? h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `“${r.note}”`) : ''),
             h('button.btn.primary.small', { onclick: async () => { await post(`/x/drive/requests/${r.id}/approve`, {}); toast('Approved — they can sign in now', 'ok'); draw() } }, 'Approve'),
             h('button.btn.ghost.small', { onclick: async () => { await post(`/x/drive/requests/${r.id}/decline`, {}); draw() } }, 'Decline')))) : '',
         h('div.card', { style: { marginBottom: '1rem' } },
           h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Document areas'),
             h('button.btn.ghost.small', { onclick: () => editArea() }, iconEl('plus', 13), 'New area')),
-          ...areas.map(a => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: '0.85rem' } },
+          ...areas.map(a => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
             h('span.row-ico', { html: icon('folder', 15) }),
             h('div', { style: { flex: 1 } }, h('strong', {}, a.label),
-              h('div.fnt', { style: { fontSize: '0.75rem' } }, `${a.fileCount} files · ${a.groups.length ? `groups: ${a.groups.join(', ')}` : 'any signed-in member'} · upload under Assets → private/drive/${a.id}`)),
+              h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `${a.fileCount} files · ${a.groups.length ? `groups: ${a.groups.join(', ')}` : 'any signed-in member'} · upload under Assets → private/drive/${a.id}`)),
             h('button.btn.ghost.small', { onclick: () => editArea(a) }, 'Edit'),
             h('button.icon-btn', { onclick: async () => { if (await confirmDialog('Delete area', `Remove “${a.label}”? Files stay on disk.`)) { await del(`/x/drive/areas/${a.id}`); draw() } } }, iconEl('trash', 13)))),
-          h('p.fnt', { style: { fontSize: '0.76rem', marginTop: '0.5rem' } }, 'Put a “Document portal” block on a page (e.g. /downloads) — visitors request access there, members see their files.')),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.5rem' } }, 'Put a “Document portal” block on a page (e.g. /downloads) — visitors request access there, members see their files.')),
         h('div.cards', {},
           h('div.card', {}, h('strong', {}, 'Most downloaded'),
-            top.length ? h('div', { style: { marginTop: '0.4rem' } }, ...top.map(t => h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '0.2rem 0' } }, h('span', {}, t.file), h('strong', {}, String(t.n))))) : h('p.mut', {}, 'No downloads yet.')),
+            top.length ? h('div', { style: { marginTop: '0.4rem' } }, ...top.map(t => h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 'var(--t-s)', padding: '0.2rem 0' } }, h('span', {}, t.file), h('strong', {}, String(t.n))))) : h('p.mut', {}, 'No downloads yet.')),
           h('div.card', {}, h('strong', {}, 'Recent activity'),
-            recent.length ? h('div', { style: { marginTop: '0.4rem' } }, ...recent.slice(0, 8).map(r => h('div', { style: { fontSize: '0.8rem', padding: '0.2rem 0' } }, `${r.email} ↓ ${r.file}`))) : h('p.mut', {}, 'Quiet so far.'))))
+            recent.length ? h('div', { style: { marginTop: '0.4rem' } }, ...recent.slice(0, 8).map(r => h('div', { style: { fontSize: 'var(--t-s)', padding: '0.2rem 0' } }, `${r.email} ↓ ${r.file}`))) : h('p.mut', {}, 'Quiet so far.'))))
     }
     await draw()
     return wrap
@@ -1364,8 +1364,8 @@ const CUSTOM_SECTIONS = {
           orders.length ? h('div.table-wrap', {}, h('table.data-table', {},
             h('thead', {}, h('tr', {}, h('th', {}, 'Order'), h('th', {}, 'Customer'), h('th', {}, 'Items'), h('th.num', {}, 'Total'), h('th', {}, 'Status'), h('th'))),
             h('tbody', {}, ...orders.map(o => h('tr', {},
-              h('td.mono', { style: { fontSize: '0.74rem' } }, o.id.slice(-6)),
-              h('td', {}, o.email, o.company ? h('div.fnt', { style: { fontSize: '0.72rem' } }, o.company) : ''),
+              h('td.mono', { style: { fontSize: 'var(--t-xs)' } }, o.id.slice(-6)),
+              h('td', {}, o.email, o.company ? h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, o.company) : ''),
               h('td', {}, (o.lines || []).map(l => `${l.qty}× ${l.title}`).join(', ').slice(0, 60)),
               h('td.num', {}, `${o.currency === 'GBP' ? '£' : ''}${o.total}`),
               h('td', {}, h('span.chip', { class: CHIP[o.status] || 'draft' }, o.status)),
@@ -1373,7 +1373,7 @@ const CUSTOM_SECTIONS = {
                 ...['paid', 'fulfilled', 'cancelled'].filter(s2 => s2 !== o.status).map(s2 =>
                   h('button.btn.ghost.small', { style: { marginLeft: '0.25rem' }, onclick: async () => { await post(`/x/commerce/orders/${o.id}/status`, { to: s2 }); draw() } }, s2))))))))
             : emptyState(icon('cart', 24), 'No orders yet', 'Put “Add to cart” blocks on product pages and a “Cart & checkout” block on /cart.')),
-        h('p.fnt', { style: { fontSize: '0.76rem', marginTop: '0.6rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.6rem' } },
           'Orders fire commerce.order.created / .paid / .fulfilled — point Automations at them for receipts, CRM sync or fulfilment. Stripe webhook endpoint: /x/commerce/stripe.'))
     }
     await draw()
@@ -1399,7 +1399,7 @@ const CUSTOM_SECTIONS = {
       wrap.replaceChildren(
         h('div.card', {},
           h('strong', {}, 'Markdown → site'),
-          h('p.fnt', { style: { fontSize: '0.8rem', margin: '0.3rem 0 0.6rem' } },
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.3rem 0 0.6rem' } },
             `Tracking ${tracked} file(s). ${last ? `Last sync ${fmtDate(last.at)} — ${Object.entries(last.report).map(([k, v]) => `${v} ${k}`).join(', ')}.` : 'Never synced.'} Frontmatter (title, slug, category…) becomes fields; the body becomes the page. Configure the folder + content type under Settings → Plugin settings.`),
           h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' } },
             h('button.btn.primary.small', { onclick: () => runSync() }, iconEl('refresh', 13), 'Sync configured folder'),
@@ -1447,8 +1447,8 @@ const CUSTOM_SECTIONS = {
             h('input', { type: 'checkbox', checked: !!r.enabled, onchange: async e => { await post('/res/automations/recipes', { ...r, enabled: e.target.checked }); toast(e.target.checked ? 'Recipe on' : 'Recipe off', 'ok') } }),
             h('span.switch-track')),
           h('div', { style: { flex: 1, minWidth: 0 } },
-            h('strong', { style: { fontSize: '0.87rem' } }, r.label || r.id),
-            h('div.fnt', { style: { fontSize: '0.75rem' } }, 'when ', h('code.pill-perm', {}, r.on || '—'), ` → ${(r.actions || []).length} step(s): `, (r.actions || []).map(a => a.type).join(' → ') || 'none')),
+            h('strong', { style: { fontSize: 'var(--t-m)' } }, r.label || r.id),
+            h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, 'when ', h('code.pill-perm', {}, r.on || '—'), ` → ${(r.actions || []).length} step(s): `, (r.actions || []).map(a => a.type).join(' → ') || 'none')),
           h('button.btn.ghost.small', { onclick: () => openBuilder(r) }, 'Edit'),
           h('button.icon-btn', { title: 'Delete', onclick: async () => { if (await confirmDialog('Delete recipe?', `“${r.label}” stops running immediately.`)) { await del(`/res/automations/recipes/${r.id}`); refreshList() } }, html: icon('trash', 13) }))))
           : emptyState(icon('bolt', 26), 'No recipes yet', 'When something happens on the site, do something about it — automatically.'))
@@ -1461,19 +1461,19 @@ const CUSTOM_SECTIONS = {
           const run = row.data || row
           const failed = (run.steps || []).some(st => st.error)
           return h('details.card', { style: { padding: '0.5rem 0.8rem' } },
-            h('summary', { style: { cursor: 'pointer', display: 'flex', gap: '0.6rem', alignItems: 'center', fontSize: '0.8rem' } },
+            h('summary', { style: { cursor: 'pointer', display: 'flex', gap: '0.6rem', alignItems: 'center', fontSize: 'var(--t-s)' } },
               h('span', { style: { color: failed ? 'var(--err)' : 'var(--ok)', display: 'inline-flex' }, html: icon(failed ? 'x' : 'check', 13) }),
               h('strong', {}, run.label || run.recipe || 'run'),
               run.test ? h('span.mrow-tag', {}, 'test') : '',
               h('code.pill-perm', {}, run.event || ''),
-              h('span.fnt', { style: { marginLeft: 'auto', fontSize: '0.72rem' } }, `${run.ms ?? '—'}ms · ${fmtDate(row.createdAt)}`)),
+              h('span.fnt', { style: { marginLeft: 'auto', fontSize: 'var(--t-xs)' } }, `${run.ms ?? '—'}ms · ${fmtDate(row.createdAt)}`)),
             h('div', { style: { marginTop: '0.5rem', display: 'grid', gap: '0.3rem' } },
-              ...(run.steps || []).map(st => h('div', { style: { fontSize: '0.78rem', display: 'flex', gap: '0.5rem', alignItems: 'baseline' } },
+              ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: '0.5rem', alignItems: 'baseline' } },
                 h('code.pill-perm', {}, st.type),
-                st.error ? h('span', { style: { color: 'var(--err)' } }, st.error)
+                st.error ? h('span', { style: { color: 'var(--err-ink)' } }, st.error)
                   : h('span.mut', {}, st.result ? JSON.stringify(st.result).slice(0, 160) : 'ok')))))
         }))
-        : h('p.fnt', { style: { fontSize: '0.8rem' } }, 'No runs yet — they appear here the moment a recipe fires (test runs included).'))
+        : h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'No runs yet — they appear here the moment a recipe fires (test runs included).'))
     }
 
     function openBuilder(existing) {
@@ -1493,7 +1493,7 @@ const CUSTOM_SECTIONS = {
               h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.45rem' } },
                 h('span.step-n', {}, String(i + 1)),
                 h('select.input', {
-                  style: { flex: 1, fontSize: '0.82rem' },
+                  style: { flex: 1, fontSize: 'var(--t-m)' },
                   onchange: e => { a.type = e.target.value; a.options = {}; paintSteps() },
                 }, ...actions.map(x => h('option', { value: x.type, selected: a.type === x.type }, x.label))),
                 h('button.icon-btn', { title: 'Move up', onclick: () => { if (i > 0) { r.actions.splice(i - 1, 0, r.actions.splice(i, 1)[0]); paintSteps() } }, html: icon('back', 12, 'rot90') }),
@@ -1525,7 +1525,7 @@ const CUSTOM_SECTIONS = {
         }
         walk(payload, '')
         varChips.replaceChildren(
-          h('span.fnt', { style: { fontSize: '0.72rem' } }, 'Insert into a step: '),
+          h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'Insert into a step: '),
           ...paths.slice(0, 12).map(p2 => h('button.pill-perm', {
             style: { cursor: 'pointer' },
             title: `Insert {{event.${p2}}} into the focused field`,
@@ -1543,7 +1543,7 @@ const CUSTOM_SECTIONS = {
 
       const payloadArea = h('textarea.input.mono', { rows: 5, value: payloadText, oninput: e => { payloadText = e.target.value; paintVars() } })
       const evSelect = h('select.input', {
-        style: { fontSize: '0.84rem' },
+        style: { fontSize: 'var(--t-m)' },
         onchange: e => {
           r.on = e.target.value
           const sample = EVENTS.find(ev => ev[0] === r.on)?.[2]
@@ -1559,11 +1559,11 @@ const CUSTOM_SECTIONS = {
         try { payload = JSON.parse(payloadText || '{}') } catch { toast('Sample payload is not valid JSON', 'err'); return }
         const res = await post('/x/automations/dryrun', { recipe: r, payload })
         testOut.replaceChildren(
-          h('p', { style: { fontSize: '0.8rem', margin: '0.5rem 0 0.3rem' } },
-            'Condition: ', res.condition ? h('strong', { style: { color: 'var(--ok)' } }, 'matches — recipe would run') : h('strong', { style: { color: 'var(--warn)' } }, 'does not match — recipe would be skipped')),
+          h('p', { style: { fontSize: 'var(--t-s)', margin: '0.5rem 0 0.3rem' } },
+            'Condition: ', res.condition ? h('strong', { style: { color: 'var(--ok-ink)' } }, 'matches — recipe would run') : h('strong', { style: { color: 'var(--warn-ink)' } }, 'does not match — recipe would be skipped')),
           ...res.steps.map((st, i) => h('div.card', { style: { padding: '0.5rem 0.7rem', marginBottom: '0.3rem' } },
-            h('div', { style: { fontSize: '0.78rem', fontWeight: 650, marginBottom: '0.2rem' } }, `${i + 1}. ${st.label}`, st.known ? '' : h('span', { style: { color: 'var(--err)' } }, '  (unknown action!)')),
-            h('pre.code-out', { style: { fontSize: '0.72rem', margin: 0, whiteSpace: 'pre-wrap' } }, JSON.stringify(st.resolved, null, 1)))))
+            h('div', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', marginBottom: '0.2rem' } }, `${i + 1}. ${st.label}`, st.known ? '' : h('span', { style: { color: 'var(--err-ink)' } }, '  (unknown action!)')),
+            h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: 0, whiteSpace: 'pre-wrap' } }, JSON.stringify(st.resolved, null, 1)))))
       }
       const doTest = async () => {
         let payload
@@ -1572,11 +1572,11 @@ const CUSTOM_SECTIONS = {
         const { run } = await post('/x/automations/testrun', { recipe: r, payload })
         const failed = (run.steps || []).some(st => st.error)
         testOut.replaceChildren(
-          h('p', { style: { fontSize: '0.82rem', margin: '0.5rem 0 0.3rem', fontWeight: 650, color: failed ? 'var(--err)' : 'var(--ok)' } },
+          h('p', { style: { fontSize: 'var(--t-m)', margin: '0.5rem 0 0.3rem', fontWeight: 'var(--fw-semi)', color: failed ? 'var(--err)' : 'var(--ok)' } },
             failed ? 'Ran with errors' : `Ran clean in ${run.ms}ms`),
-          ...(run.steps || []).map(st => h('div', { style: { fontSize: '0.78rem', display: 'flex', gap: '0.5rem' } },
+          ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: '0.5rem' } },
             h('code.pill-perm', {}, st.type),
-            st.error ? h('span', { style: { color: 'var(--err)' } }, st.error) : h('span.mut', {}, st.result ? JSON.stringify(st.result).slice(0, 140) : 'ok'))))
+            st.error ? h('span', { style: { color: 'var(--err-ink)' } }, st.error) : h('span.mut', {}, st.result ? JSON.stringify(st.result).slice(0, 140) : 'ok'))))
         refreshRuns()
       }
 
@@ -1591,7 +1591,7 @@ const CUSTOM_SECTIONS = {
           h('div.insp-section-title', { style: { marginTop: '0.8rem' } }, 'Do these steps'),
           stepsHolder,
           h('details', { style: { marginTop: '0.9rem' } },
-            h('summary', { style: { cursor: 'pointer', fontSize: '0.84rem', fontWeight: 650, color: 'var(--mut)' } }, 'Test before saving'),
+            h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, 'Test before saving'),
             h('div.field', { style: { marginTop: '0.5rem' } }, h('label', {}, h('span', {}, 'Sample payload'), h('span.help', {}, 'What the event would deliver')), payloadArea),
             h('div', { style: { display: 'flex', gap: '0.5rem' } },
               h('button.btn.ghost.small', { onclick: doDry }, iconEl('eye', 13), 'Preview steps (no side effects)'),
@@ -1613,10 +1613,10 @@ const CUSTOM_SECTIONS = {
       const { hooks } = await get('/x/automations/hooks').catch(() => ({ hooks: {} }))
       const entries = Object.entries(hooks || {})
       hooksHolder.replaceChildren(
-        h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.4rem' } }, 'Inbound URLs — POST JSON at them from anywhere (Zapier, CRMs, CI) to fire ', h('code.pill-perm', {}, 'webhook.received'), ' recipes.'),
-        ...entries.map(([k, secret]) => h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.25rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.4rem' } }, 'Inbound URLs — POST JSON at them from anywhere (Zapier, CRMs, CI) to fire ', h('code.pill-perm', {}, 'webhook.received'), ' recipes.'),
+        ...entries.map(([k, secret]) => h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: 'var(--t-s)', marginBottom: '0.25rem' } },
           h('code.pill-perm', {}, k),
-          h('code', { style: { fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 } }, `${state.meta.site.url}/x/automations/hook/${k}?s=${secret}`),
+          h('code', { style: { fontSize: 'var(--t-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 } }, `${state.meta.site.url}/x/automations/hook/${k}?s=${secret}`),
           h('button.icon-btn', { title: 'Copy URL', onclick: () => { navigator.clipboard?.writeText(`${state.meta.site.url}/x/automations/hook/${k}?s=${secret}`); toast('Copied', 'ok') }, html: icon('copy', 13) }))),
         h('button.btn.ghost.small', {
           onclick: async () => {
@@ -1633,9 +1633,9 @@ const CUSTOM_SECTIONS = {
         h('div', {}, h('p.sub', {}, 'When something happens on the site, do something about it. Preview any recipe against a sample payload before it ever runs for real.')),
         h('button.btn.primary', { onclick: () => openBuilder(null) }, '＋ New recipe')),
       listHolder,
-      h('h2', { style: { fontSize: '0.95rem', margin: '1.4rem 0 0.5rem' } }, 'Inbound webhooks'),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.4rem 0 0.5rem' } }, 'Inbound webhooks'),
       h('div.card', { style: { padding: '0.8rem 1rem' } }, hooksHolder),
-      h('h2', { style: { fontSize: '0.95rem', margin: '1.4rem 0 0.5rem' } }, 'Recent runs'),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.4rem 0 0.5rem' } }, 'Recent runs'),
       runsHolder)
     refreshList(); refreshRuns(); refreshHooks()
     return wrap
@@ -1647,7 +1647,7 @@ const CUSTOM_SECTIONS = {
     holder.replaceChildren(items.length ? h('div.table-wrap', {}, h('table.data-table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'Form'), h('th', {}, 'Data'), h('th', {}, 'When'))),
       h('tbody', {}, ...items.slice(0, 100).map(sItem => h('tr', {},
-        h('td', {}, sItem.form), h('td.mono', { style: { fontSize: '0.75rem', whiteSpace: 'pre-wrap' } }, JSON.stringify(sItem.data)),
+        h('td', {}, sItem.form), h('td.mono', { style: { fontSize: 'var(--t-s)', whiteSpace: 'pre-wrap' } }, JSON.stringify(sItem.data)),
         h('td.fnt', {}, fmtDate(sItem.createdAt)))))))
       : emptyState(icon('form', 26), 'No submissions yet', ''))
     return h('div.card', {}, h('strong', {}, 'Submissions'), h('div', { style: { marginTop: '0.6rem' } }, holder))
@@ -1663,7 +1663,7 @@ const CUSTOM_SECTIONS = {
         files.length ? h('div.table-wrap', {}, h('table.data-table', {},
           h('thead', {}, h('tr', {}, h('th', {}, 'File'), h('th', {}, 'Size'), h('th', {}, ''))),
           h('tbody', {}, ...files.map(f => h('tr', {},
-            h('td.mono', { style: { fontSize: '0.78rem' } }, f.key), h('td.mut', {}, humanSize(f.size)),
+            h('td.mono', { style: { fontSize: 'var(--t-s)' } }, f.key), h('td.mut', {}, humanSize(f.size)),
             h('td', { style: { textAlign: 'right' } }, h('button.btn.soft.small', { onclick: () => issue(f.key) }, 'Create link')))))))
           : emptyState(icon('download', 26), 'No private files yet', 'Upload to media/private/ to deliver files securely.'),
         links.length ? h('div', { style: { marginTop: '1rem' } }, h('strong', {}, 'Active links'),
@@ -1760,7 +1760,7 @@ const CUSTOM_SECTIONS = {
           onclick: async () => {
             test.replaceChildren(spinner())
             try { const r = await post('/x/ai/assist', { task: 'improve', text: 'blockhouse is site builder which am good' }); test.replaceChildren(h('p.dlg-text', {}, '✓ ', r.result)) }
-            catch (e) { test.replaceChildren(h('p.dlg-text', { style: { color: 'var(--err)' } }, String(e.message))) }
+            catch (e) { test.replaceChildren(h('p.dlg-text', { style: { color: 'var(--err-ink)' } }, String(e.message))) }
           },
         }, 'Test')),
       test)
@@ -1788,7 +1788,7 @@ const CUSTOM_SECTIONS = {
         const vals = {}
         for (const st of cn.settings) vals[st.key] = st.value
         const status = h('span.chip', { class: cn.connected ? 'published' : 'draft' }, cn.connected ? 'connected' : 'not connected')
-        const testOut = h('div.fnt', { style: { fontSize: '0.8rem', marginTop: '0.4rem' } })
+        const testOut = h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } })
 
         const runAction = a => {
           const opts = {}
@@ -1800,16 +1800,16 @@ const CUSTOM_SECTIONS = {
               h('p.dlg-text', {}, 'Executes for real against the connected account — a live test bench for this action.'),
               (a.fields || []).length
                 ? renderFields(a.fields.map(f => ({ ...f, type: f.type || 'text' })), opts, () => {})
-                : h('p.fnt', { style: { fontSize: '0.8rem' } }, 'This action takes no options.'),
+                : h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'This action takes no options.'),
               out),
             actions: [{
               label: 'Run now', kind: 'primary', onClick: async () => {
                 out.replaceChildren(h('div.spin'))
                 const r = await post(`/x/integrations/connectors/${cn.id}/run`, { action: a.key.split('.').pop(), options: opts })
                 out.replaceChildren(
-                  h('p', { style: { fontWeight: 650, fontSize: '0.83rem', color: r.ok ? 'var(--ok)' : 'var(--err)', margin: '0.5rem 0 0.3rem' } },
+                  h('p', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)', color: r.ok ? 'var(--ok)' : 'var(--err)', margin: '0.5rem 0 0.3rem' } },
                     r.ok ? `✓ Succeeded in ${r.ms}ms` : `✗ ${r.error}`),
-                  r.result !== undefined ? h('pre.code-out', { style: { fontSize: '0.72rem', maxHeight: '12rem', overflow: 'auto', whiteSpace: 'pre-wrap' } }, JSON.stringify(r.result, null, 1)) : '')
+                  r.result !== undefined ? h('pre.code-out', { style: { fontSize: 'var(--t-xs)', maxHeight: '12rem', overflow: 'auto', whiteSpace: 'pre-wrap' } }, JSON.stringify(r.result, null, 1)) : '')
                 return false   // keep the dialog open to read the result
               },
             }],
@@ -1817,11 +1817,11 @@ const CUSTOM_SECTIONS = {
         }
         const actionsList = cn.actions.length
           ? h('details', { style: { marginTop: '0.6rem' } },
-            h('summary', { style: { cursor: 'pointer', fontSize: '0.8rem', color: 'var(--mut)' } }, `${cn.actions.length} automation action(s) — click to test any of them`),
+            h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-s)', color: 'var(--mut)' } }, `${cn.actions.length} automation action(s) — click to test any of them`),
             h('div', { style: { marginTop: '0.4rem' } }, ...cn.actions.map(a =>
               h('div', { style: { padding: '0.35rem 0', borderBottom: '1px solid var(--line-soft)', display: 'flex', gap: '0.5rem', alignItems: 'center' } },
                 h('code.pill-perm', {}, a.key),
-                h('span.fnt', { style: { fontSize: '0.78rem', flex: 1 } }, a.description || a.label),
+                h('span.fnt', { style: { fontSize: 'var(--t-s)', flex: 1 } }, a.description || a.label),
                 h('button.btn.ghost.small', { onclick: () => runAction(a) }, iconEl('play', 12), 'Run…')))))
           : ''
 
@@ -1831,19 +1831,19 @@ const CUSTOM_SECTIONS = {
               h('span', { style: { color: 'var(--acc)', marginTop: '0.15rem' } }, iconEl(cn.icon || 'plug', 20)),
               h('div', {}, h('strong', {}, cn.name, cn.custom ? h('span.mrow-tag', { style: { marginLeft: '0.45rem' } }, 'custom') : ''),
                 h('p.sub', {}, cn.description),
-                cn.identity ? h('p.fnt', { style: { fontSize: '0.78rem' } }, `Signed in as ${cn.identity}`) : '')),
+                cn.identity ? h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, `Signed in as ${cn.identity}`) : '')),
             h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
               cn.custom ? h('button.icon-btn', { title: 'Edit definition', onclick: () => editCustom(cn.id), html: icon('pen', 14) }) : '',
               cn.custom ? h('button.icon-btn', { title: 'Delete connector', onclick: async () => { if (await confirmDialog('Delete connector?', `“${cn.name}” and its actions are removed.`)) { await del(`/x/integrations/custom/${cn.id}`); refresh() } }, html: icon('trash', 14) }) : '',
               status)),
-          cn.docs ? h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.5rem' } }, cn.docs) : '',
+          cn.docs ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } }, cn.docs) : '',
           cn.auth === 'oauth2' ? h('div', { style: { marginBottom: '0.5rem' } },
-            h('span.fnt', { style: { fontSize: '0.76rem' } }, 'Redirect URI: '), h('code.pill-perm', {}, cn.redirectUri)) : '',
+            h('span.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Redirect URI: '), h('code.pill-perm', {}, cn.redirectUri)) : '',
           renderFields(cn.settings.map(st => ({
             key: st.key, label: st.label, type: st.type === 'select' ? 'text' : 'text', help: st.help,
             width: cn.settings.length > 2 ? 'half' : undefined,
           })), vals, () => {}),
-          cn.scopes?.length ? h('p.fnt', { style: { fontSize: '0.74rem', marginBottom: '0.5rem' } }, 'Scopes: ', ...cn.scopes.map(sc => h('code.pill-perm', {}, sc.replace('https://www.googleapis.com/auth/', '')))) : '',
+          cn.scopes?.length ? h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: '0.5rem' } }, 'Scopes: ', ...cn.scopes.map(sc => h('code.pill-perm', {}, sc.replace('https://www.googleapis.com/auth/', '')))) : '',
           h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
             h('button.btn.ghost.small', { onclick: async () => { await put(`/x/integrations/connectors/${cn.id}`, vals); toast('Saved', 'ok'); refresh() } }, 'Save settings'),
             cn.auth === 'oauth2'
@@ -1880,7 +1880,7 @@ const CUSTOM_SECTIONS = {
       const actionsHolder = h('div', { style: { display: 'grid', gap: '0.5rem' } })
       const paintActs = () => actionsHolder.replaceChildren(
         ...def.actions.map((a, i) => h('details.card', { open: !a.key, style: { padding: '0.6rem 0.8rem' } },
-          h('summary', { style: { cursor: 'pointer', fontSize: '0.82rem', fontWeight: 650, display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+          h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', display: 'flex', gap: '0.5rem', alignItems: 'center' } },
             a.label || a.key || 'New action',
             h('span', { style: { flex: 1 } }),
             h('button.icon-btn', { onclick: e => { e.preventDefault(); def.actions.splice(i, 1); paintActs() }, html: icon('trash', 12) })),
@@ -1989,7 +1989,7 @@ const CUSTOM_SECTIONS = {
           { key: 'requireApproval', type: 'boolean', label: 'New accounts need approval' },
           { key: 'loginPath', type: 'text', label: 'Account page path', help: 'Where gated pages send visitors, and where sign-in lands', width: 'half' },
         ], sVals, () => {}),
-        h('p.fnt', { style: { fontSize: '0.78rem' } }, 'Gate a page in the editor: Page tab → Access. Members are separate from studio users — they never see the admin.')),
+        h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Gate a page in the editor: Page tab → Access. Members are separate from studio users — they never see the admin.')),
       h('div.card', {}, h('strong', {}, 'Members'), h('div', { style: { marginTop: '0.6rem' } }, listHolder)))
   },
 
@@ -2010,7 +2010,7 @@ const CUSTOM_SECTIONS = {
         chart.innerHTML = `<svg viewBox="0 0 ${w} ${chartH + 18}" width="100%" role="img" aria-label="Views over time"><g>${bars}</g><text x="0" y="${chartH + 14}" font-size="11" fill="var(--fnt)">${data.series[0]?.day || ''}</text><text x="${w}" y="${chartH + 14}" font-size="11" fill="var(--fnt)" text-anchor="end">${data.series[n - 1]?.day || ''}</text></svg>`
 
         const list = (title, rows, fmt) => h('div.card', {}, h('strong', {}, title),
-          rows.length ? h('div', { style: { marginTop: '0.5rem' } }, ...rows.map(r => h('div', { style: { display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: '0.83rem' } }, h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, fmt(r.k)), h('strong', {}, String(r.n)))))
+          rows.length ? h('div', { style: { marginTop: '0.5rem' } }, ...rows.map(r => h('div', { style: { display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } }, h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, fmt(r.k)), h('strong', {}, String(r.n)))))
             : h('p.mut', { style: { marginTop: '0.4rem' } }, 'No data yet.'))
 
         const avg = n ? Math.round(data.totalViews / n) : 0
@@ -2061,7 +2061,7 @@ const CUSTOM_SECTIONS = {
               h('p.sub', {}, s.branch ? `On branch ${s.branch}. ` : '', s.lastCommit
                 ? `Last synced: ${s.lastCommit.message} (${s.lastCommit.hash}, ${s.lastCommit.date})`
                 : 'Git repository detected — nothing synced yet.'),
-              s.dirty ? h('p.fnt', { style: { fontSize: '0.78rem', marginTop: '0.2rem' } }, `${s.dirty} file(s) changed since last sync.`) : '')
+              s.dirty ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.2rem' } }, `${s.dirty} file(s) changed since last sync.`) : '')
           : emptyState(icon('warn', 22), 'No git repository', 'This site’s directory (or a parent of it) needs its own .git for sync to work.'),
         h('div', { style: { marginTop: '0.7rem' } },
           syncMessage,
@@ -2114,13 +2114,13 @@ const CUSTOM_SECTIONS = {
           h('thead', {}, h('tr', {}, h('th', {}, 'branch'), h('th', {}, 'last commit'), h('th', {}, ''))),
           h('tbody', {}, ...b.branches.map(br => h('tr', {},
             h('td', {}, br.current ? h('span.badge.ok', {}, br.name) : br.name),
-            h('td.mut', { style: { fontSize: '0.78rem' } }, `${br.message} (${br.date})`),
+            h('td.mut', { style: { fontSize: 'var(--t-s)' } }, `${br.message} (${br.date})`),
             h('td', { style: { textAlign: 'right' } },
               br.current ? '' : h('button.btn.ghost.small', { onclick: async () => {
                 const res = await post(`/x/ops/branches/${encodeURIComponent(br.name)}/checkout`, {}).catch(e => ({ error: e.message }))
                 if (res.error) toast(res.error, 'err'); else { toast(`Switched to ${res.branch}`, 'ok'); refreshBranches(); refreshStatus() }
               } }, 'Switch to')))))))
-          : h('p.fnt', { style: { fontSize: '0.78rem' } }, 'Just the one branch so far — save a checkpoint before trying something you might want to back out of.'),
+          : h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Just the one branch so far — save a checkpoint before trying something you might want to back out of.'),
         h('div', { style: { marginTop: '0.7rem', display: 'flex', gap: '0.5rem' } },
           h('button.btn.ghost.small', { onclick: saveCheckpoint }, iconEl('plus', 13), 'Save checkpoint'),
           b.dirty || b.branches.length > 1 ? h('button.btn.ghost.small', { onclick: cancelWork }, iconEl('undo', 13), 'Cancel & revert') : ''))
@@ -2132,7 +2132,7 @@ const CUSTOM_SECTIONS = {
     const refreshBackups = async () => {
       const { backups, settings } = await get('/x/ops/backups').catch(() => ({ backups: [], settings: {} }))
       backupsHolder.replaceChildren(
-        !settings.enabled ? h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.5rem' } },
+        !settings.enabled ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } },
           'Backups are disabled — turn them on in Settings → Plugin settings → Backups.') : '',
         h('div', { style: { marginBottom: '0.7rem', display: 'flex', gap: '0.5rem' } },
           backupLabel,

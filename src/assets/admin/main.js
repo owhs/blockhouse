@@ -75,7 +75,7 @@ function renderAuth(kind) {
     fieldWrap('Email', email), isBoot ? fieldWrap('Name', name) : '', fieldWrap('Password', pass), btn,
     isBoot ? '' : h('button', {
       type: 'button',
-      style: { fontSize: '0.78rem', color: 'var(--mut)', justifySelf: 'center' },
+      style: { fontSize: 'var(--t-s)', color: 'var(--mut)', justifySelf: 'center' },
       onclick: async () => {
         if (!email.value) { note.textContent = 'Type your email above first.'; return }
         const r = await post('/auth/forgot', { email: email.value }).catch(() => ({}))
@@ -321,7 +321,7 @@ function showShortcuts() {
       h('div.insp-section-title', {}, group),
       ...rows.map(([k, what]) => h('div', {
         style: { display: 'grid', gridTemplateColumns: 'minmax(7rem, 9rem) 1fr', gap: '0.8rem', padding: '0.35rem 0', alignItems: 'baseline' },
-      }, h('span.kbd', {}, k), h('span', { style: { fontSize: '0.85rem', color: 'var(--mut)' } }, what)))))),
+      }, h('span.kbd', {}, k), h('span', { style: { fontSize: 'var(--t-m)', color: 'var(--mut)' } }, what)))))),
   })
 }
 
@@ -387,9 +387,9 @@ async function openSiteSwitcher() {
         h('a.row-item', { href: p.current ? '#/' : p.url + '/admin/', style: { textDecoration: 'none' } },
           h('span.row-ico', { html: icon(p.current ? 'check' : 'globe', 15) }),
           h('span.row-label', {}, p.label),
-          h('span.fnt', { style: { fontSize: '0.72rem', marginLeft: 'auto' } }, p.current ? 'current' : p.url))))
+          h('span.fnt', { style: { fontSize: 'var(--t-xs)', marginLeft: 'auto' } }, p.current ? 'current' : p.url))))
       : h('p.dlg-text', {}, 'No other sites registered on this machine yet.'),
-    h('p.fnt', { style: { fontSize: '0.76rem', marginTop: '0.8rem' } },
+    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.8rem' } },
       'Register each project once: ', h('code.pill-perm', {}, 'blockhouse sites add --dir <site> --port <port>'),
       ' — every studio then lists them all here.'))
   dialog({ title: 'Your sites', body })

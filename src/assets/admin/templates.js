@@ -81,7 +81,7 @@ registerView('templates', async (root, [relParam]) => {
     },
   }, iconEl('eye', 13), 'Preview')
   const pvPathSel = h('select.input', {
-    style: { width: 'auto', padding: '0.2rem 1.6rem 0.2rem 0.5rem', fontSize: '0.76rem' },
+    style: { width: 'auto', padding: '0.2rem 1.6rem 0.2rem 0.5rem', fontSize: 'var(--t-s)' },
     onchange: e => { pvPath = e.target.value; if (previewOn) reloadPreview() },
   }, h('option', { value: '/' }, 'Home'))
   get('/content').then(({ docs }) => {
@@ -103,14 +103,14 @@ registerView('templates', async (root, [relParam]) => {
         ...items.map(x => fmt(x)))
       : ''
     const link = rel2 => h('button.row-item', { onclick: () => openFile(rel2), style: { padding: '0.25rem 0.4rem' } },
-      h('span.row-ico', { html: icon('page', 12) }), h('span.row-label', { style: { fontSize: '0.78rem' } }, rel2))
+      h('span.row-ico', { html: icon('page', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, rel2))
     refPanel.replaceChildren(
       h('div.insp-section-title', {}, 'This file'),
       info ? h('div', { style: { marginBottom: '0.6rem' } },
         list('Includes', info.includes, link),
         list('Included by', info.includedBy, link),
-        list('Slots it renders', info.slots, s => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label', { style: { fontSize: '0.78rem' } }, `${s} → edit content`))),
-        list('Menus it renders', info.menus, m => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label', { style: { fontSize: '0.78rem' } }, `${m} → edit menu`))),
+        list('Slots it renders', info.slots, s => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${s} → edit content`))),
+        list('Menus it renders', info.menus, m => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${m} → edit menu`))),
         list('Regions', info.regions, r => h('span.pill-perm', { style: { marginRight: '0.3rem' } }, r)),
       ) : h('p.mut', {}, 'No cross-reference data for this file.'),
       h('div.insp-section-title', {}, 'Variables'),
@@ -126,7 +126,7 @@ registerView('templates', async (root, [relParam]) => {
       const menu = h('div.mbar-drop', { style: { display: 'block', position: 'fixed', zIndex: 200 } },
         ...SNIPPETS.map(([label, code, hint]) => h('button.mbar-item', {
           onclick: () => { editor.insert(code); menu.remove() },
-        }, h('div', {}, h('div', { style: { fontWeight: 620 } }, label), hint ? h('div.fnt', { style: { fontSize: '0.7rem' } }, hint) : ''))))
+        }, h('div', {}, h('div', { style: { fontWeight: 'var(--fw-semi)' } }, label), hint ? h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, hint) : ''))))
       const r = e.currentTarget.getBoundingClientRect()
       menu.style.left = `${Math.max(8, r.right - 280)}px`; menu.style.top = `${r.bottom + 4}px`; menu.style.minWidth = '17rem'
       document.body.appendChild(menu)
@@ -184,7 +184,7 @@ registerView('templates', async (root, [relParam]) => {
     if (previewOn) { pushDraft.now?.(); reloadPreview() }
   }
 
-  const crumbs = h('code', { style: { fontSize: '0.78rem' } })
+  const crumbs = h('code', { style: { fontSize: 'var(--t-s)' } })
 
   const treeEl = h('div.panel-body')
   function paintTree() {
@@ -221,7 +221,7 @@ registerView('templates', async (root, [relParam]) => {
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, 'Template files'),
-        h('span.fnt', { style: { fontSize: '0.7rem' } }, template)),
+        h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, template)),
       treeEl),
     h('div.main', {}, shell)))
 

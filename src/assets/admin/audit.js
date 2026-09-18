@@ -57,7 +57,7 @@ registerView('audit', async root => {
     h('div.table-wrap', {}, h('table.data-table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'Action'), h('th', {}, 'Detail'))),
       h('tbody', {}, ...entries.map(e => h('tr', {},
-        h('td', { style: { whiteSpace: 'nowrap', color: 'var(--mut)', fontSize: '0.8rem' } }, new Date(e.at).toLocaleString()),
-        h('td', { style: { fontWeight: 600 } }, ACTION_LABELS[e.action] || e.action),
-        h('td.fnt', { style: { fontSize: '0.8rem' } }, detailText(e))))))))
+        h('td', { style: { whiteSpace: 'nowrap', color: 'var(--mut)', fontSize: 'var(--t-s)' } }, new Date(e.at).toLocaleString()),
+        h('td', { style: { fontWeight: 'var(--fw-semi)' } }, ACTION_LABELS[e.action] || e.action),
+        h('td.fnt', { style: { fontSize: 'var(--t-s)' } }, detailText(e))))))))
 })

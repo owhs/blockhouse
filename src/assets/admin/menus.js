@@ -205,7 +205,7 @@ registerView('menus', async (root, [menuKey]) => {
       inspEl.replaceChildren(h('div.menu-insp-empty', {},
         iconEl('menu', 22),
         h('p', {}, 'Select something in the structure to edit it here.'),
-        h('p.fnt', { style: { fontSize: '0.76rem' } }, 'For the full-screen tabbed menu: select an item, then Panel → Catalogue.')))
+        h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'For the full-screen tabbed menu: select an item, then Panel → Catalogue.')))
       return
     }
     const { kind, ref } = sel
@@ -214,7 +214,7 @@ registerView('menus', async (root, [menuKey]) => {
       inspEl.replaceChildren(
         section('Catalogue tab',
           renderFields([{ key: 'label', type: 'text', label: 'Tab label', required: true }], ref, () => { markDirty(); paintTree() }),
-          h('p.fnt', { style: { fontSize: '0.76rem' } }, 'Entries under this tab fill the left list; each entry’s image, category line and description build its detail pane.'),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Entries under this tab fill the left list; each entry’s image, category line and description build its detail pane.'),
           h('button.btn.ghost.small', { onclick: () => { (ref.items ??= []).push(newCard()); markDirty(); paintTree() } }, iconEl('plus', 13), 'Add entry')))
       return
     }
@@ -251,7 +251,7 @@ registerView('menus', async (root, [menuKey]) => {
     const isTop = active.items.includes(item)
     const groups = state.meta.memberGroups || []
     const audiencePart = groups.length ? h('div', { style: { marginTop: '0.3rem' } },
-      h('span.fnt', { style: { fontSize: '0.74rem', display: 'block', marginBottom: '0.25rem' } }, 'Only show to member groups (blank = everyone allowed by the rule above):'),
+      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', marginBottom: '0.25rem' } }, 'Only show to member groups (blank = everyone allowed by the rule above):'),
       h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
         ...groups.map(g => h('label.field-check', { style: { padding: '0.1rem 0' } },
           h('input', {
@@ -289,7 +289,7 @@ registerView('menus', async (root, [menuKey]) => {
         },
       }, l)))
       const panelBits = [seg,
-        h('p.fnt', { style: { fontSize: '0.75rem', margin: '0.4rem 0 0' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.4rem 0 0' } },
           mode === 'catalogue' ? 'Full-screen: category tabs → item list → detail pane. Built for big product ranges.'
             : mode === 'showcase' ? 'Card rail with a hover-synced detail pane.'
               : mode === 'columns' ? 'Classic columns of grouped links, with optional icons and descriptions.'
@@ -312,7 +312,7 @@ registerView('menus', async (root, [menuKey]) => {
           if (v === '' || v == null) delete item[k]; else item[k] = v
           markDirty(); paintTree()
         }),
-        h('p.fnt', { style: { fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' } }, 'Icon:', iconChips(item))))
+        h('p.fnt', { style: { fontSize: 'var(--t-xs)', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' } }, 'Icon:', iconChips(item))))
     }
 
     inspEl.replaceChildren(...parts)
@@ -332,11 +332,11 @@ registerView('menus', async (root, [menuKey]) => {
     mega.tiles ??= []
     const holder = h('div', { style: { display: 'grid', gap: '0.3rem', marginTop: '0.6rem' } })
     const paint = () => holder.replaceChildren(
-      h('strong', { style: { fontSize: '0.76rem' } }, 'Utility tiles ', h('span.fnt', { style: { fontWeight: 400 } }, '— icon shortcuts under the panel')),
+      h('strong', { style: { fontSize: 'var(--t-s)' } }, 'Utility tiles ', h('span.fnt', { style: { fontWeight: 'var(--fw-regular)' } }, '— icon shortcuts under the panel')),
       ...mega.tiles.map((t, ti) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
-        h('input.input', { value: t.icon || '', placeholder: 'icon', style: { maxWidth: '7rem', fontSize: '0.78rem' }, oninput: e => { t.icon = e.target.value; markDirty() } }),
-        h('input.input', { value: t.label || '', placeholder: 'Label', style: { fontSize: '0.78rem' }, oninput: e => { t.label = e.target.value; markDirty() } }),
-        h('input.input', { value: t.href || '', placeholder: '/link', style: { fontSize: '0.78rem' }, oninput: e => { t.href = e.target.value; markDirty() } }),
+        h('input.input', { value: t.icon || '', placeholder: 'icon', style: { maxWidth: '7rem', fontSize: 'var(--t-s)' }, oninput: e => { t.icon = e.target.value; markDirty() } }),
+        h('input.input', { value: t.label || '', placeholder: 'Label', style: { fontSize: 'var(--t-s)' }, oninput: e => { t.label = e.target.value; markDirty() } }),
+        h('input.input', { value: t.href || '', placeholder: '/link', style: { fontSize: 'var(--t-s)' }, oninput: e => { t.href = e.target.value; markDirty() } }),
         h('button.icon-btn', { onclick: () => { mega.tiles.splice(ti, 1); markDirty(); paint() }, html: icon('x', 12) }))),
       h('button.tree-add', { onclick: () => { mega.tiles.push({ icon: 'compare', label: 'New tile', href: '/' }); markDirty(); paint() } }, '＋ tile'))
     paint()
@@ -347,11 +347,11 @@ registerView('menus', async (root, [menuKey]) => {
     mega.footer ??= []
     const holder = h('div', { style: { display: 'grid', gap: '0.3rem', marginTop: '0.6rem' } })
     const paint = () => holder.replaceChildren(
-      h('strong', { style: { fontSize: '0.76rem' } }, 'Footer brand bar'),
-      h('input.input', { value: mega.footerTitle || '', placeholder: 'Bar title (e.g. OUR OTHER BRANDS:)', style: { fontSize: '0.78rem' }, oninput: e => { mega.footerTitle = e.target.value; markDirty() } }),
+      h('strong', { style: { fontSize: 'var(--t-s)' } }, 'Footer brand bar'),
+      h('input.input', { value: mega.footerTitle || '', placeholder: 'Bar title (e.g. OUR OTHER BRANDS:)', style: { fontSize: 'var(--t-s)' }, oninput: e => { mega.footerTitle = e.target.value; markDirty() } }),
       ...mega.footer.map((f2, fi) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
-        h('input.input', { value: f2.label || '', placeholder: 'LABEL', style: { fontSize: '0.78rem' }, oninput: e => { f2.label = e.target.value; markDirty() } }),
-        h('input.input', { value: f2.href || '', placeholder: 'https://… or /path', style: { fontSize: '0.78rem' }, oninput: e => { f2.href = e.target.value; markDirty() } }),
+        h('input.input', { value: f2.label || '', placeholder: 'LABEL', style: { fontSize: 'var(--t-s)' }, oninput: e => { f2.label = e.target.value; markDirty() } }),
+        h('input.input', { value: f2.href || '', placeholder: 'https://… or /path', style: { fontSize: 'var(--t-s)' }, oninput: e => { f2.href = e.target.value; markDirty() } }),
         h('button.icon-btn', { onclick: () => { mega.footer.splice(fi, 1); markDirty(); paint() }, html: icon('x', 12) }))),
       h('button.tree-add', { onclick: () => { mega.footer.push({ label: 'BRAND', href: '/' }); markDirty(); paint() } }, '＋ footer link'))
     paint()
@@ -361,7 +361,7 @@ registerView('menus', async (root, [menuKey]) => {
   // ---------- layout ----------
 
   const menuSelect = h('select.input', {
-    style: { fontSize: '0.85rem', fontWeight: 600 },
+    style: { fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)' },
     onchange: e => (location.hash = `#/menus/${e.target.value}`),
   }, ...menus.map(m => h('option', { value: m.key, selected: m.key === active.key }, m.label || m.key)))
 
@@ -414,7 +414,7 @@ registerView('menus', async (root, [menuKey]) => {
       h('div.menu-left-foot', {}, saveBtn)),
     h('div.menu-right', {},
       h('div.menu-preview-bar', {},
-        h('span.fnt', { style: { fontSize: '0.76rem', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview — draft only; the site changes when you save'),
+        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview — draft only; the site changes when you save'),
         deviceSeg),
       frameHolder,
       inspEl)))

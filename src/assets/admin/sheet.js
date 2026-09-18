@@ -21,7 +21,8 @@ export async function openSheet({ title, sub, body, onClose, width }) {
   const scrim = h('div.sheet-scrim', { onclick: () => closeSheet() })
   const holder = h('div.sheet-body')
   const panel = h('aside.sheet', {
-    role: 'dialog', 'aria-modal': 'false', 'aria-label': title,
+    // it traps Tab and marks the rest of the app inert, so it IS modal
+    role: 'dialog', 'aria-modal': 'true', 'aria-label': title,
     style: width ? { width } : {},
   },
     h('header.sheet-head', {},

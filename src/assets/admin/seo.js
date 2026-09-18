@@ -22,12 +22,12 @@ registerView('seo', async root => {
     const { concepts } = await get('/concepts')
     feedsHolder.replaceChildren(
       h('div', { style: { display: 'grid', gap: '0.3rem' } },
-        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: '0.84rem' } },
+        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
           h('strong', {}, 'Sitemap:'),
           feats.sitemap === false
             ? h('span', {}, 'off — ', h('a', { href: '#/settings/features' }, 'turn on in Features'))
             : h('span', {}, 'on · ', h('a', { href: '/sitemap.xml', target: '_blank' }, 'view'), ' · robots.txt points at it. Gated and unpublished pages never appear.')),
-        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: '0.84rem' } },
+        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
           h('strong', {}, 'RSS:'),
           feats.rss === false
             ? h('span', {}, 'off site-wide — ', h('a', { href: '#/settings/features' }, 'turn on in Features'), '. Blockhouse also removes feed links from menus, templates and content.')
@@ -60,9 +60,9 @@ registerView('seo', async root => {
       h('thead', {}, h('tr', {}, h('th', {}, 'Document'), h('th', {}, 'Health'), h('th', {}, 'Issues'))),
       h('tbody', {}, ...docs.map(d => {
         const dots = [
-          d.errors ? h('span', { style: { color: 'var(--err)', fontWeight: 700, marginRight: '0.6rem' } }, `${d.errors} `, 'error' + (d.errors > 1 ? 's' : '')) : '',
-          d.warns ? h('span', { style: { color: 'var(--warn)', fontWeight: 700 } }, `${d.warns} `, 'warning' + (d.warns > 1 ? 's' : '')) : '',
-          !d.errors && !d.warns ? h('span', { style: { color: 'var(--ok)', fontWeight: 700, display: 'inline-flex', gap: '0.3rem', alignItems: 'center' } }, iconEl('check', 13), 'clean') : '',
+          d.errors ? h('span', { style: { color: 'var(--err-ink)', fontWeight: 'var(--fw-bold)', marginRight: '0.6rem' } }, `${d.errors} `, 'error' + (d.errors > 1 ? 's' : '')) : '',
+          d.warns ? h('span', { style: { color: 'var(--warn-ink)', fontWeight: 'var(--fw-bold)' } }, `${d.warns} `, 'warning' + (d.warns > 1 ? 's' : '')) : '',
+          !d.errors && !d.warns ? h('span', { style: { color: 'var(--ok-ink)', fontWeight: 'var(--fw-bold)', display: 'inline-flex', gap: '0.3rem', alignItems: 'center' } }, iconEl('check', 13), 'clean') : '',
         ]
         return h('tr', {
           tabindex: '0', role: 'link',
@@ -89,8 +89,8 @@ registerView('seo', async root => {
       rows.length ? h('div.table-wrap', {}, h('table.data-table', {},
         h('thead', {}, h('tr', {}, h('th', {}, 'From'), h('th', {}, 'To'), h('th', {}, 'Code'), h('th'))),
         h('tbody', {}, ...rows.map((r, i) => h('tr', { style: { cursor: 'default' } },
-          h('td.mono', { style: { fontSize: '0.78rem' } }, r.from),
-          h('td.mono', { style: { fontSize: '0.78rem' } }, r.to),
+          h('td.mono', { style: { fontSize: 'var(--t-s)' } }, r.from),
+          h('td.mono', { style: { fontSize: 'var(--t-s)' } }, r.to),
           h('td', {}, String(r.code || 301)),
           h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', { onclick: async () => {
             const gone = rows[i]

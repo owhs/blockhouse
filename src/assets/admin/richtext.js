@@ -29,7 +29,7 @@ export function mountRichtext(md, onChange, opts = {}) {
   const btn = (label, title, fn) => h('button', { type: 'button', title, onmousedown: e => e.preventDefault(), onclick: fn }, label)
 
   let mode = 'visual'
-  const mdArea = h('textarea.mono', { rows: 10, style: { display: 'none', borderRadius: '0 0 7px 7px' }, spellcheck: 'false' })
+  const mdArea = h('textarea.mono', { rows: 10, style: { display: 'none', borderRadius: '0 0 var(--r-s) var(--r-s)' }, spellcheck: 'false' })
   mdArea.addEventListener('input', () => onChange(mdArea.value))
 
   const toolbar = h('div.rt-toolbar', {},

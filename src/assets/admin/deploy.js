@@ -44,16 +44,16 @@ registerView('deploy', async root => {
         boxShadow: target === t.key ? '0 0 0 1px var(--acc) inset' : 'none',
       },
     },
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', fontWeight: 650 } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', fontWeight: 'var(--fw-semi)' } },
         iconEl(t.icon, 15), t.label),
-      h('p.fnt', { style: { fontSize: '0.76rem', lineHeight: 1.45, margin: 0 } }, t.blurb))))
+      h('p.fnt', { style: { fontSize: 'var(--t-s)', lineHeight: 1.45, margin: 0 } }, t.blurb))))
 
   const checkRow = c => h('div', { style: { display: 'grid', gridTemplateColumns: '1.2rem minmax(9rem, 13rem) 1fr', gap: '0.6rem', alignItems: 'start', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)' } },
     h('span', { style: { color: LEVEL[c.level].colour, display: 'flex', paddingTop: '0.1rem' }, html: icon(LEVEL[c.level].ico, 14) }),
-    h('span', { style: { fontSize: '0.8rem', fontWeight: 600, color: 'var(--mut)' } }, c.label),
+    h('span', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, c.label),
     h('span', {},
-      h('span', { style: { fontSize: '0.85rem' } }, c.detail),
-      c.fix ? h('div.fnt', { style: { fontSize: '0.76rem', marginTop: '0.15rem' } }, '→ ', c.fix) : ''))
+      h('span', { style: { fontSize: 'var(--t-m)' } }, c.detail),
+      c.fix ? h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.15rem' } }, '→ ', c.fix) : ''))
 
   async function draw() {
     body.replaceChildren(
@@ -99,11 +99,11 @@ registerView('deploy', async root => {
       h('div.card', { style: { display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.8rem 1rem', marginBottom: '1rem', borderColor: verdict.colour } },
         h('span', { style: { color: verdict.colour, display: 'flex' }, html: icon(verdict.ico, 18) }),
         h('div', {},
-          h('div', { style: { fontWeight: 650 } }, verdict.text),
-          h('div.fnt', { style: { fontSize: '0.76rem' } }, `environment: ${data.env} · ${s.ok} passing`))),
+          h('div', { style: { fontWeight: 'var(--fw-semi)' } }, verdict.text),
+          h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `environment: ${data.env} · ${s.ok} passing`))),
 
       ...groups.map(g => h('section', { style: { marginBottom: '1.2rem' } },
-        h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, g.name),
+        h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, g.name),
         h('div.card', { style: { padding: '0.3rem 1rem' } }, ...g.items.map(checkRow)))),
 
       presetSection(),
@@ -123,9 +123,9 @@ registerView('deploy', async root => {
             h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap' } },
               iconEl(p.kind === 'hook' ? 'link' : p.kind === 'command' ? 'code' : 'box', 16),
               h('div', { style: { flex: 1, minWidth: '10rem' } },
-                h('strong', { style: { fontSize: '0.88rem' } }, p.label),
-                h('div.fnt', { style: { fontSize: '0.74rem' } }, `${p.kind} · needs ${p.minRole}+`)),
-              h('span.mrow-tag', { style: isProd ? { background: 'color-mix(in oklch, var(--err) 16%, transparent)', color: 'var(--err)' } : { background: 'color-mix(in oklch, var(--ok) 16%, transparent)', color: 'var(--ok)' } }, p.target),
+                h('strong', { style: { fontSize: 'var(--t-m)' } }, p.label),
+                h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, `${p.kind} · needs ${p.minRole}+`)),
+              h('span.mrow-tag', { style: isProd ? { background: 'color-mix(in oklch, var(--err) 16%, transparent)', color: 'var(--err-ink)' } : { background: 'color-mix(in oklch, var(--ok) 16%, transparent)', color: 'var(--ok-ink)' } }, p.target),
               h('button.btn.ghost.small', { onclick: async () => { const r = await post(`/deploy/profiles/${p.id}/test`); toast(`${r.ok ? '✓' : '✗'} ${r.detail}`, r.ok ? 'ok' : 'err', 4500) } }, 'Test'),
               h('button.btn.ghost.small', { onclick: () => editProfile(p) }, 'Edit'),
               h('button.icon-btn', { title: 'Delete', onclick: async () => { if (await confirmDialog('Delete target?', `“${p.label}” is removed; nothing is undeployed.`)) { await del(`/deploy/profiles/${p.id}`); paint() } }, html: icon('trash', 13) }),
@@ -135,12 +135,12 @@ registerView('deploy', async root => {
                   e.target.disabled = true
                   out.replaceChildren(h('div.spin'))
                   const r = await post(`/deploy/run/${p.id}`).catch(err => ({ ok: false, log: [String(err.message || err)] })).finally(() => (e.target.disabled = false))
-                  out.replaceChildren(h('pre.code-out', { style: { fontSize: '0.72rem', margin: '0.5rem 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
+                  out.replaceChildren(h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: '0.5rem 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
                   toast(r.ok === false ? 'Deploy failed — see the log' : 'Deployed', r.ok === false ? 'err' : 'ok')
                 },
               }, iconEl('rocket', 12), isProd ? 'Deploy live' : 'Deploy staging')),
             out)
-        }) : [h('p.fnt', { style: { fontSize: '0.8rem' } }, 'No saved targets yet. A target bundles where a build goes (staging or production), how it gets there, and who may press the button. Credentials are stored encrypted.')]),
+        }) : [h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'No saved targets yet. A target bundles where a build goes (staging or production), how it gets there, and who may press the button. Credentials are stored encrypted.')]),
         h('button.tree-add', { onclick: () => editProfile(null) }, '＋ New deploy target'))
     }
 
@@ -194,7 +194,7 @@ registerView('deploy', async root => {
 
     paint()
     return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Deploy targets'),
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Deploy targets'),
       holder)
   }
 
@@ -203,8 +203,8 @@ registerView('deploy', async root => {
     const out = h('div', { style: { display: 'grid', gap: '0.4rem' } })
     out.replaceChildren(...list.map(p => h('div.card', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 0.9rem' } },
       h('div', {},
-        h('div', { style: { fontWeight: 620, fontSize: '0.88rem' } }, p),
-        h('div.fnt', { style: { fontSize: '0.74rem' } }, PRESET_BLURB[p] || '')),
+        h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, p),
+        h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, PRESET_BLURB[p] || '')),
       h('button.btn.ghost.small', {
         onclick: async () => {
           const res = await get(`/deploy/preset/${p}`)
@@ -215,15 +215,15 @@ registerView('deploy', async root => {
             body: h('div', {},
               made.length ? h('p', {}, 'Written:') : '',
               made.length ? h('ul', { style: { margin: '0 0 0.8rem 1.1rem' } }, ...made.map(f => h('li', {}, h('code', {}, f)))) : '',
-              kept.length ? h('p.mut', { style: { fontSize: '0.82rem' } }, 'Left alone (already existed): ', kept.map(f => f).join(', ')) : '',
-              h('p.mut', { style: { fontSize: '0.82rem' } }, 'They are written into the project folder, filled in from this site’s configuration. Review before committing.')),
+              kept.length ? h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'Left alone (already existed): ', kept.map(f => f).join(', ')) : '',
+              h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'They are written into the project folder, filled in from this site’s configuration. Review before committing.')),
             okLabel: 'Done',
           })
           toast(made.length ? `Wrote ${made.length} file(s)` : 'Nothing to write', 'ok')
         },
       }, iconEl('download', 13), 'Write files'))))
     return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Deployment files'),
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Deployment files'),
       list.length ? out : h('p.mut', {}, 'No presets for this target.'))
   }
 
@@ -233,18 +233,18 @@ registerView('deploy', async root => {
       const bar = p => {
         const pct = Math.min(100, Math.round((p.total / budget.total) * 100))
         return h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(8rem, 16rem) 1fr 5rem', gap: '0.7rem', alignItems: 'center', padding: '0.35rem 0' } },
-          h('code', { style: { fontSize: '0.76rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.path),
-          h('div', { style: { height: '7px', borderRadius: '99px', background: 'var(--line-soft)', overflow: 'hidden' } },
-            h('div', { style: { width: `${pct}%`, height: '100%', borderRadius: '99px', background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
-          h('span.fnt', { style: { fontSize: '0.74rem', textAlign: 'right', color: p.over.length ? 'var(--warn)' : 'var(--mut)' } }, fmtKb(p.total)))
+          h('code', { style: { fontSize: 'var(--t-s)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.path),
+          h('div', { style: { height: '7px', borderRadius: 'var(--r-pill)', background: 'var(--line-soft)', overflow: 'hidden' } },
+            h('div', { style: { width: `${pct}%`, height: '100%', borderRadius: 'var(--r-pill)', background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
+          h('span.fnt', { style: { fontSize: 'var(--t-xs)', textAlign: 'right', color: p.over.length ? 'var(--warn)' : 'var(--mut)' } }, fmtKb(p.total)))
       }
       holder.replaceChildren(
-        h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.5rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } },
           `Median page ${fmtKb(median)} against a ${fmtKb(budget.total)} budget. ${failures ? `${failures} page(s) over.` : 'Every page inside budget.'} Bars show HTML + CSS + JS; images are counted separately.`),
         h('div.card', { style: { padding: '0.5rem 1rem' } }, ...pages.map(bar)))
     }).catch(e => holder.replaceChildren(h('p.mut', {}, String(e.message || e))))
     return h('section', {},
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Page weight'),
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Page weight'),
       holder)
   }
 

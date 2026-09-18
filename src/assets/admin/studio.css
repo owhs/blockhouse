@@ -106,7 +106,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .top-end { display: flex; align-items: center; gap: var(--s1); }
 .searchish { display: inline-flex; align-items: center; gap: var(--s2); color: var(--fnt); background: var(--bg); border: 1px solid var(--line); padding: var(--s1) var(--s3); border-radius: var(--r-pill); font-size: var(--t-m); min-width: 15rem; justify-content: space-between; cursor: pointer; }
 .searchish:hover { border-color: var(--fnt); color: var(--mut); }
-.kbd { font: 600 0.68rem var(--mono); background: var(--bg-hover); padding: var(--s0) var(--s2); border-radius: var(--r-xs); border: 1px solid var(--line); }
+.kbd { font: var(--fw-semi) var(--t-xs) var(--mono); background: var(--bg-hover); padding: var(--s0) var(--s2); border-radius: var(--r-xs); border: 1px solid var(--line); }
 
 /* Sidebar: grouped, labels always visible; collapses to a tooltipped icon
    rail (⌘B). Labels-by-default is the difference between a tool you can read
@@ -174,7 +174,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .btn.ghost:hover { border-color: var(--fnt); }
 .btn.soft { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
 .btn.danger { background: color-mix(in oklch, var(--err) 12%, transparent); color: var(--err-ink); }
-.btn.danger:hover { background: color-mix(in oklch, var(--err) 20%, transparent); }
+.btn.danger:hover { background: color-mix(in oklch, var(--err) 20%, transparent); color: light-dark(oklch(38% 0.17 25), oklch(86% 0.13 25)); }
 .btn:disabled { opacity: 0.5; pointer-events: none; }
 .btn.small { padding: var(--s1) var(--s3); font-size: var(--t-s); }
 .icon-btn { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: var(--r-s); color: var(--mut); vertical-align: middle; }
@@ -264,7 +264,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .tree-item .t-type { font-size: var(--t-xs); color: var(--fnt); }
 .tree-item .t-grip { cursor: grab; color: var(--fnt); opacity: 0; padding: 0 var(--s0); display: grid; place-items: center; }
 .tree-item:hover .t-grip { opacity: 1; }
-.tree-kids { margin-left: var(--s4); border-left: 1px solid var(--line-soft); padding-left: var(--s1); display: grid; gap: 1px; }
 .tree-add { display: flex; align-items: center; gap: var(--s2); color: var(--fnt); font-size: var(--t-s); padding: var(--s1) var(--s2); border-radius: var(--r-s); width: 100%; }
 .tree-add:hover { background: var(--bg-hover); color: light-dark(var(--acc-strong), var(--acc-bright)); }
 
@@ -364,7 +363,126 @@ a { color: var(--acc-bright); text-decoration: none; }
 .widget .w-sub { font-size: var(--t-xs); color: var(--fnt); }
 .widget svg { width: 100%; height: auto; display: block; }
 .widget.span2 { grid-column: span 2; }
-@media (max-width: 860px) { .widget.span2 { grid-column: span 1; } }
+/* ---------- responsive ----------
+   One block per breakpoint, widest first, so a narrower rule always
+   wins. Before this the shell was three fixed columns with a single
+   media query: below 568px the editor preview computed to 0px, and
+   below 496px the list pane did too — with body{overflow:hidden}
+   leaving no way to reach either. */
+
+@media (max-width: 1280px) {
+  .app:not(.layout-ribbon) { --side-w: 3.4rem; }
+  .app:not(.layout-ribbon) .side-label { display: none; }
+  .app:not(.layout-ribbon) button.side-title span:first-child { display: none; }
+  .app:not(.layout-ribbon) button.side-title { padding: 0; height: 0; margin: var(--s2) var(--s1); border-top: 1px solid var(--line-soft); overflow: hidden; }
+  .app:not(.layout-ribbon) .side-item { justify-content: center; padding: var(--s2) 0; }
+  .app:not(.layout-ribbon) .side-item .tip { display: block; }
+  .app:not(.layout-ribbon) .side-item:hover .tip { opacity: 1; }
+  .app:not(.layout-ribbon) .count,
+  .app:not(.layout-ribbon) .pin-mark,
+  .app:not(.layout-ribbon) .nav-tools { display: none; }
+  :root { --insp-w: 19rem; }
+}
+
+@media (max-width: 1140px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .split > .panel {
+    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: var(--panel-w);
+    z-index: 40; translate: -100% 0; transition: translate var(--dur-2) var(--ease);
+    box-shadow: var(--shadow-l);
+  }
+  .split.panel-open > .panel { translate: 0 0; }
+  .panel-toggle { display: inline-flex; }
+  /* the outline leaves the grid here, so the grid must stop reserving a track
+     for it — otherwise the inspector lands in a 0px column */
+  .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
+  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
+  .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+  .outline { position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: 14rem; z-index: 40; translate: -100% 0; box-shadow: var(--shadow-l); }
+  .outline.open { translate: 0 0; }
+  .outline.closed { width: 14rem; translate: -100% 0; }
+  .outline-toggle { display: inline-flex; }
+  .menu-studio, .design-studio { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(18rem, 1fr); }
+  .split > .panel, .outline {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .split.panel-open > .panel, .outline.open {
+    visibility: visible; pointer-events: auto; transition-delay: 0s, 0s;
+  }
+}
+
+@media (max-width: 1100px) {
+  .editor, .app.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+  .inspector {
+    position: fixed; top: 2.9rem; bottom: 0; right: 0; width: min(var(--insp-w), 92vw);
+    z-index: 45; translate: 100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
+  }
+  .app.insp-open .inspector { translate: 0 0; }
+  .app.insp-left .editor .inspector { order: 0; }
+  .insp-resize { display: none; }
+  .insp-toggle { display: inline-flex; }
+  .fields-grid { grid-template-columns: 1fr; }
+ .app.insp-hidden .inspector { display: grid; } 
+  .inspector {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .app.insp-open .inspector { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+}
+
+@media (max-width: 860px) {
+ .widget.span2 { grid-column: span 1; } 
+  .app, .app.layout-ribbon { grid-template-columns: 1fr; grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
+  .app .side, .app.layout-ribbon .side {
+    display: flex; position: fixed; top: 2.9rem; bottom: 0; left: 0; width: 15rem; z-index: 50;
+    translate: -100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
+  }
+  .app.nav-open .side { translate: 0 0; }
+  /* Off-canvas has room for words again — these must out-specify the
+     icon-rail rules from the wider breakpoint. */
+  .app:not(.layout-ribbon) .side-label,
+  .app.layout-ribbon .side-label { display: flex; }
+  .app:not(.layout-ribbon) button.side-title span:first-child,
+  .app.layout-ribbon button.side-title span:first-child { display: inline; }
+  .app:not(.layout-ribbon) button.side-title,
+  .app.layout-ribbon button.side-title { padding: var(--s3) var(--s3) var(--s1); height: auto; margin: 0; border-top: 0; }
+  .app:not(.layout-ribbon) .side-item { justify-content: flex-start; padding: var(--s2) var(--s3); }
+  .app:not(.layout-ribbon) .side-item .tip { display: none; }
+  .app:not(.layout-ribbon) .nav-tools { display: flex; }
+  .app:not(.layout-ribbon) .count { display: block; }
+  .app.side-collapsed { --side-w: 15rem; }
+  .app.layout-ribbon .ribbon { display: none; }
+  .nav-toggle { display: inline-flex; }
+  .split > .panel, .outline { left: 0; }
+  .searchish { min-width: 0; }
+  .searchish .searchish-label, .searchish .kbd { display: none; }
+  .top-site { display: none; }
+  .main-pad { padding: var(--s4) var(--s4) var(--s7); }
+  .editor-top { padding: var(--s2) var(--s3); gap: var(--s2); }
+  .app .side {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .app.nav-open .side { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+  .editor-top { flex-wrap: nowrap; overflow: hidden; }
+  .editor-top .seg { display: none; }
+  .editor-top .chip { display: none; }
+  .editor-top .save-state { min-width: 0; font-size: var(--t-xs); }
+  .editor-top .btn.ghost.small { display: none; }
+  .doc-title-input { font-size: var(--t-m); }
+}
+
+@media (max-width: 620px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+  .dlg { width: 96vw; }
+  .toasts { left: var(--s2); right: var(--s2); translate: none; }
+  .toast { max-width: none; }
+  .doc-title-input { min-width: 5rem; }
+  .editor-top .save-state span:last-child { display: none; }
+  .editor-top-group.grow { min-width: 4rem; }
+}
+
 
 /* seo */
 .seo-check { display: flex; gap: var(--s3); padding: var(--s2) var(--s0); font-size: var(--t-m); align-items: baseline; }
@@ -434,8 +552,8 @@ a { color: var(--acc-bright); text-decoration: none; }
 .stat .l { font-size: var(--t-s); color: var(--mut); font-weight: var(--fw-semi); }
 .mut { color: var(--mut); } .fnt { color: var(--fnt); } .mono { font-family: var(--mono); }
 .hr { border: 0; border-top: 1px solid var(--line-soft); margin: var(--s5) 0; }
-.pill-perm { display: inline-block; font: 600 0.72rem var(--mono); background: var(--bg-hover); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s0) var(--s2); margin: var(--s0) var(--s0) var(--s0) 0; }
-.code-out { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s3) var(--s4); font: 0.78rem var(--mono); word-break: break-all; user-select: all; }
+.pill-perm { display: inline-block; font: var(--fw-semi) var(--t-xs) var(--mono); background: var(--bg-hover); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s0) var(--s2); margin: var(--s0) var(--s0) var(--s0) 0; }
+.code-out { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s3) var(--s4); font: var(--t-s) var(--mono); word-break: break-all; user-select: all; }
 .swatches { display: flex; gap: var(--s2); }
 .swatch { width: 1.9rem; height: 1.9rem; border-radius: var(--r-s); border: 2px solid transparent; cursor: pointer; display: grid; place-items: center; color: #fff; }
 .swatch.active { border-color: var(--ink); }
@@ -537,10 +655,10 @@ a { color: var(--acc-bright); text-decoration: none; }
 
 .ide-root { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; height: 100%; }
 .ide-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 0; background: var(--bg-raise); position: relative; overflow: hidden; }
-.ide-gutter { padding: var(--s3) var(--s2) var(--s3) var(--s4); text-align: right; color: var(--fnt); font: 0.78rem/1.6 var(--mono); user-select: none; border-right: 1px solid var(--line-soft); display: grid; align-content: start; will-change: transform; }
+.ide-gutter { padding: var(--s3) var(--s2) var(--s3) var(--s4); text-align: right; color: var(--fnt); font: var(--t-s)/1.6 var(--mono); user-select: none; border-right: 1px solid var(--line-soft); display: grid; align-content: start; will-change: transform; }
 .ide-surface { position: relative; min-width: 0; overflow: hidden; }
 .ide-hl, .ide-ta, .ide-mirror {
-  font: 0.82rem/1.6 var(--mono); tab-size: 2; white-space: pre; word-break: normal;
+  font: var(--t-m)/1.6 var(--mono); tab-size: 2; white-space: pre; word-break: normal;
   padding: var(--s3) var(--s4); margin: 0; border: 0;
 }
 .ide-hl { position: absolute; inset: 0; pointer-events: none; color: var(--ink); will-change: transform; min-width: max-content; }
@@ -548,10 +666,10 @@ a { color: var(--acc-bright); text-decoration: none; }
 .ide-ta { position: absolute; inset: 0; width: 100%; height: 100%; resize: none; outline: 0; background: transparent; color: transparent; caret-color: var(--ink); overflow: auto; z-index: 1; }
 .ide-ta::selection { background: color-mix(in oklch, var(--acc) 25%, transparent); }
 .ide-mirror { position: absolute; inset: 0; visibility: hidden; pointer-events: none; white-space: pre; }
-.ide-ctx { padding: var(--s2) var(--s4); border-top: 1px solid var(--line-soft); background: var(--bg-panel); font: 0.72rem/1.4 var(--mono); color: var(--fnt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ide-ctx { padding: var(--s2) var(--s4); border-top: 1px solid var(--line-soft); background: var(--bg-panel); font: var(--t-xs)/1.4 var(--mono); color: var(--fnt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ide-ctx.has-doc { color: var(--ink); }
 .ide-pop { position: absolute; z-index: 30; min-width: 15rem; max-width: 24rem; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r-s); box-shadow: 0 10px 34px #0005; padding: 3px; display: grid; }
-.ide-pop-item { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s1) var(--s3); border-radius: var(--r-xs); text-align: left; font: 0.8rem/1.4 var(--mono); }
+.ide-pop-item { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s1) var(--s3); border-radius: var(--r-xs); text-align: left; font: var(--t-s)/1.4 var(--mono); }
 .ide-pop-item.active, .ide-pop-item:hover { background: var(--acc-soft); }
 .ide-pop-label { font-weight: var(--fw-semi); color: var(--ink); }
 .ide-pop-hint { font: var(--t-xs)/1.3 var(--font); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -612,13 +730,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .icon-btn { transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
 .icon-btn:active, .row-item:active, .tree-item:active, .pal-item:active { transform: scale(0.985); }
 
-@media (prefers-reduced-motion: reduce) {
-  .view > * { animation: none; }
-  .spin { animation: none; border-top-color: var(--acc); opacity: 0.65; }
-  .sk { animation: none; }
-  .picker-item:hover, .media-card:hover, .kb-card:hover { translate: none; }
-  .icon-btn:active, .row-item:active, .tree-item:active, .pal-item:active, .btn:active { transform: none; }
-}
 
 /* ---------- skeletons ---------- */
 .sk { background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-active) 37%, var(--bg-hover) 63%); background-size: 400% 100%; animation: sk-shimmer 1.4s linear infinite; border-radius: var(--r-s); }
@@ -711,7 +822,7 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .outline-head { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s3) var(--s2); }
 .outline-body { overflow-y: auto; padding: 0 var(--s2) var(--s4); min-height: 0; }
 .app.insp-left .editor .outline { order: 3; border-right: 0; border-left: 1px solid var(--line); }
-.preview-scale { position: absolute; right: var(--s3); bottom: var(--s3); z-index: 4; font: 600 var(--t-xs) var(--mono); background: var(--bg-raise); border: 1px solid var(--line); color: var(--mut); padding: var(--s0) var(--s2); border-radius: var(--r-pill); opacity: 0.85; }
+.preview-scale { position: absolute; right: var(--s3); bottom: var(--s3); z-index: 4; font: var(--fw-semi) var(--t-xs) var(--mono); background: var(--bg-raise); border: 1px solid var(--line); color: var(--mut); padding: var(--s0) var(--s2); border-radius: var(--r-pill); opacity: 0.85; }
 .editor-top-group { display: inline-flex; align-items: center; gap: var(--s2); }
 .editor-top-group.grow { flex: 1; min-width: 0; }
 
@@ -724,98 +835,17 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
    body{overflow:hidden} left no way to reach either. */
 
 /* ≤1280: the sidebar gives its width back to the work */
-@media (max-width: 1280px) {
-  .app:not(.layout-ribbon) { --side-w: 3.4rem; }
-  .app:not(.layout-ribbon) .side-label { display: none; }
-  .app:not(.layout-ribbon) button.side-title span:first-child { display: none; }
-  .app:not(.layout-ribbon) button.side-title { padding: 0; height: 0; margin: var(--s2) var(--s1); border-top: 1px solid var(--line-soft); overflow: hidden; }
-  .app:not(.layout-ribbon) .side-item { justify-content: center; padding: var(--s2) 0; }
-  .app:not(.layout-ribbon) .side-item .tip { display: block; }
-  .app:not(.layout-ribbon) .side-item:hover .tip { opacity: 1; }
-  .app:not(.layout-ribbon) .count,
-  .app:not(.layout-ribbon) .pin-mark,
-  .app:not(.layout-ribbon) .nav-tools { display: none; }
-  :root { --insp-w: 19rem; }
-}
 
 /* ≤1140: list panes become drawers so content keeps its width */
-@media (max-width: 1140px) {
-  .split { grid-template-columns: minmax(0, 1fr); }
-  .split > .panel {
-    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: var(--panel-w);
-    z-index: 40; translate: -100% 0; transition: translate var(--dur-2) var(--ease);
-    box-shadow: var(--shadow-l);
-  }
-  .split.panel-open > .panel { translate: 0 0; }
-  .panel-toggle { display: inline-flex; }
-  /* the outline leaves the grid here, so the grid must stop reserving a track
-     for it — otherwise the inspector lands in a 0px column */
-  .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
-  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
-  .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
-  .outline { position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: 14rem; z-index: 40; translate: -100% 0; box-shadow: var(--shadow-l); }
-  .outline.open { translate: 0 0; }
-  .outline.closed { width: 14rem; translate: -100% 0; }
-  .outline-toggle { display: inline-flex; }
-  .menu-studio, .design-studio { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(18rem, 1fr); }
-}
 
 /* ≤1100: the inspector becomes a drawer — the preview is the point of the editor */
-@media (max-width: 1100px) {
-  .editor, .app.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
-  .inspector {
-    position: fixed; top: 2.9rem; bottom: 0; right: 0; width: min(var(--insp-w), 92vw);
-    z-index: 45; translate: 100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
-  }
-  .app.insp-open .inspector { translate: 0 0; }
-  .app.insp-left .editor .inspector { order: 0; }
-  .insp-resize { display: none; }
-  .insp-toggle { display: inline-flex; }
-  .fields-grid { grid-template-columns: 1fr; }
-}
 
 /* ≤860: one column, navigation off-canvas */
-@media (max-width: 860px) {
-  .app, .app.layout-ribbon { grid-template-columns: 1fr; grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
-  .app .side, .app.layout-ribbon .side {
-    display: flex; position: fixed; top: 2.9rem; bottom: 0; left: 0; width: 15rem; z-index: 50;
-    translate: -100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
-  }
-  .app.nav-open .side { translate: 0 0; }
-  /* Off-canvas has room for words again — these must out-specify the
-     icon-rail rules from the wider breakpoint. */
-  .app:not(.layout-ribbon) .side-label,
-  .app.layout-ribbon .side-label { display: flex; }
-  .app:not(.layout-ribbon) button.side-title span:first-child,
-  .app.layout-ribbon button.side-title span:first-child { display: inline; }
-  .app:not(.layout-ribbon) button.side-title,
-  .app.layout-ribbon button.side-title { padding: var(--s3) var(--s3) var(--s1); height: auto; margin: 0; border-top: 0; }
-  .app:not(.layout-ribbon) .side-item { justify-content: flex-start; padding: var(--s2) var(--s3); }
-  .app:not(.layout-ribbon) .side-item .tip { display: none; }
-  .app:not(.layout-ribbon) .nav-tools { display: flex; }
-  .app:not(.layout-ribbon) .count { display: block; }
-  .app.side-collapsed { --side-w: 15rem; }
-  .app.layout-ribbon .ribbon { display: none; }
-  .nav-toggle { display: inline-flex; }
-  .split > .panel, .outline { left: 0; }
-  .searchish { min-width: 0; }
-  .searchish .searchish-label, .searchish .kbd { display: none; }
-  .top-site { display: none; }
-  .main-pad { padding: var(--s4) var(--s4) var(--s7); }
-  .editor-top { padding: var(--s2) var(--s3); gap: var(--s2); }
-}
 
-@media (max-width: 620px) {
-  .cards { grid-template-columns: 1fr 1fr; }
-  .dlg { width: 96vw; }
-  .toasts { left: var(--s2); right: var(--s2); translate: none; }
-  .toast { max-width: none; }
-  .doc-title-input { min-width: 5rem; }
-}
 
 
 /* outline rows, disclosure groups and SEO check icons */
-.tree-item { gap: var(--s1); }
+
 .t-fold { width: 0.9rem; display: grid; place-items: center; flex-shrink: 0; color: var(--fnt); }
 .t-fold:hover { color: var(--ink); }
 .tree-item .mrow-tools { margin-left: auto; display: inline-flex; visibility: hidden; opacity: 0; transition: opacity var(--dur-1) var(--ease); }
@@ -839,7 +869,6 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .app.insp-hidden .editor { grid-template-columns: auto minmax(0, 1fr); }
 .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr) auto; }
 .app.insp-hidden .inspector { display: none; }
-@media (max-width: 1100px) { .app.insp-hidden .inspector { display: grid; } }
 button.preview-scale { cursor: pointer; }
 button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacity: 1; }
 
@@ -853,45 +882,10 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
    A drawer parked off-screen with translate is still in the tab order and
    still stretches the document. visibility:hidden takes it out of both, and
    delaying it until the slide finishes keeps the animation intact. */
-@media (max-width: 1140px) {
-  .split > .panel, .outline {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .split.panel-open > .panel, .outline.open {
-    visibility: visible; pointer-events: auto; transition-delay: 0s, 0s;
-  }
-}
-@media (max-width: 1100px) {
-  .inspector {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .app.insp-open .inspector { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
-}
-@media (max-width: 860px) {
-  .app .side {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .app.nav-open .side { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
-}
 
 /* ---------- the editor toolbar at narrow widths ----------
    14 controls in one wrapping row pushed the canvas off the bottom of the
    screen. Below 860 the row keeps only what you act on. */
-@media (max-width: 860px) {
-  .editor-top { flex-wrap: nowrap; overflow: hidden; }
-  .editor-top .seg { display: none; }
-  .editor-top .chip { display: none; }
-  .editor-top .save-state { min-width: 0; font-size: var(--t-xs); }
-  .editor-top .btn.ghost.small { display: none; }
-  .doc-title-input { font-size: var(--t-m); }
-}
-@media (max-width: 620px) {
-  .editor-top .save-state span:last-child { display: none; }
-  .editor-top-group.grow { min-width: 4rem; }
-}
 
 /* both live regions stack from the same place */
 .toasts-alert { bottom: 1.1rem; }
@@ -900,3 +894,17 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
 /* plugin cards are buttons, so they need the card's look without a button's reset */
 button.card.plug-card { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 button.card.plug-card:hover { border-color: var(--acc); }
+
+/* ---------- reduced motion, part two ----------
+   These name specific components, so they must come after the components
+   themselves — sitting earlier in the file, `.sk { animation: none }` was
+   losing to the shimmer rule it was meant to switch off. The duration-token
+   override near the top handles transitions; this handles keyframes. */
+@media (prefers-reduced-motion: reduce) {
+  .view > * { animation: none; }
+  .spin { animation: none; border-top-color: var(--acc); opacity: 0.65; }
+  .sk { animation: none; background: var(--bg-hover); }
+  .picker-item:hover, .media-card:hover, .kb-card:hover { translate: none; }
+  .icon-btn:active, .row-item:active, .tree-item:active, .pal-item:active, .btn:active { transform: none; }
+  .ctx-menu { animation: none; }
+}

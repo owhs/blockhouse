@@ -85,7 +85,7 @@ export function renderField(def, values, onChange, opts = {}) {
       }
       wrap.append(labelRow(def), ta)
       if (def.type === 'svg') {
-        prev = h('div', { style: { padding: '0.6rem', border: '1px dashed var(--line)', borderRadius: '7px', display: 'none', maxHeight: '9rem', overflow: 'hidden', color: 'var(--acc)' } })
+        prev = h('div', { style: { padding: '0.6rem', border: '1px dashed var(--line)', borderRadius: 'var(--r-s)', display: 'none', maxHeight: '9rem', overflow: 'hidden', color: 'var(--acc)' } })
         wrap.appendChild(prev)
         updatePrev(val)
       }
@@ -124,7 +124,7 @@ export function renderField(def, values, onChange, opts = {}) {
     case 'json': {
       const ta = h('textarea.mono', { rows: def.rows || 3, spellcheck: 'false' },
         typeof val === 'string' ? val : (val && Object.keys(val).length ? JSON.stringify(val, null, 2) : ''))
-      const jsonErr = h('span.help', { role: 'status', style: { color: 'var(--err)' } })
+      const jsonErr = h('span.help', { role: 'status', style: { color: 'var(--err-ink)' } })
       ta.addEventListener('input', () => {
         const raw = ta.value.trim()
         if (!raw) { jsonErr.textContent = ''; ta.style.borderColor = ''; deb(null); return }
@@ -143,7 +143,7 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'image': {
-      const preview = h('div.media-thumb', { style: { aspectRatio: '16/7', borderRadius: '7px', border: '1px solid var(--line)', cursor: 'pointer', overflow: 'hidden' } })
+      const preview = h('div.media-thumb', { style: { aspectRatio: '16/7', borderRadius: 'var(--r-s)', border: '1px solid var(--line)', cursor: 'pointer', overflow: 'hidden' } })
       const refresh = async () => {
         preview.replaceChildren()
         preview.style.backgroundImage = ''

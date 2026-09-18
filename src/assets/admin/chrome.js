@@ -69,7 +69,7 @@ registerView('chrome', async (root, [slotParam]) => {
       return h('div', { style: { marginBottom: '0.5rem' } },
         h('div.mrow', {},
           h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
-          h('button', { style: { flex: 1, cursor: 'pointer', textAlign: 'left', fontWeight: 660 }, 'aria-expanded': 'false', onclick: e => { open.hidden = !open.hidden; e.currentTarget.setAttribute('aria-expanded', String(!open.hidden)) } }, def.label || node.type),
+          h('button', { style: { flex: 1, cursor: 'pointer', textAlign: 'left', fontWeight: 'var(--fw-semi)' }, 'aria-expanded': 'false', onclick: e => { open.hidden = !open.hidden; e.currentTarget.setAttribute('aria-expanded', String(!open.hidden)) } }, def.label || node.type),
           h('span.mrow-tools', {},
             h('button.icon-btn', { title: 'Move up', 'aria-label': 'Move this block up', onclick: () => { if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; mark(); paintBlocks() } } }, iconEl('up', 13)),
             h('button.icon-btn', { title: 'Move down', 'aria-label': 'Move this block down', onclick: () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; mark(); paintBlocks() } } }, iconEl('down', 13)),
@@ -79,7 +79,7 @@ registerView('chrome', async (root, [slotParam]) => {
     })
     blocksEl.replaceChildren(
       h('div.page-head', { style: { marginBottom: '0.4rem' } },
-        h('div', {}, h('strong', {}, label), h('p.fnt', { style: { fontSize: '0.78rem' } }, hint)),
+        h('div', {}, h('strong', {}, label), h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, hint)),
         h('div', { style: { display: 'flex', gap: '0.5rem' } },
           h('button.btn.ghost.small', { onclick: addBlock }, iconEl('plus', 13), 'Add block'), saveBtn)),
       rows.length ? h('div', {}, ...rows)
@@ -103,8 +103,8 @@ registerView('chrome', async (root, [slotParam]) => {
         },
           h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
           h('div', { style: { textAlign: 'left' } },
-            h('div', { style: { fontWeight: 640, fontSize: '0.84rem' } }, def.label),
-            h('div.fnt', { style: { fontSize: '0.72rem' } }, def.description || ''))))
+            h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, def.label),
+            h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, def.description || ''))))
       }
       body.append(h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, g), grid)
     }
@@ -115,12 +115,12 @@ registerView('chrome', async (root, [slotParam]) => {
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, 'Header & footer'),
-        h('span.fnt', { style: { fontSize: '0.7rem' } }, 'slots')),
+        h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'slots')),
       slotList),
     h('div.main', { style: { display: 'grid', gridTemplateRows: 'auto 1fr', gap: '0.9rem', padding: '1rem' } },
       h('div', {}, blocksEl),
       h('div', {},
-        h('p.fnt', { style: { fontSize: '0.75rem', margin: '0 0 0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0 0 0.4rem' } },
           'Live preview — saves apply to every page. The header and footer *structure* is a template file (Site → Templates); this is the content poured into it.'),
         previewWrap)))
   )

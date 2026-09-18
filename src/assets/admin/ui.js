@@ -360,7 +360,7 @@ export function makeTreeSortable(root, { onMove, canDrop = () => true } = {}) {
 export function emptyState(iconOrHtml, title, text, action) {
   const ico = String(iconOrHtml).startsWith('<')
     ? h('div.empty-ico', { html: iconOrHtml })
-    : h('div.empty-ico', { style: { fontSize: '1.6rem' } }, iconOrHtml)
+    : h('div.empty-ico', { style: { fontSize: 'var(--t-3xl)' } }, iconOrHtml)
   return h('div.empty', {}, ico, h('h3', {}, title), text ? h('p', {}, text) : '', action || '')
 }
 
