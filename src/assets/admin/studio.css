@@ -363,127 +363,10 @@ a { color: var(--acc-bright); text-decoration: none; }
 .widget .w-sub { font-size: var(--t-xs); color: var(--fnt); }
 .widget svg { width: 100%; height: auto; display: block; }
 .widget.span2 { grid-column: span 2; }
-/* ---------- responsive ----------
-   One block per breakpoint, widest first, so a narrower rule always
-   wins. Before this the shell was three fixed columns with a single
-   media query: below 568px the editor preview computed to 0px, and
-   below 496px the list pane did too — with body{overflow:hidden}
-   leaving no way to reach either. */
-
-@media (max-width: 1280px) {
-  .app:not(.layout-ribbon) { --side-w: 3.4rem; }
-  .app:not(.layout-ribbon) .side-label { display: none; }
-  .app:not(.layout-ribbon) button.side-title span:first-child { display: none; }
-  .app:not(.layout-ribbon) button.side-title { padding: 0; height: 0; margin: var(--s2) var(--s1); border-top: 1px solid var(--line-soft); overflow: hidden; }
-  .app:not(.layout-ribbon) .side-item { justify-content: center; padding: var(--s2) 0; }
-  .app:not(.layout-ribbon) .side-item .tip { display: block; }
-  .app:not(.layout-ribbon) .side-item:hover .tip { opacity: 1; }
-  .app:not(.layout-ribbon) .count,
-  .app:not(.layout-ribbon) .pin-mark,
-  .app:not(.layout-ribbon) .nav-tools { display: none; }
-  :root { --insp-w: 19rem; }
-}
-
-@media (max-width: 1140px) {
-  .split { grid-template-columns: minmax(0, 1fr); }
-  .split > .panel {
-    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: var(--panel-w);
-    z-index: 40; translate: -100% 0; transition: translate var(--dur-2) var(--ease);
-    box-shadow: var(--shadow-l);
-  }
-  .split.panel-open > .panel { translate: 0 0; }
-  .panel-toggle { display: inline-flex; }
-  /* the outline leaves the grid here, so the grid must stop reserving a track
-     for it — otherwise the inspector lands in a 0px column */
-  .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
-  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
-  .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
-  .outline { position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: 14rem; z-index: 40; translate: -100% 0; box-shadow: var(--shadow-l); }
-  .outline.open { translate: 0 0; }
-  .outline.closed { width: 14rem; translate: -100% 0; }
-  .outline-toggle { display: inline-flex; }
-  .menu-studio, .design-studio { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(18rem, 1fr); }
-  .split > .panel, .outline {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .split.panel-open > .panel, .outline.open {
-    visibility: visible; pointer-events: auto; transition-delay: 0s, 0s;
-  }
-}
-
-@media (max-width: 1100px) {
-  .editor, .app.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
-  .inspector {
-    position: fixed; top: 2.9rem; bottom: 0; right: 0; width: min(var(--insp-w), 92vw);
-    z-index: 45; translate: 100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
-  }
-  .app.insp-open .inspector { translate: 0 0; }
-  .app.insp-left .editor .inspector { order: 0; }
-  .insp-resize { display: none; }
-  .insp-toggle { display: inline-flex; }
-  .fields-grid { grid-template-columns: 1fr; }
- .app.insp-hidden .inspector { display: grid; } 
-  .inspector {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .app.insp-open .inspector { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
-}
-
-@media (max-width: 860px) {
- .widget.span2 { grid-column: span 1; } 
-  .app, .app.layout-ribbon { grid-template-columns: 1fr; grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
-  .app .side, .app.layout-ribbon .side {
-    display: flex; position: fixed; top: 2.9rem; bottom: 0; left: 0; width: 15rem; z-index: 50;
-    translate: -100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
-  }
-  .app.nav-open .side { translate: 0 0; }
-  /* Off-canvas has room for words again — these must out-specify the
-     icon-rail rules from the wider breakpoint. */
-  .app:not(.layout-ribbon) .side-label,
-  .app.layout-ribbon .side-label { display: flex; }
-  .app:not(.layout-ribbon) button.side-title span:first-child,
-  .app.layout-ribbon button.side-title span:first-child { display: inline; }
-  .app:not(.layout-ribbon) button.side-title,
-  .app.layout-ribbon button.side-title { padding: var(--s3) var(--s3) var(--s1); height: auto; margin: 0; border-top: 0; }
-  .app:not(.layout-ribbon) .side-item { justify-content: flex-start; padding: var(--s2) var(--s3); }
-  .app:not(.layout-ribbon) .side-item .tip { display: none; }
-  .app:not(.layout-ribbon) .nav-tools { display: flex; }
-  .app:not(.layout-ribbon) .count { display: block; }
-  .app.side-collapsed { --side-w: 15rem; }
-  .app.layout-ribbon .ribbon { display: none; }
-  .nav-toggle { display: inline-flex; }
-  .split > .panel, .outline { left: 0; }
-  .searchish { min-width: 0; }
-  .searchish .searchish-label, .searchish .kbd { display: none; }
-  .top-site { display: none; }
-  .main-pad { padding: var(--s4) var(--s4) var(--s7); }
-  .editor-top { padding: var(--s2) var(--s3); gap: var(--s2); }
-  .app .side {
-    visibility: hidden; pointer-events: none;
-    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
-  }
-  .app.nav-open .side { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
-  .editor-top { flex-wrap: nowrap; overflow: hidden; }
-  .editor-top .seg { display: none; }
-  .editor-top .chip { display: none; }
-  .editor-top .save-state { min-width: 0; font-size: var(--t-xs); }
-  .editor-top .btn.ghost.small { display: none; }
-  .doc-title-input { font-size: var(--t-m); }
-}
-
-@media (max-width: 620px) {
-  .cards { grid-template-columns: 1fr 1fr; }
-  .dlg { width: 96vw; }
-  .toasts { left: var(--s2); right: var(--s2); translate: none; }
-  .toast { max-width: none; }
-  .doc-title-input { min-width: 5rem; }
-  .editor-top .save-state span:last-child { display: none; }
-  .editor-top-group.grow { min-width: 4rem; }
-}
 
 
+/* ≤1400: the page outline becomes a drawer — an inline rail costs the canvas
+   224px, which only a genuinely wide screen can spare. */
 /* seo */
 .seo-check { display: flex; gap: var(--s3); padding: var(--s2) var(--s0); font-size: var(--t-m); align-items: baseline; }
 .seo-check .dot { width: 0.5rem; height: 0.5rem; border-radius: var(--r-pill); flex-shrink: 0; translate: 0 -1px; }
@@ -827,7 +710,6 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .editor-top-group.grow { flex: 1; min-width: 0; }
 
 /* Controls that exist only once something has collapsed into a drawer. */
-.nav-toggle, .panel-toggle, .insp-toggle, .outline-toggle { display: none; }
 
 /* ---------- responsive ----------
    The shell used to be three fixed columns with no breakpoint: below 568px the
@@ -894,6 +776,143 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
 /* plugin cards are buttons, so they need the card's look without a button's reset */
 button.card.plug-card { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 button.card.plug-card:hover { border-color: var(--acc); }
+
+/* ==========================================================================
+   Responsive — LAST in the sheet on purpose.
+   One block per breakpoint, widest first, so a narrower rule always wins and
+   every one of them outranks the component defaults above. The shell used to
+   be three fixed columns with a single media query: below 568px the editor
+   preview computed to 0px and below 496px the list pane did too, with
+   body{overflow:hidden} leaving no way to reach either.
+   ========================================================================== */
+
+/* Controls that exist only once something has collapsed into a drawer.
+   Must sit BEFORE the breakpoints, or it wins at every width. */
+.nav-toggle, .panel-toggle, .insp-toggle, .outline-toggle { display: none; }
+
+@media (max-width: 1400px) {
+  .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
+  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
+  .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+  .outline {
+    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: 14rem; z-index: 40;
+    translate: -100% 0; box-shadow: var(--shadow-l);
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .outline.open, .outline.closed.open { translate: 0 0; visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+  .outline.closed { width: 14rem; translate: -100% 0; }
+  .outline-toggle { display: inline-flex; }
+}
+
+@media (max-width: 1280px) {
+  .app:not(.layout-ribbon) { --side-w: 3.4rem; }
+  .app:not(.layout-ribbon) .side-label { display: none; }
+  .app:not(.layout-ribbon) button.side-title span:first-child { display: none; }
+  .app:not(.layout-ribbon) button.side-title { padding: 0; height: 0; margin: var(--s2) var(--s1); border-top: 1px solid var(--line-soft); overflow: hidden; }
+  .app:not(.layout-ribbon) .side-item { justify-content: center; padding: var(--s2) 0; }
+  .app:not(.layout-ribbon) .side-item .tip { display: block; }
+  .app:not(.layout-ribbon) .side-item:hover .tip { opacity: 1; }
+  .app:not(.layout-ribbon) .count,
+  .app:not(.layout-ribbon) .pin-mark,
+  .app:not(.layout-ribbon) .nav-tools { display: none; }
+  :root { --insp-w: 19rem; }
+}
+
+@media (max-width: 1140px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .split > .panel {
+    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: var(--panel-w);
+    z-index: 40; translate: -100% 0; transition: translate var(--dur-2) var(--ease);
+    box-shadow: var(--shadow-l);
+  }
+  .split.panel-open > .panel { translate: 0 0; }
+  .panel-toggle { display: inline-flex; }
+  /* the outline leaves the grid here, so the grid must stop reserving a track
+     for it — otherwise the inspector lands in a 0px column */
+  .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
+  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
+  .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+  .menu-studio, .design-studio { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(18rem, 1fr); }
+  .split > .panel {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .split.panel-open > .panel {
+    visibility: visible; pointer-events: auto; transition-delay: 0s, 0s;
+  }
+}
+
+@media (max-width: 1100px) {
+  .editor, .app.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+  .inspector {
+    position: fixed; top: 2.9rem; bottom: 0; right: 0; width: min(var(--insp-w), 92vw);
+    z-index: 45; translate: 100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
+  }
+  .app.insp-open .inspector { translate: 0 0; }
+  .app.insp-left .editor .inspector { order: 0; }
+  .insp-resize { display: none; }
+  .insp-toggle { display: inline-flex; }
+  .fields-grid { grid-template-columns: 1fr; }
+ .app.insp-hidden .inspector { display: grid; } 
+  .inspector {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .app.insp-open .inspector { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+}
+
+@media (max-width: 860px) {
+ .widget.span2 { grid-column: span 1; } 
+  .app, .app.layout-ribbon { grid-template-columns: 1fr; grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
+  .app .side, .app.layout-ribbon .side {
+    display: flex; position: fixed; top: 2.9rem; bottom: 0; left: 0; width: 15rem; z-index: 50;
+    translate: -100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
+  }
+  .app.nav-open .side { translate: 0 0; }
+  /* Off-canvas has room for words again — these must out-specify the
+     icon-rail rules from the wider breakpoint. */
+  .app:not(.layout-ribbon) .side-label,
+  .app.layout-ribbon .side-label { display: flex; }
+  .app:not(.layout-ribbon) button.side-title span:first-child,
+  .app.layout-ribbon button.side-title span:first-child { display: inline; }
+  .app:not(.layout-ribbon) button.side-title,
+  .app.layout-ribbon button.side-title { padding: var(--s3) var(--s3) var(--s1); height: auto; margin: 0; border-top: 0; }
+  .app:not(.layout-ribbon) .side-item { justify-content: flex-start; padding: var(--s2) var(--s3); }
+  .app:not(.layout-ribbon) .side-item .tip { display: none; }
+  .app:not(.layout-ribbon) .nav-tools { display: flex; }
+  .app:not(.layout-ribbon) .count { display: block; }
+  .app.side-collapsed { --side-w: 15rem; }
+  .app.layout-ribbon .ribbon { display: none; }
+  .nav-toggle { display: inline-flex; }
+  .split > .panel, .outline { left: 0; }
+  .searchish { min-width: 0; }
+  .searchish .searchish-label, .searchish .kbd { display: none; }
+  .top-site { display: none; }
+  .main-pad { padding: var(--s4) var(--s4) var(--s7); }
+  .editor-top { padding: var(--s2) var(--s3); gap: var(--s2); }
+  .app .side {
+    visibility: hidden; pointer-events: none;
+    transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
+  }
+  .app.nav-open .side { visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+  .editor-top { flex-wrap: nowrap; overflow: hidden; }
+  .editor-top .seg { display: none; }
+  .editor-top .chip { display: none; }
+  .editor-top .save-state { min-width: 0; font-size: var(--t-xs); }
+  .editor-top .btn.ghost.small { display: none; }
+  .doc-title-input { font-size: var(--t-m); }
+}
+
+@media (max-width: 620px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+  .dlg { width: 96vw; }
+  .toasts { left: var(--s2); right: var(--s2); translate: none; }
+  .toast { max-width: none; }
+  .doc-title-input { min-width: 5rem; }
+  .editor-top .save-state span:last-child { display: none; }
+  .editor-top-group.grow { min-width: 4rem; }
+}
 
 /* ---------- reduced motion, part two ----------
    These name specific components, so they must come after the components
