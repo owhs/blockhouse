@@ -623,18 +623,24 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       get('/templates/pages').then(r => { window.__blockhousePageTpls = ['', ...r.pages]; drawTpl(window.__blockhousePageTpls) }).catch(() => {})
     }
 
+    const pubHelp = h('span.help', {}, publishAtHelp())
     inspBody.replaceChildren(
       h('div.insp-section-title', {}, 'Publishing'),
       renderFields([
         { key: 'slug', type: 'text', label: 'Slug', help: 'The last part of the address. Old slugs redirect automatically.' },
-        { key: 'publishAt', type: 'date', label: 'Publish at', help: publishAtHelp() },
+        { key: 'publishAt', type: 'date', label: 'Publish at' },
       ], pageVals, (k, v) => {
         snapshotOnce('Edit page settings')
         if (k === 'slug') doc.slug = String(v).toLowerCase().replace(/[^a-z0-9-]+/g, '-')
         else if (v) doc[k] = v; else delete doc[k]
         markDirty()
         renderStatus()
+        // the help under "Publish at" describes the CURRENT value, so it has to
+        // be re-read once that value changes — otherwise a scheduled post still
+        // claims it will publish immediately
+        if (k === 'publishAt') pubHelp.textContent = publishAtHelp()
       }),
+      pubHelp,
       ...(concept?.fields?.length ? [
         h('div.insp-section-title', {}, `${concept.label} fields`),
         renderFields(concept.fields, doc.fields, () => { snapshotOnce('Edit fields'); markDirty() }),
