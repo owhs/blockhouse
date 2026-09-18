@@ -2,7 +2,7 @@
 // one search that reaches everything.
 
 import { get, post } from './api.js'
-import { h, toast, dialog, spinner, contextMenu } from './ui.js'
+import { h, toast, dialog, spinner, contextMenu, sc } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { state, VIEWS, prefs, setPref, hooks, guards, pushReturn, popReturn } from './state.js'
 // view modules register themselves into VIEWS as a side effect
@@ -163,7 +163,9 @@ function renderShell() {
   paintNav = () => {
     const groups = navGroups()
     const sectionEls = groups.map(g => {
-      const isClosed = !!collapsed()[g.key]
+      // Never hide where you already are: a closed section holding the current
+      // page opens itself, so the rail always shows your position.
+      const isClosed = !!collapsed()[g.key] && !g.items.some(isActive)
       const items = h('div.side-sec-items', {},
         ...g.items.map(it => {
           const active = isActive(it)
@@ -184,8 +186,12 @@ function renderShell() {
         g.collapsible
           ? h('button.side-title', {
             'aria-expanded': String(!isClosed),
+            title: isClosed ? `Show ${g.items.length} in ${g.title}` : `Hide ${g.title}`,
             onclick: () => { toggleSection(g.key); paintNav() },
-          }, h('span', {}, g.title), iconEl('chevD', 11))
+          }, h('span', {}, g.title),
+            // A shut section has to say how much is behind it, or it reads as empty.
+            isClosed ? h('span.sec-count', {}, String(g.items.length)) : '',
+            iconEl('chevD', 11))
           : h('div.side-title', {}, h('span', {}, g.title)),
         items)
     })
@@ -202,10 +208,10 @@ function renderShell() {
               { icon: icon(groupBy() === 'az' ? 'check' : 'list', 14), label: 'A to Z', onClick: () => { setGroupBy('az'); paintNav() } },
             ]),
           }, iconEl('filter', 15))),
-        h('button.side-item', { onclick: () => setCollapsed(!collapsedSide()), title: 'Toggle sidebar  ⌘B' },
+        h('button.side-item', { onclick: () => setCollapsed(!collapsedSide()), title: sc('Toggle sidebar  ⌘B') },
           iconEl(collapsedSide() ? 'panel-open' : 'panel-close', 17),
           h('span.side-label', {}, 'Collapse'),
-          h('span.tip', {}, 'Expand sidebar  ⌘B'))))
+          h('span.tip', {}, sc('Expand sidebar  ⌘B')))))
 
     // ribbon: one dropdown per group
     ribbon.replaceChildren(...groups.map(g => {
@@ -247,7 +253,7 @@ function renderShell() {
         h('button.searchish', { onclick: openPalette },
           h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' } },
             iconEl('search', 14), h('span.searchish-label', {}, 'Search everything')),
-          h('span.kbd', {}, '⌘K'))),
+          h('span.kbd', {}, sc('⌘K')))),
       h('div.top-end', {},
         h('a.btn.ghost.small', { href: '/', target: '_blank', rel: 'noopener', style: { display: 'inline-flex', gap: 'var(--s2)' } }, 'View site', iconEl('external', 13)),
         h('button.icon-btn', { title: 'Keyboard shortcuts  ?', 'aria-label': 'Keyboard shortcuts', onclick: showShortcuts }, iconEl('help', 16)),
@@ -290,25 +296,26 @@ function toggleTheme() {
 
 const SHORTCUTS = [
   ['Everywhere', [
-    ['⌘K / Ctrl K', 'Search everything — documents, settings, blocks, commands'],
-    ['⌘B / Ctrl B', 'Collapse or expand the sidebar'],
+    [sc('⌘K'), 'Search everything — documents, settings, blocks, commands'],
+    [sc('⌘B'), 'Collapse or expand the sidebar'],
     ['?', 'This list'],
     ['Esc', 'Close a panel or dialog'],
   ]],
   ['In the editor', [
-    ['⌘S', 'Save and create a restore point'],
-    ['⌘Z / ⇧⌘Z', 'Undo / redo'],
-    ['⌘D', 'Duplicate the selected block'],
-    ['⌘C / ⌘X / ⌘V', 'Copy, cut and paste blocks — across documents too'],
-    ['⌘⏎', 'Add a block after the selected one'],
+    [sc('⌘.'), 'Wide — give the page the whole window (Esc brings the panels back)'],
+    [sc('⌘S'), 'Save and create a restore point'],
+    [sc('⌘Z / ⇧⌘Z'), 'Undo / redo'],
+    [sc('⌘D'), 'Duplicate the selected block'],
+    [sc('⌘C / ⌘X / ⌘V'), 'Copy, cut and paste blocks — across documents too'],
+    [sc('⌘⏎'), 'Add a block after the selected one'],
     ['↑ / ↓', 'Move the selection through the outline'],
-    ['⌥↑ / ⌥↓', 'Move the selected block up or down'],
+    [sc('⌥↑ / ⌥↓'), 'Move the selected block up or down'],
     ['← / →', 'Collapse or expand a container'],
     ['Esc', 'Select the parent block'],
     ['Delete / Backspace', 'Delete the selected block (undoable)'],
   ]],
   ['In lists', [
-    ['⌥↑ / ⌥↓', 'Reorder the focused row without a mouse'],
+    [sc('⌥↑ / ⌥↓'), 'Reorder the focused row without a mouse'],
     ['Space', 'Select a row for a bulk action'],
   ]],
 ]
@@ -375,7 +382,7 @@ function personalize() {
           onclick: () => { setPref('pinned', []); setPref('navCollapsed', {}); setGroupBy('section'); paintNav(); toast('Navigation reset', 'ok') },
         }, 'Reset pins and groups')),
       h('p.dlg-text', { style: { marginTop: 'var(--s2)' } },
-        'These are yours alone — per browser, per person, never the site. Right-click any rail item to pin it. ⌘B collapses the rail.')),
+        sc('These are yours alone — per browser, per person, never the site. Right-click any rail item to pin it. ⌘B collapses the rail.'))),
   })
 }
 
@@ -496,7 +503,7 @@ function render404(name) {
       h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)', minWidth: 'min(22rem, 80vw)' } },
         ...guesses.map(g => h('button.row-item', { onclick: () => (location.hash = g.hash) },
           h('span.row-ico', { html: icon(g.icon, 15) }), h('span.row-label', {}, g.label))),
-        h('button.btn.ghost.small', { style: { marginTop: 'var(--s2)' }, onclick: openPalette }, 'Search everything  ⌘K'))))))
+        h('button.btn.ghost.small', { style: { marginTop: 'var(--s2)' }, onclick: openPalette }, sc('Search everything  ⌘K')))))))
 }
 
 // ---------- search ----------

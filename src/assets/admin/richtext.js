@@ -2,7 +2,7 @@
 // md→html for display, DOM→md serializer on edit. Deliberately small surface:
 // p, h2–h4, bold/italic/code, links, ul/ol, blockquote.
 
-import { h, promptDialog, toast } from './ui.js'
+import { h, promptDialog, toast, sc } from './ui.js'
 import { post } from './api.js'
 
 export function mountRichtext(md, onChange, opts = {}) {
@@ -33,8 +33,8 @@ export function mountRichtext(md, onChange, opts = {}) {
   mdArea.addEventListener('input', () => onChange(mdArea.value))
 
   const toolbar = h('div.rt-toolbar', {},
-    btn('B', 'Bold (⌘B)', () => cmd('bold')),
-    btn('I', 'Italic (⌘I)', () => cmd('italic')),
+    btn('B', sc('Bold (⌘B)'), () => cmd('bold')),
+    btn('I', sc('Italic (⌘I)'), () => cmd('italic')),
     btn('‹›', 'Inline code', () => wrapCode(surface, emit)),
     h('span.rt-sep'),
     btn('¶', 'Paragraph', () => block('p')),

@@ -2,7 +2,7 @@
 // inspector, doc fields, plugin resources, menus and settings.
 
 import { get, post } from './api.js'
-import { h, debounce, dialog, makeSortable, toast } from './ui.js'
+import { h, debounce, dialog, makeSortable, toast, sc } from './ui.js'
 import { mountRichtext } from './richtext.js'
 
 export function renderFields(defs, values, onChange, opts = {}) {

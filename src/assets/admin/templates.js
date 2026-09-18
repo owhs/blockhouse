@@ -5,7 +5,7 @@
 // which slots does it render"), and a live preview of UNSAVED edits.
 
 import { get, put, del, post } from './api.js'
-import { h, debounce, confirmDialog, toast, emptyState, fitPreviewFrame } from './ui.js'
+import { h, debounce, confirmDialog, toast, emptyState, fitPreviewFrame, sc } from './ui.js'
 import { registerView, state } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { codeEditor, LIQUID } from './ide.js'
@@ -145,7 +145,7 @@ registerView('templates', async (root, [relParam]) => {
       await reload(); openFile(current.rel)
     },
   }, iconEl('undo', 13), 'Revert')
-  const fmtBtn = h('button.btn.ghost.small', { title: 'Beautify (⇧⌥F)', onclick: () => editor.beautify() }, iconEl('wand', 13), 'Format')
+  const fmtBtn = h('button.btn.ghost.small', { title: sc('Beautify (⇧⌥F)'), onclick: () => editor.beautify() }, iconEl('wand', 13), 'Format')
 
   async function doSave() {
     await put('/templates/file', { rel: current.rel, content: editor.value })

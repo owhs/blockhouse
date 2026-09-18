@@ -91,7 +91,13 @@ export function togglePin(key) {
 }
 export const isPinned = key => pinned().includes(key)
 
-export const collapsed = () => prefs().navCollapsed || {}
+// Content is the daily job, so it opens. Site and Studio are mostly settings
+// you visit occasionally — they stay shut until asked for. Measured before
+// this: 27 rail items, overflowing a 900px-tall window by 230px, which made
+// the primary navigation something you had to scroll to read.
+// An explicit choice always wins and is remembered forever after.
+const DEFAULT_CLOSED = { site: true, studio: true }
+export const collapsed = () => ({ ...DEFAULT_CLOSED, ...(prefs().navCollapsed || {}) })
 export function toggleSection(key) {
   const c = { ...collapsed() }
   c[key] = !c[key]

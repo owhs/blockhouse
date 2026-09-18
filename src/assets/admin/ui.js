@@ -21,6 +21,35 @@ export function h(tag, attrs = {}, ...children) {
   return el
 }
 
+// ---------- keyboard shortcut labels ----------
+// Every handler already accepts metaKey OR ctrlKey, but the *labels* were
+// written in Mac glyphs only, so Windows users were told to press a key their
+// keyboard does not have. Author shortcuts in the Mac form and pass them
+// through sc(); on other platforms they render as Ctrl/Alt/Shift/Enter.
+export const IS_MAC = /mac|iphone|ipad|ipod/i.test(
+  navigator.userAgentData?.platform || navigator.platform || navigator.userAgent)
+
+const KEYS = { '⏎': 'Enter', '⌫': 'Backspace', '⎋': 'Esc', '←': 'Left', '↑': 'Up', '→': 'Right', '↓': 'Down' }
+const MODS = { '⌘': 'Ctrl', '⌥': 'Alt', '⇧': 'Shift', '⌃': 'Ctrl' }
+const ORDER = ['Ctrl', 'Alt', 'Shift'] // the order Windows and Linux write them in
+
+/** Format a shortcut label for this platform. sc('⇧⌘Z') -> 'Ctrl+Shift+Z' off Mac. */
+export function sc(label) {
+  if (IS_MAC || !label) return label
+  // Only the modifier glyphs reorder; everything else keeps its position, so
+  // labels like '⌘K / ⌘B' and 'Ctrl+Space' survive unchanged.
+  return String(label).replace(/[⌘⌥⇧⌃]+[^\s/·]*/g, run => {
+    const mods = []
+    let rest = ''
+    for (const ch of run) {
+      if (MODS[ch]) { if (!mods.includes(MODS[ch])) mods.push(MODS[ch]) }
+      else rest += KEYS[ch] ?? ch
+    }
+    mods.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
+    return [...mods, rest].filter(Boolean).join('+')
+  })
+}
+
 export function debounce(fn, ms) {
   let t
   const wrapped = (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) }

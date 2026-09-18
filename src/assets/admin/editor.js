@@ -7,7 +7,7 @@
 // click and a palette entry are the same operation with the same undo entry.
 
 import { get, put, post, del } from './api.js'
-import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, fitPreviewFrame, makeTreeSortable, skeleton } from './ui.js'
+import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, fitPreviewFrame, makeTreeSortable, skeleton, sc } from './ui.js'
 import { renderFields } from './fields.js'
 import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn } from './state.js'
 import { icon, iconEl } from './icons.js'
@@ -83,7 +83,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       h('span', {}, text))
     saveState.onclick = retry || null
     saveState.title = kind === 'saved' && lastSaveAt
-      ? `Saved at ${lastSaveAt.toLocaleTimeString()}${lastVersionAt ? ` · restore point at ${lastVersionAt.toLocaleTimeString()}` : ' · press ⌘S to make a restore point'}`
+      ? `Saved at ${lastSaveAt.toLocaleTimeString()}${lastVersionAt ? ` · restore point at ${lastVersionAt.toLocaleTimeString()}` : sc(' · press ⌘S to make a restore point')}`
       : ''
   }
 
@@ -172,7 +172,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const iframe = h('iframe', { src: previewSrc(), title: 'Page preview' })
   const scaleBadge = h('button.preview-scale', {
     title: 'Give the canvas more room', 'aria-label': 'Widen the canvas',
-    onclick: () => widenCanvas(),
+    onclick: () => toggleWide(true),
   })
   const frameHolder = h('div.preview-frame-holder', {}, iframe)
   const previewWrap = h('div.preview-wrap', { class: prefs().device ? `w-${prefs().device}` : '' }, frameHolder, scaleBadge)
@@ -238,7 +238,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   async function pasteFrom(parentId, index) {
     const blocks = await readClipboard()
-    if (!blocks?.length) return toast('Nothing to paste — copy a block first (⌘C)', 'info')
+    if (!blocks?.length) return toast(sc('Nothing to paste — copy a block first (⌘C)'), 'info')
     let last = null
     blocks.forEach((b, i) => { last = ops.insert(reId(JSON.parse(JSON.stringify(b))), parentId, index + i) })
     if (last) selectBlock(last.id)
@@ -251,16 +251,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (!f) return []
     const def = byType[f.node.type]
     return [
-      { key: 'addAfter', label: 'Add block after', icon: icon('plus', 14), shortcut: '⌘⏎', run: () => { const s = ops.siteFor(id); addBlock(s.parentId, s.index) } },
+      { key: 'addAfter', label: 'Add block after', icon: icon('plus', 14), shortcut: sc('⌘⏎'), run: () => { const s = ops.siteFor(id); addBlock(s.parentId, s.index) } },
       ...(def?.container ? [{ key: 'addInside', label: 'Add block inside', icon: icon('layout', 14), run: () => addBlock(id, (f.node.children || []).length, def.childTypes) }] : []),
-      { key: 'duplicate', label: 'Duplicate', icon: icon('copy', 14), shortcut: '⌘D', run: () => ops.duplicate(id) },
+      { key: 'duplicate', label: 'Duplicate', icon: icon('copy', 14), shortcut: sc('⌘D'), run: () => ops.duplicate(id) },
       '-',
-      { key: 'copy', label: 'Copy', icon: icon('copy', 14), shortcut: '⌘C', run: async () => { await copyBlocks([f.node]); toast('Block copied', 'ok', 1800) } },
-      { key: 'cut', label: 'Cut', icon: icon('x', 14), shortcut: '⌘X', run: async () => { await copyBlocks([f.node]); removeWithUndo(id) } },
-      { key: 'paste', label: 'Paste after', icon: icon('download', 14), shortcut: '⌘V', run: () => { const s = ops.siteFor(id); pasteFrom(s.parentId, s.index) } },
+      { key: 'copy', label: 'Copy', icon: icon('copy', 14), shortcut: sc('⌘C'), run: async () => { await copyBlocks([f.node]); toast('Block copied', 'ok', 1800) } },
+      { key: 'cut', label: 'Cut', icon: icon('x', 14), shortcut: sc('⌘X'), run: async () => { await copyBlocks([f.node]); removeWithUndo(id) } },
+      { key: 'paste', label: 'Paste after', icon: icon('download', 14), shortcut: sc('⌘V'), run: () => { const s = ops.siteFor(id); pasteFrom(s.parentId, s.index) } },
       '-',
-      { key: 'up', label: 'Move up', icon: icon('up', 14), shortcut: '⌥↑', run: () => ops.nudge(id, -1) },
-      { key: 'down', label: 'Move down', icon: icon('down', 14), shortcut: '⌥↓', run: () => ops.nudge(id, 1) },
+      { key: 'up', label: 'Move up', icon: icon('up', 14), shortcut: sc('⌥↑'), run: () => ops.nudge(id, -1) },
+      { key: 'down', label: 'Move down', icon: icon('down', 14), shortcut: sc('⌥↓'), run: () => ops.nudge(id, 1) },
       { key: 'moveTo', label: 'Move into…', icon: icon('swap', 14), run: () => moveIntoDialog(id) },
       '-',
       { key: 'delete', label: 'Delete', icon: icon('trash', 14), shortcut: 'Del', danger: true, run: () => removeWithUndo(id) },
@@ -943,14 +943,14 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const more = e => contextMenu(e.clientX, e.clientY, [
       ...(narrow() ? [
         { icon: icon(doc.status === 'published' ? 'check' : 'pen', 14), label: `Status: ${doc.status}${stale ? ' · unpublished edits' : ''}`, disabled: true, onClick: () => {} },
-        { icon: icon('save', 14), label: 'Save', shortcut: '⌘S', onClick: () => save(true) },
+        { icon: icon('save', 14), label: 'Save', shortcut: sc('⌘S'), onClick: () => save(true) },
         { icon: icon('desktop', 14), label: 'Preview at desktop width', onClick: () => setDevice('') },
         { icon: icon('tablet', 14), label: 'Preview at tablet width', onClick: () => setDevice('tablet') },
         { icon: icon('phone', 14), label: 'Preview at phone width', onClick: () => setDevice('mobile') },
         '-',
       ] : []),
-      { icon: icon('undo', 14), label: 'Undo', shortcut: '⌘Z', disabled: !undoStack.length, onClick: doUndo },
-      { icon: icon('redo', 14), label: 'Redo', shortcut: '⇧⌘Z', disabled: !redoStack.length, onClick: doRedo },
+      { icon: icon('undo', 14), label: 'Undo', shortcut: sc('⌘Z'), disabled: !undoStack.length, onClick: doUndo },
+      { icon: icon('redo', 14), label: 'Redo', shortcut: sc('⇧⌘Z'), disabled: !redoStack.length, onClick: doRedo },
       '-',
       { icon: icon(focusedMode ? 'eye' : 'eyeOff', 14), label: focusedMode ? 'Show header & footer' : 'Hide header & footer', onClick: toggleFocused },
       { icon: icon('external', 14), label: 'Open preview in a new tab', onClick: () => window.open(`/preview/${doc.id}`, '_blank', 'noopener') },
@@ -963,7 +963,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       ...(meta.perms.delete ? [{ icon: icon('trash', 14), label: 'Delete document', danger: true, onClick: deleteDoc }] : []),
     ])
     actionsHolder.replaceChildren(
-      h('button.btn.ghost.small', { onclick: () => save(true), title: 'Save and create a restore point  ⌘S' }, 'Save'),
+      h('button.btn.ghost.small', { onclick: () => save(true), title: sc('Save and create a restore point  ⌘S') }, 'Save'),
       meta.perms.publish
         ? h('button.btn.primary.small', { onclick: publishFlow }, doc.status === 'published' ? (stale ? 'Republish' : 'Published') : 'Publish…')
         : h('button.btn.soft.small', {
@@ -1030,6 +1030,18 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     setTimeout(paintScale, 60)
   }
 
+  // Focus mode: rail, outline and inspector out of the way in one action,
+  // remembered between visits, and always reversible from the same button.
+  const toggleWide = (force) => {
+    const app2 = document.querySelector('.app')
+    const on = force ?? !app2.classList.contains('wide')
+    app2.classList.toggle('wide', on)
+    setPref('wideMode', on)
+    document.querySelectorAll('.wide-btn').forEach(b => b.setAttribute('aria-pressed', String(on)))
+    toast(on ? 'Wide — press Esc or the Wide button to bring the panels back' : 'Panels back', 'info', 2200)
+    setTimeout(paintScale, 280)
+  }
+
   const backTo = peekReturn()
   const editorEl = h('div.editor', {},
     outlineEl,
@@ -1082,6 +1094,15 @@ registerView('editor', async (root, [docId, tabParam], query) => {
               setTimeout(paintScale, 260)
             },
           }, iconEl('columns', 15)),
+          // One labelled control that clears every panel at once. The two
+          // individual toggles remain for fine control, but they are icons in
+          // a crowded bar — at 1440px the canvas was 826px (57%) and nothing
+          // told you it could be otherwise.
+          h('button.btn.ghost.small.wide-btn', {
+            title: sc('Give the page the whole window  ⌘.'),
+            'aria-pressed': String(!!prefs().wideMode),
+            onclick: () => toggleWide(),
+          }, iconEl('panel-close', 14), h('span.wide-label', {}, 'Wide')),
           h('button.icon-btn.insp-toggle', {
             title: 'Inspector', 'aria-label': 'Open inspector',
             onclick: () => document.querySelector('.app').classList.toggle('insp-open'),
@@ -1094,6 +1115,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const appEl = document.querySelector('.app')
   appEl?.classList.toggle('insp-left', !!prefs().inspLeft)
   appEl?.classList.toggle('insp-hidden', !!prefs().inspHidden)
+  appEl?.classList.toggle('wide', !!prefs().wideMode)
   // While you are editing one document the site-wide rail is not the job —
   // collapse it to icons and give the pixels to the page you are looking at.
   const railWasOpen = !appEl?.classList.contains('side-collapsed')
@@ -1209,6 +1231,12 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     // Everything typed into a sheet belongs to the sheet.
     if (sheetIsOpen()) return
     const mod = e.metaKey || e.ctrlKey
+    if (mod && e.key === '.') { e.preventDefault(); return toggleWide() }
+    // Wide hides the navigation, so the usual "get me out" key has to work
+    // before anything else claims Esc.
+    if (e.key === 'Escape' && document.querySelector('.app')?.classList.contains('wide')) {
+      e.preventDefault(); return toggleWide(false)
+    }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doUndo() }
     if (mod && e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doRedo() }
@@ -1244,11 +1272,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const sel = selectedId ? ops.find(selectedId) : null
     return [
       { label: 'Publish this document', icon: 'rocket', keywords: 'publish live go', hint: '', run: publishFlow },
-      { label: 'Save and create a restore point', icon: 'save', keywords: 'save version snapshot', hint: '⌘S', run: () => save(true) },
+      { label: 'Save and create a restore point', icon: 'save', keywords: 'save version snapshot', hint: sc('⌘S'), run: () => save(true) },
       { label: 'Open the SEO panel', icon: 'compass', keywords: 'seo meta description share image', run: () => setTab('seo') },
       { label: 'Open page settings', icon: 'gear', keywords: 'slug schedule template access redirect', run: () => setTab('page') },
       ...(sel ? [
-        { label: `Duplicate “${labelOf(sel.node, byType[sel.node.type])}”`, icon: 'copy', keywords: 'duplicate copy block', hint: '⌘D', run: () => ops.duplicate(selectedId) },
+        { label: `Duplicate “${labelOf(sel.node, byType[sel.node.type])}”`, icon: 'copy', keywords: 'duplicate copy block', hint: sc('⌘D'), run: () => ops.duplicate(selectedId) },
         { label: `Delete “${labelOf(sel.node, byType[sel.node.type])}”`, icon: 'trash', keywords: 'delete remove block', hint: 'Del', run: () => removeWithUndo(selectedId) },
       ] : []),
       ...catalogue.slice(0, 40).map(b => ({
@@ -1278,6 +1306,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   return () => {
     if (railWasOpen) appEl?.classList.remove('side-collapsed')
     appEl?.classList.remove('insp-hidden')
+    appEl?.classList.remove('wide')
     removeEventListener('message', onBridgeMsg)
     removeEventListener('keydown', onKey)
     removeEventListener('resize', onResize)

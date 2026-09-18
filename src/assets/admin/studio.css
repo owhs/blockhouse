@@ -662,6 +662,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 button.side-title { display: flex; align-items: center; gap: var(--s2); width: 100%; cursor: pointer; border-radius: var(--r-xs); }
 button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .side-title .ico-wrap { margin-left: auto; transition: rotate var(--dur-2) var(--ease); }
+.sec-count { margin-left: auto; font-size: var(--t-xs); font-weight: var(--fw-bold); color: var(--fnt); background: var(--bg-hover); border-radius: var(--r-pill); padding: var(--s0) var(--s2); letter-spacing: 0; }
 .side-sec.closed .side-title .ico-wrap { rotate: -90deg; }
 .side-sec.closed .side-sec-items { display: none; }
 .side-item .pin-mark { margin-left: auto; opacity: 0; color: var(--fnt); display: grid; place-items: center; }
@@ -927,3 +928,22 @@ button.card.plug-card:hover { border-color: var(--acc); }
   .icon-btn:active, .row-item:active, .tree-item:active, .pal-item:active, .btn:active { transform: none; }
   .ctx-menu { animation: none; }
 }
+
+/* ==========================================================================
+   Wide mode — the canvas gets the whole window.
+   Measured before this existed: at 1440px the editor gave the page 826px, 57%
+   of the window, and the only way to claw any of it back was two unlabelled
+   icons among thirteen in the toolbar. This is one explicit state with one
+   visible control, so it deliberately wins at every width — hence its place
+   after the breakpoints.
+   ========================================================================== */
+.app.wide .side,
+.app.wide .outline,
+.app.wide .inspector { display: none; }
+.app.wide .editor,
+.app.wide.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
+.app.wide { grid-template-columns: 1fr; grid-template-areas: "top" "view"; }
+.app.wide .exit-wide { display: inline-flex; }
+.exit-wide { display: none; }
+/* The way out has to be visible without hunting for it. */
+.app.wide .wide-btn { background: color-mix(in oklch, var(--acc) 22%, transparent); color: var(--ink); }
