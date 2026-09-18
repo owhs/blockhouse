@@ -105,6 +105,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       paintSaveState('saved', 'Saved')
       renderStatus()
       if (inspTab === 'seo') renderInspector()
+      // The preview renders from the server, so it can only be refreshed after
+      // the write it is meant to show has landed.
+      if (previewStale) { previewStale = false; iframe.contentWindow?.location.reload() }
     } catch (e) {
       if (e.status === 409) return onConflict(e)
       paintSaveState('error', 'Not saved — retry', () => save(explicit))
@@ -153,6 +156,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   let suppressPreview = false
 
   /** One entry point for "something changed". */
+  // The preview's targeted patch can only swap the TEXT of an editable node.
+  // A layout prop changes the markup around the block — a container class, a
+  // wrapper — so patching does nothing visible and the change appears to have
+  // been ignored until you reload. Anything that is not text re-renders.
+  const TEXTISH = ['text', 'textarea', 'richtext', 'markdown']
+  const dirtyFor = (fields, id, key, value) => {
+    const f = (fields || []).find(x => x.key === key)
+    return TEXTISH.includes(f?.type || 'text') ? { patch: { id, prop: key, value } } : {}
+  }
+
   const markDirty = (opts = {}) => {
     if (readOnly) return
     dirty = true
@@ -206,7 +219,17 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   addEventListener('resize', onResize)
 
   const refreshPreview = () => { scheduleSave.now?.(); iframe.contentWindow?.location.reload() }
-  const refreshPreviewSoon = debounce(() => iframe.contentWindow?.location.reload(), 500)
+  // Was a 500ms debounce racing a 900ms save debounce: the preview reloaded
+  // 400ms BEFORE the write it was showing, so every structural or layout change
+  // rendered the PREVIOUS edit and stayed a step behind until the next one.
+  let previewStale = false
+  const refreshPreviewSoon = () => {
+    if (readOnly) return
+    if (!dirty) { iframe.contentWindow?.location.reload(); return }
+    previewStale = true
+    scheduleSave()
+  }
+  refreshPreviewSoon.cancel = () => { previewStale = false }
   /** Send one changed prop instead of reloading the whole page. */
   function patchPreview({ id, prop, value }) {
     refreshPreviewSoon.cancel()
@@ -552,7 +575,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const propsForm = def?.fields?.length
       ? renderFields(def.fields, found.node.props, (key, value) => {
         snapshotOnce(`Edit ${labelOf(found.node, def)}`)
-        markDirty({ patch: { id: found.node.id, prop: key, value } })
+        markDirty(dirtyFor(def.fields, found.node.id, key, value))
       })
       : h('div', { style: { padding: 'var(--s0) 0' } },
         h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block’s text is edited straight on the page.'),
@@ -561,13 +584,43 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: found.node.id }, '*'),
         }, 'Show it in the preview'))
 
+    // How wide a block runs is a property of the Section wrapping it, not of
+    // the block — so selecting a Rich text and looking for "width" found
+    // nothing, and the only route to it was knowing to climb to the Section
+    // first. Surface the enclosing Section's layout right here, clearly labelled
+    // as the Section's, so the control is where the question gets asked.
+    const container = [...(found.parents || [])].reverse()
+      .find(p => byType[p.type]?.fields?.some(f => f.key === 'width'))
+    const containerDef = container && byType[container.type]
+    const containerForm = container
+      ? [
+        h('div.insp-section-title', {},
+          `${containerDef.label || container.type} layout`,
+          h('button.icon-btn', {
+            'aria-label': `Select the ${containerDef.label || container.type}`,
+            title: `Select the ${containerDef.label || container.type} itself`,
+            onclick: () => selectBlock(container.id),
+          }, iconEl('up', 14))),
+        h('p.mut', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
+          `Width, background and padding belong to the ${(containerDef.label || container.type).toLowerCase()} around this block.`),
+        renderFields(
+          containerDef.fields.filter(f => ['width', 'background', 'padding'].includes(f.key)),
+          container.props,
+          (key, value) => {
+            snapshotOnce(`Edit ${labelOf(container, containerDef)}`)
+            markDirty(dirtyFor(containerDef.fields, container.id, key, value))
+          }),
+      ]
+      : []
+
     inspBody.replaceChildren(
       h('div.insp-section-title', {}, def?.label || found.node.type,
         h('button.icon-btn', {
           'aria-label': 'Block actions', title: 'Block actions',
           onclick: e => blockMenu(e, found.node.id),
         }, iconEl('more', 14))),
-      propsForm)
+      propsForm,
+      ...containerForm)
   }
 
   // `inside` nests the rest within the first type. Pushing them flat, as this
