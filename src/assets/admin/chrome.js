@@ -4,7 +4,7 @@
 // live preview so "that link in the footer" is never a mystery again.
 
 import { get, put } from './api.js'
-import { h, dialog, confirmDialog, toast, emptyState, fitPreviewFrame } from './ui.js'
+import { h, dialog, confirmDialog, toast, emptyState, fitPreviewFrame, unsavedDialog } from './ui.js'
 import { registerView, state, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { renderFields } from './fields.js'
@@ -129,10 +129,12 @@ registerView('chrome', async (root, [slotParam]) => {
   // Removing a footer block and wandering off used to ship it to every page.
   const disposeGuard = registerGuard('chrome', async () => {
     if (!dirty) return true
-    const go = await confirmDialog('Unsaved header & footer changes',
-      'These are not live yet. Save them to every page now, or discard them?', 'Save now')
-    if (go) await save()
-    return true
+    return await unsavedDialog({
+      title: 'Unsaved header & footer changes',
+      body: 'These are not live yet. Saving puts them on every page straight away.',
+      saveLabel: 'Save to every page',
+      onSave: save,
+    })
   })
   const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
   addEventListener('beforeunload', beforeUnload)

@@ -4,7 +4,7 @@
 // every edit repaints the actual header within half a second.
 
 import { get, put, del } from './api.js'
-import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame, confirmDialog } from './ui.js'
+import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame, confirmDialog, unsavedDialog } from './ui.js'
 import { renderFields } from './fields.js'
 import { registerView, state, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
@@ -429,27 +429,19 @@ registerView('menus', async (root, [menuKey]) => {
   // saying nothing.
   const disposeGuard = registerGuard('menus', async () => {
     if (!dirty) return true
-    return await new Promise(resolve => {
-      dialog({
-        title: 'Unsaved menu changes',
-        body: h('p.dlg-text', {},
-          `“${active.label || active.key}” has changes that are not live yet. Publishing puts them on the site straight away.`),
-        actions: [
-          { label: 'Keep editing', onClick: () => { resolve(false); return true } },
-          { label: 'Discard changes', kind: 'danger', onClick: () => { dirty = false; resolve(true); return true } },
-          {
-            label: 'Publish now', kind: 'primary', onClick: async () => {
-              await put(`/menus/${active.key}`, { menu: active }).catch(() => {})
-              dirty = false
-              toast('Menu is live', 'ok')
-              resolve(true)
-              return true
-            },
-          },
-        ],
-        onClose: v => { if (v === undefined) resolve(false) },
-      })
+    // This was the one guard of six written correctly. It now shares the same
+    // implementation as the rest so the pattern cannot drift apart again.
+    const leave = await unsavedDialog({
+      title: 'Unsaved menu changes',
+      body: `“${active.label || active.key}” has changes that are not live yet. Publishing puts them on the site straight away.`,
+      saveLabel: 'Publish now',
+      onSave: async () => {
+        await put(`/menus/${active.key}`, { menu: active })
+        toast('Menu is live', 'ok')
+      },
     })
+    if (leave) dirty = false
+    return leave
   })
   const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
   addEventListener('beforeunload', beforeUnload)

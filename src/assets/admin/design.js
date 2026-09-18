@@ -3,7 +3,7 @@
 // save); nothing touches the real site until you press Save.
 
 import { get, put, post, del } from './api.js'
-import { h, debounce, toast, fitPreviewFrame, dialog, confirmDialog } from './ui.js'
+import { h, debounce, toast, fitPreviewFrame, dialog, confirmDialog, unsavedDialog } from './ui.js'
 import { registerView, registerGuard } from './state.js'
 import { helpButton } from './help.js'
 import { icon, iconEl } from './icons.js'
@@ -255,10 +255,12 @@ registerView('design', async root => {
   // tweak vanished on the next click with nothing said.
   const disposeGuard = registerGuard('design', async () => {
     if (!dirty) return true
-    const go = await confirmDialog('Unsaved design changes',
-      'The template, palette or colour scheme has changes that are not live yet. Save them, or discard?', 'Save design')
-    if (go) await saveDesign()
-    return true
+    return await unsavedDialog({
+      title: 'Unsaved design changes',
+      body: 'The template, palette or colour scheme has changes that are not live yet.',
+      saveLabel: 'Save design',
+      onSave: saveDesign,
+    })
   })
   const beforeUnload = e => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
   addEventListener('beforeunload', beforeUnload)

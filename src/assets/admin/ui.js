@@ -136,6 +136,37 @@ export function undoToast(what, onUndo) {
 
 const dlgStack = []
 
+/**
+ * The "you have unsaved work" question, asked once, in one place.
+ *
+ * This existed as six hand-written copies and five of them got it wrong: they
+ * used a two-button confirm and then returned `true` no matter which button was
+ * pressed, so Cancel discarded the work and navigated anyway. The dialog asked
+ * "save or discard?" and silently discarded on either answer but Save.
+ *
+ * Leaving must be a three-way choice, because it genuinely is one. Resolves
+ * true to let the navigation through, false to stay put. Not dismissable:
+ * clicking the backdrop must not decide the fate of someone's work.
+ */
+export function unsavedDialog({ title, body, saveLabel, onSave, stayLabel = 'Keep editing', discardLabel = 'Discard changes' }) {
+  return new Promise(resolve => {
+    dialog({
+      title, dismissable: false,
+      body: typeof body === 'string' ? h('p.dlg-text', {}, body) : body,
+      actions: [
+        { label: stayLabel, onClick: () => { resolve(false); return true } },
+        { label: discardLabel, kind: 'danger', onClick: () => { resolve(true); return true } },
+        {
+          label: saveLabel, kind: 'primary', onClick: async () => {
+            try { await onSave() } catch { resolve(false); return true }
+            resolve(true); return true
+          },
+        },
+      ],
+    })
+  })
+}
+
 export function dialog({ title, body, actions = [], width, onClose, headerExtra, dismissable = true }) {
   const opener = document.activeElement
   const dlg = h('dialog.dlg', { style: width ? { width } : {} })

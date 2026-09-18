@@ -6,7 +6,7 @@
 // its full view — this is a second door, never a second source of truth.
 
 import { get, put } from './api.js'
-import { h, debounce, toast, confirmDialog, undoToast } from './ui.js'
+import { h, debounce, toast, confirmDialog, undoToast, unsavedDialog } from './ui.js'
 import { registerGuard } from './state.js'
 import { iconEl } from './icons.js'
 import { openSheet, closeSheet } from './sheet.js'
@@ -64,12 +64,16 @@ export async function quickDesign(previewFrame) {
   // contract: leaving with unsaved changes asks, exactly as the full view does.
   const dispose = registerGuard('quick-design', async () => {
     if (!dirty) return true
-    const keep = await confirmDialog('Unsaved colour changes',
-      'The palette in the side panel is not live yet. Save it to the site, or discard?', 'Save to the site')
-    if (keep) await save()
-    // decided either way — clear it so closeSheet does not ask a second time
-    dirty = false
-    return true
+    const leave = await unsavedDialog({
+      title: 'Unsaved colour changes',
+      body: 'The palette in the side panel is not live on the site yet.',
+      saveLabel: 'Save to the site',
+      onSave: save,
+    })
+    // only forget the changes once the person has actually chosen to leave,
+    // so closeSheet does not ask a second time
+    if (leave) dirty = false
+    return leave
   })
 
   await openSheet({
@@ -146,11 +150,14 @@ export async function quickChrome(slotKey, onSaved) {
 
   const dispose = registerGuard('quick-chrome', async () => {
     if (!dirty) return true
-    const keep = await confirmDialog('Unsaved header & footer changes',
-      'These are not live yet. Save them to every page, or discard?', 'Save to every page')
-    if (keep) await saveSlots()
-    dirty = false
-    return true
+    const leave = await unsavedDialog({
+      title: 'Unsaved header & footer changes',
+      body: 'These are not live yet. Saving puts them on every page straight away.',
+      saveLabel: 'Save to every page',
+      onSave: saveSlots,
+    })
+    if (leave) dirty = false
+    return leave
   })
 
   await openSheet({
@@ -219,11 +226,14 @@ export async function quickMenu(menuKey, onSaved) {
 
   const dispose = registerGuard('quick-menu', async () => {
     if (!dirty) return true
-    const keep = await confirmDialog('Unsaved menu changes',
-      `The ${menu.label || menu.key} menu has changes that are not live yet. Publish them, or discard?`, 'Publish now')
-    if (keep) await doSave()
-    dirty = false
-    return true
+    const leave = await unsavedDialog({
+      title: 'Unsaved menu changes',
+      body: `The ${menu.label || menu.key} menu has changes that are not live yet.`,
+      saveLabel: 'Publish now',
+      onSave: doSave,
+    })
+    if (leave) dirty = false
+    return leave
   })
 
   await openSheet({
