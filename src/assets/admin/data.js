@@ -16,8 +16,8 @@ registerDataSection(async () => {
   const { items: tables } = await get('/res/data/tables').catch(() => ({ items: [] }))
   if (!tables.length) return h('div.card', {}, emptyState(icon('db', 26), 'No tables yet', 'Create a table above to build a data app — a quote calculator, inventory or tracker.'))
 
-  const tabBar = h('div.seg', { style: { marginBottom: '0.9rem', flexWrap: 'wrap' } })
-  const viewBar = h('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.9rem', flexWrap: 'wrap', alignItems: 'center' } })
+  const tabBar = h('div.seg', { style: { marginBottom: 'var(--s4)', flexWrap: 'wrap' } })
+  const viewBar = h('div', { style: { display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' } })
   const body = h('div')
   wrap.append(tabBar, viewBar, body)
 
@@ -44,7 +44,7 @@ registerDataSection(async () => {
 
     const search = h('input.input', {
       type: 'search', placeholder: `Search ${items.length} records…`, value: q,
-      style: { width: '13rem', padding: '0.35rem 0.6rem', fontSize: 'var(--t-m)' },
+      style: { width: '13rem', padding: 'var(--s1) var(--s3)', fontSize: 'var(--t-m)' },
       oninput: e => { q = e.target.value; render() },
     })
 
@@ -98,7 +98,7 @@ registerDataSection(async () => {
   }
 
   await load()
-  return h('div.card', { style: { padding: '1rem' } }, wrap)
+  return h('div.card', { style: { padding: 'var(--s4)' } }, wrap)
 })
 
 // ---------- grid ----------
@@ -111,7 +111,7 @@ function cellValue(f, row) {
   if (v == null || v === '') return h('span.fnt', {}, '—')
   if (f.type === 'currency') return money(v, f.currency || '£')
   if (f.type === 'boolean') return v ? iconEl('check', 14) : h('span.fnt', {}, '—')
-  if (f.type === 'multiselect' && Array.isArray(v)) return h('span', {}, ...v.map(x => h('span.multi-tag', { style: { marginRight: '0.2rem' } }, x)))
+  if (f.type === 'multiselect' && Array.isArray(v)) return h('span', {}, ...v.map(x => h('span.multi-tag', { style: { marginRight: 'var(--s0)' } }, x)))
   if (f.type === 'number') return String(Math.round(v * 100) / 100)
   return String(v).slice(0, 60)
 }
@@ -152,7 +152,7 @@ async function editRow(table, row, reload) {
   for (const f of table.fields) if (vals[f.key] === undefined && f.default !== undefined) vals[f.key] = f.default
 
   const formHolder = h('div')
-  const totalsBar = h('div', { style: { position: 'sticky', bottom: 0, background: 'var(--bg-panel)', borderTop: '1px solid var(--line)', margin: '0.5rem -1.1rem -0.6rem', padding: '0.6rem 1.1rem', display: 'flex', gap: '1.2rem', flexWrap: 'wrap' } })
+  const totalsBar = h('div', { style: { position: 'sticky', bottom: 0, background: 'var(--bg-panel)', borderTop: '1px solid var(--line)', margin: 'var(--s2) -1.1rem -0.6rem', padding: 'var(--s3) var(--s5)', display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap' } })
 
   const rerender = () => {
     // group fields, honor showIf
@@ -201,7 +201,7 @@ async function editRow(table, row, reload) {
   }
   recompute(); rerender()
 
-  const workflowBar = row && table.workflow?.states?.length ? h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.7rem', flexWrap: 'wrap' } },
+  const workflowBar = row && table.workflow?.states?.length ? h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s3)', flexWrap: 'wrap' } },
     h('span.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Status:'), stateChip(table, vals._state),
     ...nextStates(table, vals._state).map(to => h('button.btn.soft.small', {
       onclick: async () => { try { await post(`/x/data/rows/${table.id}/${row.id}/state`, { to: to.key }); vals._state = to.key; toast(`Moved to ${to.label}`, 'ok'); reload() } catch {} },
@@ -287,13 +287,13 @@ function lineItemsField(f, vals, onChange) {
       h('tbody', {}, ...vals[f.key].map((li, i) => h('tr', { style: { cursor: 'default' } },
         ...cols.map(c => h('td', { class: /number|currency|computed/.test(c.type) ? 'num' : '', style: { padding: 0 } },
           c.computed
-            ? h('div', { style: { padding: '0.4rem 0.6rem', color: 'var(--mut)' } }, c.type === 'currency' ? money(li[c.key]) : String(li[c.key] ?? 0))
+            ? h('div', { style: { padding: 'var(--s2) var(--s3)', color: 'var(--mut)' } }, c.type === 'currency' ? money(li[c.key]) : String(li[c.key] ?? 0))
             : c.type === 'select'
-              ? h('select', { style: { border: 0, background: 'none', width: '100%', padding: '0.35rem 0.5rem' }, onchange: e => { li[c.key] = e.target.value; onChange(f.key) } },
+              ? h('select', { style: { border: 0, background: 'none', width: '100%', padding: 'var(--s1) var(--s2)' }, onchange: e => { li[c.key] = e.target.value; onChange(f.key) } },
                 ...String(c.options || '').split('|').map(o => h('option', { value: o.trim(), selected: li[c.key] === o.trim() }, o.trim())))
               : h('input', {
                 type: /number|currency/.test(c.type) ? 'number' : 'text', step: '0.01',
-                value: li[c.key] ?? '', style: { border: 0, background: 'none', width: '100%', padding: '0.35rem 0.5rem' },
+                value: li[c.key] ?? '', style: { border: 0, background: 'none', width: '100%', padding: 'var(--s1) var(--s2)' },
                 oninput: e => { li[c.key] = /number|currency/.test(c.type) ? (e.target.value === '' ? 0 : Number(e.target.value)) : e.target.value; onChange(f.key); render() },
               }))),
         h('td', { style: { textAlign: 'right', padding: 0 } }, h('button.icon-btn', { onclick: () => { vals[f.key].splice(i, 1); onChange(f.key); render() }, html: icon('trash', 13) }))))))
@@ -461,7 +461,7 @@ async function keysDialog() {
   const list = h('div')
   const refresh = async () => {
     const { keys } = await get('/x/data/keys')
-    list.replaceChildren(...(keys.length ? keys.map(k => h('div.seo-check', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },
+    list.replaceChildren(...(keys.length ? keys.map(k => h('div.seo-check', { style: { display: 'flex', alignItems: 'center', gap: 'var(--s2)' } },
       h('span', { style: { flex: 1 } }, `${k.name} — `, h('code.pill-perm', {}, (k.scopes || []).join(', '))),
       h('button.icon-btn', { title: 'Revoke', onclick: async () => { if (await confirmDialog('Revoke key', `Revoke “${k.name}”? Integrations using it stop working immediately.`, 'Revoke')) { await del(`/x/data/keys/${k.id}`); refresh() } } }, iconEl('trash', 13))))
       : [h('p.mut', {}, 'No keys yet.')]))
@@ -475,11 +475,11 @@ async function keysDialog() {
     body: h('div', {},
       h('p.dlg-text', {}, 'Keys authorize external integrations. Scopes look like ', h('code', {}, 'data:<table>:read'), ' / ', h('code', {}, ':write'), '.'),
       list, out,
-      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.7rem' } }, nameIn, scopeIn,
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' } }, nameIn, scopeIn,
         h('button.btn.soft.small', { onclick: async () => {
           if (!nameIn.value.trim()) { toast('Name the key first', 'err'); return }
           const r = await post('/x/data/keys', { name: nameIn.value.trim(), scopes: scopeIn.value.split(',').map(x => x.trim()).filter(Boolean) })
-          out.replaceChildren(h('p.dlg-text', { style: { marginTop: '0.6rem' } }, 'Copy now — shown once:'), h('div.code-out', {}, r.key))
+          out.replaceChildren(h('p.dlg-text', { style: { marginTop: 'var(--s3)' } }, 'Copy now — shown once:'), h('div.code-out', {}, r.key))
           nameIn.value = ''; refresh()
         } }, iconEl('plus', 14), 'Create'))),
   })

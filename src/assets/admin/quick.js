@@ -54,7 +54,7 @@ export async function quickDesign(previewFrame) {
       oninput: e => { work[key] = parseFloat(e.target.value); out.value = fmt(work[key]); mark() },
     })
     return h('div.design-slider', {}, h('label', {}, label),
-      h('div', { style: { display: 'flex', gap: '0.7rem', alignItems: 'center' } }, input, out))
+      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center' } }, input, out))
   }
 
   const hue = slider('Accent hue', 0, 360, 1, 'hue', v => `${Math.round(v)}°`)
@@ -75,11 +75,11 @@ export async function quickDesign(previewFrame) {
   await openSheet({
     title: 'Colour & shape',
     sub: 'Changes show in the preview immediately; nothing is live until you save',
-    body: h('div', { style: { display: 'grid', gap: '0.9rem' } },
+    body: h('div', { style: { display: 'grid', gap: 'var(--s4)' } },
       hue,
       slider('Colour intensity', 0.01, 0.2, 0.005, 'chroma', v => v.toFixed(3)),
       slider('Corner radius', 0, 24, 1, 'radius', v => `${Math.round(v)}px`),
-      h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } }, saveBtn,
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center' } }, saveBtn,
         h('a.btn.ghost.small', { href: '#/design', onclick: () => closeSheet() }, 'Open Design', iconEl('external', 12))),
       h('p.fnt', { style: { fontSize: 'var(--t-s)' } },
         'Two numbers drive the whole palette. Templates, fonts and colour scheme live in Design.')),
@@ -127,7 +127,7 @@ export async function quickChrome(slotKey, onSaved) {
   const saveBtn = h('button.btn.primary', { onclick: saveSlots }, 'Save to every page')
   const mark = () => { dirty = true; saveBtn.textContent = 'Save to every page •' }
 
-  const body = h('div', { style: { display: 'grid', gap: '0.6rem' } })
+  const body = h('div', { style: { display: 'grid', gap: 'var(--s3)' } })
   const paint = () => {
     body.replaceChildren(
       ...(list.length ? list.map(node => {
@@ -138,7 +138,7 @@ export async function quickChrome(slotKey, onSaved) {
             ? renderFields(def.fields, node.props ||= {}, () => mark())
             : h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block has no options.'))
       }) : [h('p.mut', {}, 'Nothing in this slot yet.')]),
-      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.4rem' } }, saveBtn,
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' } }, saveBtn,
         h('a.btn.ghost.small', { href: `#/chrome/${encodeURIComponent(slotKey)}`, onclick: () => closeSheet() },
           'Add or reorder blocks', iconEl('external', 12))))
   }
@@ -195,9 +195,9 @@ export async function quickMenu(menuKey, onSaved) {
     setTimeout(() => { saveBtn.textContent = 'Publish to the site' }, 1400)
   }
 
-  const rows = h('div', { style: { display: 'grid', gap: '0.2rem' } })
+  const rows = h('div', { style: { display: 'grid', gap: 'var(--s0)' } })
   const paint = () => {
-    rows.replaceChildren(...(menu.items || []).map((it, i) => h('div', { style: { display: 'flex', gap: '0.3rem', alignItems: 'center' } },
+    rows.replaceChildren(...(menu.items || []).map((it, i) => h('div', { style: { display: 'flex', gap: 'var(--s1)', alignItems: 'center' } },
       h('input.input', {
         value: it.label || '', 'aria-label': `Label for item ${i + 1}`, style: { flex: 1 },
         oninput: e => { it.label = e.target.value; mark() },
@@ -229,9 +229,9 @@ export async function quickMenu(menuKey, onSaved) {
   await openSheet({
     title: menu.label || `${menu.key} menu`,
     sub: 'Rename or remove links here; the full editor does structure and mega panels',
-    body: h('div', { style: { display: 'grid', gap: '0.7rem' } },
+    body: h('div', { style: { display: 'grid', gap: 'var(--s3)' } },
       h('div.field', {}, h('label', {}, 'Add a link to a page'),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } }, pick,
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } }, pick,
           h('button.btn.ghost.small', {
             onclick: () => {
               const d = docs.find(x => x.id === pick.value)
@@ -243,7 +243,7 @@ export async function quickMenu(menuKey, onSaved) {
           }, iconEl('plus', 12), 'Add'))),
       h('div.insp-section-title', {}, 'Links'),
       rows,
-      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.3rem' } }, saveBtn,
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s1)' } }, saveBtn,
         h('a.btn.ghost.small', { href: `#/menus/${menu.key}`, onclick: () => closeSheet() },
           'Open the menu studio', iconEl('external', 12)))),
     onClose: async () => {

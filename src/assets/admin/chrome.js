@@ -61,12 +61,12 @@ registerView('chrome', async (root, [slotParam]) => {
     const [label, hint] = NICE[active] || [active, `Rendered wherever the template puts {% slot '${active}' %}`]
     const rows = list.map((node, i) => {
       const def = byType[node.type] || { label: node.type, fields: [] }
-      const open = h('div.card', { style: { padding: '0.8rem', marginTop: '0.5rem' } },
+      const open = h('div.card', { style: { padding: 'var(--s4)', marginTop: 'var(--s2)' } },
         def.fields?.length
           ? renderFields(def.fields, node.props ||= {}, () => mark())
           : h('p.mut', {}, 'This block has no options.'))
       open.hidden = true
-      return h('div', { style: { marginBottom: '0.5rem' } },
+      return h('div', { style: { marginBottom: 'var(--s2)' } },
         h('div.mrow', {},
           h('span.row-ico', { html: icon(def.icon || 'block', 15) }),
           h('button', { style: { flex: 1, cursor: 'pointer', textAlign: 'left', fontWeight: 'var(--fw-semi)' }, 'aria-expanded': 'false', onclick: e => { open.hidden = !open.hidden; e.currentTarget.setAttribute('aria-expanded', String(!open.hidden)) } }, def.label || node.type),
@@ -78,9 +78,9 @@ registerView('chrome', async (root, [slotParam]) => {
         open)
     })
     blocksEl.replaceChildren(
-      h('div.page-head', { style: { marginBottom: '0.4rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s2)' } },
         h('div', {}, h('strong', {}, label), h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, hint)),
-        h('div', { style: { display: 'flex', gap: '0.5rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost.small', { onclick: addBlock }, iconEl('plus', 13), 'Add block'), saveBtn)),
       rows.length ? h('div', {}, ...rows)
         : emptyState(icon('layout', 24), 'Nothing here yet', 'This slot is empty — the template renders nothing for it. Add a block to fill it.'))
@@ -92,10 +92,10 @@ registerView('chrome', async (root, [slotParam]) => {
     const body = h('div')
     const dlg = dialog({ title: 'Add a block', width: 'min(44rem, 94vw)', body })
     for (const [g, defs] of Object.entries(groups)) {
-      const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: '0.4rem' } })
+      const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 1fr))', gap: 'var(--s2)' } })
       for (const def of defs) {
         grid.appendChild(h('button.row-item', {
-          style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '0.5rem 0.6rem' },
+          style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: 'var(--s2) var(--s3)' },
           onclick: () => {
             ;(slots[active] ??= []).push({ id: uid(), type: def.type, props: JSON.parse(JSON.stringify(def.defaults || {})) })
             mark(); paintBlocks(); dlg.closeWith()
@@ -106,7 +106,7 @@ registerView('chrome', async (root, [slotParam]) => {
             h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, def.label),
             h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, def.description || ''))))
       }
-      body.append(h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, g), grid)
+      body.append(h('div.insp-section-title', { style: { marginTop: 'var(--s3)' } }, g), grid)
     }
   }
 
@@ -117,10 +117,10 @@ registerView('chrome', async (root, [slotParam]) => {
       h('div.panel-head', {}, h('span.panel-title', {}, 'Header & footer'),
         h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'slots')),
       slotList),
-    h('div.main', { style: { display: 'grid', gridTemplateRows: 'auto 1fr', gap: '0.9rem', padding: '1rem' } },
+    h('div.main', { style: { display: 'grid', gridTemplateRows: 'auto 1fr', gap: 'var(--s4)', padding: 'var(--s4)' } },
       h('div', {}, blocksEl),
       h('div', {},
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0 0 0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0 0 var(--s2)' } },
           'Live preview — saves apply to every page. The header and footer *structure* is a template file (Site → Templates); this is the content poured into it.'),
         previewWrap)))
   )

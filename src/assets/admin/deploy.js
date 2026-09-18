@@ -35,25 +35,25 @@ registerView('deploy', async root => {
   const body = h('div.main-pad', { style: { maxWidth: '64rem' } })
   root.replaceChildren(h('div.main', {}, body))
 
-  const targetCards = () => h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))', gap: '0.6rem', marginBottom: '1.2rem' } },
+  const targetCards = () => h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))', gap: 'var(--s3)', marginBottom: 'var(--s5)' } },
     ...TARGETS.map(t => h('button.card', {
       onclick: () => { target = t.key; setPref('deployTarget', t.key); draw() },
       style: {
-        textAlign: 'left', padding: '0.9rem', cursor: 'pointer',
+        textAlign: 'left', padding: 'var(--s4)', cursor: 'pointer',
         borderColor: target === t.key ? 'var(--acc)' : 'var(--line)',
         boxShadow: target === t.key ? '0 0 0 1px var(--acc) inset' : 'none',
       },
     },
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', fontWeight: 'var(--fw-semi)' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s1)', fontWeight: 'var(--fw-semi)' } },
         iconEl(t.icon, 15), t.label),
       h('p.fnt', { style: { fontSize: 'var(--t-s)', lineHeight: 1.45, margin: 0 } }, t.blurb))))
 
-  const checkRow = c => h('div', { style: { display: 'grid', gridTemplateColumns: '1.2rem minmax(9rem, 13rem) 1fr', gap: '0.6rem', alignItems: 'start', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)' } },
-    h('span', { style: { color: LEVEL[c.level].colour, display: 'flex', paddingTop: '0.1rem' }, html: icon(LEVEL[c.level].ico, 14) }),
+  const checkRow = c => h('div', { style: { display: 'grid', gridTemplateColumns: '1.2rem minmax(9rem, 13rem) 1fr', gap: 'var(--s3)', alignItems: 'start', padding: 'var(--s2) 0', borderBottom: '1px solid var(--line-soft)' } },
+    h('span', { style: { color: LEVEL[c.level].colour, display: 'flex', paddingTop: 'var(--s0)' }, html: icon(LEVEL[c.level].ico, 14) }),
     h('span', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, c.label),
     h('span', {},
       h('span', { style: { fontSize: 'var(--t-m)' } }, c.detail),
-      c.fix ? h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.15rem' } }, '→ ', c.fix) : ''))
+      c.fix ? h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s0)' } }, '→ ', c.fix) : ''))
 
   async function draw() {
     body.replaceChildren(
@@ -89,22 +89,22 @@ registerView('deploy', async root => {
       h('div.page-head', {}, h('div', {},
         h('h1', {}, 'Deploy'),
         h('p.sub', {}, 'Where this site runs, whether it is ready, and the files to get it there.')),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost', { onclick: () => { deep = !deep; draw() } }, iconEl(deep ? 'check' : 'gauge', 14), deep ? 'Deep checks on' : 'Include page weight'),
           h('button.btn.ghost', { onclick: draw }, iconEl('refresh', 14), 'Re-run'))),
 
       targetCards(),
       deployTargets(),
 
-      h('div.card', { style: { display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.8rem 1rem', marginBottom: '1rem', borderColor: verdict.colour } },
+      h('div.card', { style: { display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s4) var(--s4)', marginBottom: 'var(--s4)', borderColor: verdict.colour } },
         h('span', { style: { color: verdict.colour, display: 'flex' }, html: icon(verdict.ico, 18) }),
         h('div', {},
           h('div', { style: { fontWeight: 'var(--fw-semi)' } }, verdict.text),
           h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `environment: ${data.env} · ${s.ok} passing`))),
 
-      ...groups.map(g => h('section', { style: { marginBottom: '1.2rem' } },
-        h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, g.name),
-        h('div.card', { style: { padding: '0.3rem 1rem' } }, ...g.items.map(checkRow)))),
+      ...groups.map(g => h('section', { style: { marginBottom: 'var(--s5)' } },
+        h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s1)' } }, g.name),
+        h('div.card', { style: { padding: 'var(--s1) var(--s4)' } }, ...g.items.map(checkRow)))),
 
       presetSection(),
       weightSection())
@@ -119,8 +119,8 @@ registerView('deploy', async root => {
         ...(profiles.length ? profiles.map(p => {
           const out = h('div')
           const isProd = p.target === 'production'
-          return h('div.card', { style: { padding: '0.75rem 0.95rem', marginBottom: '0.5rem' } },
-            h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap' } },
+          return h('div.card', { style: { padding: 'var(--s3) var(--s4)', marginBottom: 'var(--s2)' } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' } },
               iconEl(p.kind === 'hook' ? 'link' : p.kind === 'command' ? 'code' : 'box', 16),
               h('div', { style: { flex: 1, minWidth: '10rem' } },
                 h('strong', { style: { fontSize: 'var(--t-m)' } }, p.label),
@@ -135,7 +135,7 @@ registerView('deploy', async root => {
                   e.target.disabled = true
                   out.replaceChildren(h('div.spin'))
                   const r = await post(`/deploy/run/${p.id}`).catch(err => ({ ok: false, log: [String(err.message || err)] })).finally(() => (e.target.disabled = false))
-                  out.replaceChildren(h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: '0.5rem 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
+                  out.replaceChildren(h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: 'var(--s2) 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
                   toast(r.ok === false ? 'Deploy failed — see the log' : 'Deployed', r.ok === false ? 'err' : 'ok')
                 },
               }, iconEl('rocket', 12), isProd ? 'Deploy live' : 'Deploy staging')),
@@ -193,15 +193,15 @@ registerView('deploy', async root => {
     }
 
     paint()
-    return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Deploy targets'),
+    return h('section', { style: { marginBottom: 'var(--s5)' } },
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s1)' } }, 'Deploy targets'),
       holder)
   }
 
   function presetSection() {
     const list = PRESETS[target] || []
-    const out = h('div', { style: { display: 'grid', gap: '0.4rem' } })
-    out.replaceChildren(...list.map(p => h('div.card', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 0.9rem' } },
+    const out = h('div', { style: { display: 'grid', gap: 'var(--s2)' } })
+    out.replaceChildren(...list.map(p => h('div.card', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s3) var(--s4)' } },
       h('div', {},
         h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, p),
         h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, PRESET_BLURB[p] || '')),
@@ -214,7 +214,7 @@ registerView('deploy', async root => {
             title: `${p} files`,
             body: h('div', {},
               made.length ? h('p', {}, 'Written:') : '',
-              made.length ? h('ul', { style: { margin: '0 0 0.8rem 1.1rem' } }, ...made.map(f => h('li', {}, h('code', {}, f)))) : '',
+              made.length ? h('ul', { style: { margin: '0 0 var(--s4) var(--s5)' } }, ...made.map(f => h('li', {}, h('code', {}, f)))) : '',
               kept.length ? h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'Left alone (already existed): ', kept.map(f => f).join(', ')) : '',
               h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'They are written into the project folder, filled in from this site’s configuration. Review before committing.')),
             okLabel: 'Done',
@@ -222,8 +222,8 @@ registerView('deploy', async root => {
           toast(made.length ? `Wrote ${made.length} file(s)` : 'Nothing to write', 'ok')
         },
       }, iconEl('download', 13), 'Write files'))))
-    return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Deployment files'),
+    return h('section', { style: { marginBottom: 'var(--s5)' } },
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s1)' } }, 'Deployment files'),
       list.length ? out : h('p.mut', {}, 'No presets for this target.'))
   }
 
@@ -232,19 +232,19 @@ registerView('deploy', async root => {
     get('/budget').then(({ pages, budget, median, failures }) => {
       const bar = p => {
         const pct = Math.min(100, Math.round((p.total / budget.total) * 100))
-        return h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(8rem, 16rem) 1fr 5rem', gap: '0.7rem', alignItems: 'center', padding: '0.35rem 0' } },
+        return h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(8rem, 16rem) 1fr 5rem', gap: 'var(--s3)', alignItems: 'center', padding: 'var(--s1) 0' } },
           h('code', { style: { fontSize: 'var(--t-s)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.path),
           h('div', { style: { height: '7px', borderRadius: 'var(--r-pill)', background: 'var(--line-soft)', overflow: 'hidden' } },
             h('div', { style: { width: `${pct}%`, height: '100%', borderRadius: 'var(--r-pill)', background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
           h('span.fnt', { style: { fontSize: 'var(--t-xs)', textAlign: 'right', color: p.over.length ? 'var(--warn)' : 'var(--mut)' } }, fmtKb(p.total)))
       }
       holder.replaceChildren(
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s2)' } },
           `Median page ${fmtKb(median)} against a ${fmtKb(budget.total)} budget. ${failures ? `${failures} page(s) over.` : 'Every page inside budget.'} Bars show HTML + CSS + JS; images are counted separately.`),
-        h('div.card', { style: { padding: '0.5rem 1rem' } }, ...pages.map(bar)))
+        h('div.card', { style: { padding: 'var(--s2) var(--s4)' } }, ...pages.map(bar)))
     }).catch(e => holder.replaceChildren(h('p.mut', {}, String(e.message || e))))
     return h('section', {},
-      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.3rem' } }, 'Page weight'),
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s1)' } }, 'Page weight'),
       holder)
   }
 

@@ -58,12 +58,12 @@ registerView('dashboard', async root => {
     h('div.page-head', {},
       h('div', {}, h('h1', {}, `Hello, ${state.user.name.split(' ')[0]}`),
         h('p.sub', {}, meta.site.name, ' · ', h('a', { href: meta.site.url, target: '_blank', rel: 'noopener' }, meta.site.url))),
-      h('div', { style: { display: 'flex', gap: '0.5rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
         ...meta.concepts.slice(0, 2).map(c => h('button.btn.primary', { onclick: () => newDocWizard(c.name) }, iconEl('plus', 13), `New ${c.label}`)))),
 
-    onboarding.length ? h('div.card', { style: { marginBottom: '1rem', borderColor: 'var(--acc)' } },
+    onboarding.length ? h('div.card', { style: { marginBottom: 'var(--s4)', borderColor: 'var(--acc)' } },
       h('strong', {}, 'Getting started'),
-      ...onboarding.map(([label, fn]) => h('p', { style: { marginTop: '0.5rem' } }, h('a', { href: '#', onclick: e => { e.preventDefault(); fn() } }, `→ ${label}`)))) : '',
+      ...onboarding.map(([label, fn]) => h('p', { style: { marginTop: 'var(--s2)' } }, h('a', { href: '#', onclick: e => { e.preventDefault(); fn() } }, `→ ${label}`)))) : '',
 
     h('div.cards', {},
       stat(docs.length, 'Documents', '#/c/all', 'Browse everything, of every type'),
@@ -72,10 +72,10 @@ registerView('dashboard', async root => {
       stat(stale.length, 'Unpublished edits', '#/c/all?filter=stale', 'Drafts newer than what visitors see')),
 
     inReview.length && meta.perms.publish ? h('div', {},
-      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.6rem 0 0.6rem' } }, 'Waiting for review'),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: 'var(--s6) 0 var(--s3)' } }, 'Waiting for review'),
       ...inReview.map(d => docRow(d, 'Dashboard'))) : '',
 
-    h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.6rem 0 0.6rem' } }, 'Recently edited'),
+    h('h2', { style: { fontSize: 'var(--t-l)', margin: 'var(--s6) 0 var(--s3)' } }, 'Recently edited'),
     ...(docs.slice(0, 8).map(d => docRow(d, 'Dashboard'))),
     !docs.length ? emptyState(icon('page', 26), 'Nothing here yet', 'Create your first document to get going.') : '',
   )))
@@ -177,7 +177,7 @@ registerView('contentList', async (root, [conceptName], query) => {
 
     listEl.replaceChildren(
       items.length ? head : '',
-      ...items.map(d => h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.3rem' } },
+      ...items.map(d => h('div', { style: { display: 'flex', alignItems: 'center', gap: 'var(--s1)' } },
         h('span.row-check', {}, h('input', {
           type: 'checkbox', checked: selected.has(d.id), 'aria-label': `Select ${d.title}`,
           onchange: e => { e.target.checked ? selected.add(d.id) : selected.delete(d.id); paintBulk() },
@@ -246,14 +246,14 @@ registerView('contentList', async (root, [conceptName], query) => {
         h('div', {},
           h('h1', {}, concept.labelPlural || concept.label),
           countEl),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost.small.panel-toggle', {
             'aria-label': 'Filters', onclick: () => root.querySelector('.split').classList.toggle('panel-open'),
           }, iconEl('filter', 12), 'Filters'),
           isAll ? '' : h('button.btn.ghost.small', { onclick: () => exportCsv(concept, docs) }, iconEl('download', 12), 'CSV'),
           isAll ? '' : h('button.btn.ghost.small', { onclick: () => importCsv(concept) }, iconEl('upload', 12), 'Import'),
           helpButton('content', concept.labelPlural || concept.label))),
-      h('div', { style: { marginBottom: '0.6rem' } }, search),
+      h('div', { style: { marginBottom: 'var(--s3)' } }, search),
       listEl,
       bulkEl))))
 
@@ -321,7 +321,7 @@ function importCsv(concept) {
     }
     preview.replaceChildren(
       h('p.dlg-text', {}, `${rows.length} row(s). Map columns:`),
-      ...fieldKeys.map(fk => h('div', { style: { display: 'grid', gridTemplateColumns: '8rem 1fr', gap: '0.6rem', alignItems: 'center', marginBottom: '0.3rem' } },
+      ...fieldKeys.map(fk => h('div', { style: { display: 'grid', gridTemplateColumns: '8rem 1fr', gap: 'var(--s3)', alignItems: 'center', marginBottom: 'var(--s1)' } },
         h('code.pill-perm', {}, fk),
         h('select.input', {
           onchange: e => { const v = e.target.value; if (v === '') delete mapping[fk]; else mapping[fk] = +v },
@@ -396,7 +396,7 @@ registerView('users', async root => {
       h('tbody', {}, ...users.map(u => {
         const roleSel = h('select.input', {
           disabled: !canTouch(u) || u.id === me.id,
-          style: { fontSize: 'var(--t-s)', width: 'auto', padding: '0.25rem 0.5rem' },
+          style: { fontSize: 'var(--t-s)', width: 'auto', padding: 'var(--s1) var(--s2)' },
           onchange: async e => {
             if (e.target.value === 'owner' && me.role !== 'owner') { toast('Only owners can promote to owner', 'err'); e.target.value = u.role; return }
             await patch(`/users/${u.id}`, { role: e.target.value })
@@ -406,7 +406,7 @@ registerView('users', async root => {
         }, ...ROLES.map(([r]) => h('option', { value: r, selected: u.role === r, disabled: r === 'owner' && me.role !== 'owner' }, r)))
 
         return h('tr', {},
-          h('td', {}, h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center' } },
+          h('td', {}, h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center' } },
             h('span.avatar', {}, initials(u.name)),
             h('div', {}, h('strong', { style: { fontSize: 'var(--t-m)' } }, u.name, u.id === me.id ? h('span.fnt', { style: { fontWeight: 'var(--fw-regular)' } }, '  (you)') : ''),
               h('div.mut', { style: { fontSize: 'var(--t-s)' } }, u.email)))),
@@ -456,7 +456,7 @@ registerView('users', async root => {
       width: 'min(30rem, 94vw)',
       body: h('div', {},
         h('p.dlg-text', {}, `On top of what “${u.role}” already allows. Useful for one-off needs — an author who can publish, a viewer who can run SEO audits.`),
-        h('div', { style: { display: 'grid', gap: '0.15rem' } },
+        h('div', { style: { display: 'grid', gap: 'var(--s0)' } },
           ...GRANTABLE.map(([perm, label]) => h('label.field-check', {},
             h('input', { type: 'checkbox', checked: set.has(perm), onchange: e => e.target.checked ? set.add(perm) : set.delete(perm) }),
             h('span', {}, label, ' ', h('code.pill-perm', {}, perm)))))),
@@ -474,7 +474,7 @@ registerView('users', async root => {
     const vals = { email: '', name: '', role: 'author' }
     let pw = genPass()
     const pwInput = h('input.input', { value: pw, oninput: e => (pw = e.target.value) })
-    const roleCards = h('div', { style: { display: 'grid', gap: '0.3rem' } },
+    const roleCards = h('div', { style: { display: 'grid', gap: 'var(--s1)' } },
       ...ROLES.filter(([r]) => r !== 'owner' || me.role === 'owner').map(([r, label, blurb]) =>
         h('label.role-card', { class: vals.role === r ? 'active' : '' },
           h('input', { type: 'radio', name: 'inv-role', checked: vals.role === r, onchange: () => { vals.role = r; roleCards.querySelectorAll('.role-card').forEach(x => x.classList.remove('active')); event.target.closest('.role-card').classList.add('active') } }),
@@ -505,10 +505,10 @@ registerView('users', async root => {
     h('div.page-head', {},
       h('div', {}, h('h1', {}, 'People'), h('p.sub', {}, 'Studio accounts — people who edit this site. Site visitors live under Members.')),
       h('button.btn.primary', { onclick: invite }, '＋ Invite')),
-    h('details.card', { style: { marginBottom: '1rem', padding: '0.7rem 1rem' } },
+    h('details.card', { style: { marginBottom: 'var(--s4)', padding: 'var(--s3) var(--s4)' } },
       h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, 'What can each role do?'),
-      h('div', { style: { marginTop: '0.6rem', display: 'grid', gap: '0.45rem' } },
-        ...ROLES.map(([r, label, blurb]) => h('div', { style: { display: 'grid', gridTemplateColumns: '6rem 1fr', gap: '0.8rem', fontSize: 'var(--t-m)' } },
+      h('div', { style: { marginTop: 'var(--s3)', display: 'grid', gap: 'var(--s2)' } },
+        ...ROLES.map(([r, label, blurb]) => h('div', { style: { display: 'grid', gridTemplateColumns: '6rem 1fr', gap: 'var(--s4)', fontSize: 'var(--t-m)' } },
           h('strong', {}, label), h('span.mut', {}, blurb))))),
     holder)))
   refresh()
@@ -546,8 +546,8 @@ registerView('settings', async (root, [groupKey], query) => {
         } finally { b.classList.remove('busy'); b.disabled = false }
       },
     }, 'Save') : ''
-    const el = h('div.card', { style: { marginBottom: '1rem' } },
-      h('div.page-head', { style: { marginBottom: '0.6rem' } },
+    const el = h('div.card', { style: { marginBottom: 'var(--s4)' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
         h('div', {}, h('strong', {}, title2, dot), sub ? h('p.sub', {}, sub) : ''), btn),
       body)
     // any edit inside the card marks it dirty, so the route guard knows
@@ -570,8 +570,8 @@ registerView('settings', async (root, [groupKey], query) => {
       ['searchOpenSearch', 'OpenSearch', 'Lets browsers register this site as a search engine.'],
     ]
     return card('Site features', 'Core behaviours, one switchboard. Off means off — nothing ships to the page.',
-      h('div', { style: { display: 'grid', gap: '0.1rem' } }, ...FEATURES.map(([key, label, blurb]) =>
-        h('div', { style: { display: 'flex', gap: '0.8rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)' } },
+      h('div', { style: { display: 'grid', gap: 'var(--s0)' } }, ...FEATURES.map(([key, label, blurb]) =>
+        h('div', { style: { display: 'flex', gap: 'var(--s4)', alignItems: 'center', padding: 'var(--s2) 0', borderBottom: '1px solid var(--line-soft)' } },
           h('label.switch', {},
             h('input', {
               type: 'checkbox',
@@ -620,7 +620,7 @@ registerView('settings', async (root, [groupKey], query) => {
     { key: 'features', label: 'What the site does', icon: 'bolt', body: () => [featuresCard()] },
     { key: 'brand', label: 'Brand', icon: 'star', body: () => [brandSection(s, save)] },
     { key: 'appearance', label: 'Appearance', icon: 'palette', body: () => [
-      h('div.card', { style: { marginBottom: '1rem', padding: '0.8rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' } },
+      h('div.card', { style: { marginBottom: 'var(--s4)', padding: 'var(--s4) var(--s4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s4)' } },
         h('div', {},
           h('strong', {}, 'Template, palette and colour scheme'),
           h('p.sub', {}, `Edited in Design, with the site itself as the preview. Currently: ${s.template || 'aurora'} · ${s.theme.colorScheme || 'auto'} scheme.`)),
@@ -659,7 +659,7 @@ registerView('settings', async (root, [groupKey], query) => {
           { key: 'from', type: 'text', label: 'From address', width: 'half' },
           { key: 'options', type: 'json', label: 'Provider options', help: '{"apiKey":"…"} for Resend/SendGrid/Postmark · {"url":"…"} for webhook · {} for console/MailChannels' },
         ], mailVals, () => {}),
-        h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.5rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' } },
           h('button.btn.soft.small', { onclick: async () => {
             await save({ mail: mailVals })
             const r = await post('/mail/test', {}).catch(e => ({ error: e.message }))
@@ -673,7 +673,7 @@ registerView('settings', async (root, [groupKey], query) => {
     { key: 'build', label: 'Publishing & export', icon: 'box', body: () => [
       buildSection(s, save),
       h('div.card', {},
-        h('div.page-head', { style: { marginBottom: '0.4rem' } }, h('div', {}, h('strong', {}, 'Static export'), h('p.sub', {}, 'Build a flat site into dist/ — deploy anywhere static.')),
+        h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('div', {}, h('strong', {}, 'Static export'), h('p.sub', {}, 'Build a flat site into dist/ — deploy anywhere static.')),
           h('button.btn.primary.small', {
             onclick: async e => {
               e.currentTarget.disabled = true
@@ -727,7 +727,7 @@ registerView('settings', async (root, [groupKey], query) => {
             },
           }, h('span.row-ico', { html: icon('search', 14) }),
             h('span.row-label', {}, r.label, h('div.row-sub', {}, r.sub))))
-          : [h('p.mut', { style: { padding: '0.6rem 0.7rem', fontSize: 'var(--t-m)' } }, 'No setting matches that.')])
+          : [h('p.mut', { style: { padding: 'var(--s3) var(--s3)', fontSize: 'var(--t-m)' } }, 'No setting matches that.')])
         : GROUPS.map(g =>
           h('button.row-item', {
             class: g.key === active.key ? 'active' : '',
@@ -742,7 +742,7 @@ registerView('settings', async (root, [groupKey], query) => {
         h('div', {},
           h('h1', {}, active.label),
           h('p.sub', {}, 'Stored in site/site.json - commit it with your content.')),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost.small.panel-toggle', {
             'aria-label': 'All settings', onclick: () => root.querySelector('.split').classList.toggle('panel-open'),
           }, iconEl('list', 12), 'All settings'),
@@ -795,10 +795,10 @@ function brandSection(s, save) {
           key: d.key, label: d.label || d.key, type: d.type || 'text', help: d.help,
           options: d.options, width: ['color', 'number', 'boolean'].includes(d.type) ? 'half' : undefined,
         })), vals, () => {}))
-        return g ? h('div.field-group', { style: { marginBottom: '0.8rem' } }, h('div.fg-title', {}, g), inner) : inner
+        return g ? h('div.field-group', { style: { marginBottom: 'var(--s4)' } }, h('div.fg-title', {}, g), inner) : inner
       }),
-      defs.length ? '' : h('p.mut', { style: { marginBottom: '0.6rem' } }, 'No variables yet. Add one below — then use it anywhere in content as {{var.key}} or in templates as {{ vars.key }}.'),
-      h('div', { style: { display: 'flex', gap: '0.4rem', flexWrap: 'wrap' } },
+      defs.length ? '' : h('p.mut', { style: { marginBottom: 'var(--s3)' } }, 'No variables yet. Add one below — then use it anywhere in content as {{var.key}} or in templates as {{ vars.key }}.'),
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' } },
         ...defs.map((d, i) => h('span.multi-tag', {}, `{{var.${d.key}}}`,
           h('button', { onclick: () => { defs.splice(i, 1); delete vals[d.key]; render() }, html: icon('x', 11) })))))
   }
@@ -821,11 +821,11 @@ function brandSection(s, save) {
     })
   }
 
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Brand variables'),
         h('p.sub', {}, 'Define once, reuse everywhere. Editors type {{var.phone}} in any text field and it resolves site-wide.')),
-      h('div', { style: { display: 'flex', gap: '0.5rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
         h('button.btn.ghost.small', { onclick: addVar }, iconEl('plus', 14), 'Add variable'),
         h('button.btn.ghost.small', { onclick: () => save({ vars: vals, varDefs: defs }) }, 'Save'))),
     holder)
@@ -841,8 +841,8 @@ function schemeSection(s, save) {
       : `Every visitor sees ${vals.colorScheme} mode. The toggle is hidden, and the editor preview matches.`
   }
   sync()
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Colour scheme'), h('p.sub', {}, 'Some brands want one look only — lock it here.')),
       h('button.btn.ghost.small', { onclick: () => save({ theme: { ...theme, ...vals } }) }, 'Save')),
     renderFields([
@@ -872,7 +872,7 @@ function systemPagesSection(s, save) {
         { key: '404', type: 'select', label: 'Not found (404)', options, help: 'Shown for any unknown URL' },
         { key: 'maintenance', type: 'select', label: 'Maintenance', options, help: 'Shown while maintenance mode is on' },
       ], sys, () => {}),
-      h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, 'Maintenance mode'),
+      h('div.insp-section-title', { style: { marginTop: 'var(--s3)' } }, 'Maintenance mode'),
       renderFields([
         { key: 'enabled', type: 'boolean', label: 'Maintenance mode is on' },
         { key: 'message', type: 'text', label: 'Fallback message', help: 'Used when no maintenance document is chosen' },
@@ -885,8 +885,8 @@ function systemPagesSection(s, save) {
         'While maintenance mode is on the public site answers 503 with a Retry-After header, so search engines wait rather than de-indexing you. Signed-in studio users, assets and /healthz keep working.'))
   }).catch(() => holder.replaceChildren(h('p.mut', {}, 'Could not load documents.')))
 
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'System pages'), h('p.sub', {}, 'The 404, the maintenance screen — built from blocks like everything else.')),
       h('button.btn.ghost.small', {
         onclick: () => {
@@ -912,8 +912,8 @@ function urlsSection(s, save) {
     preview.textContent = `URL: ${shown}   ·   static file: ${file}` + (vals.shortlinks ? `   ·   short: /${vals.shortlinkPrefix}/ab12cd` : '')
   }
   sync()
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'URLs & paths'), h('p.sub', {}, 'How addresses are generated and what a static build writes to disk.')),
       h('button.btn.ghost.small', { onclick: () => save({ urls: vals }) }, 'Save')),
     renderFields([
@@ -929,7 +929,7 @@ function urlsSection(s, save) {
       { key: 'shortlinkPrefix', type: 'text', label: 'Shortlink prefix', width: 'half' },
     ], vals, () => sync()),
     preview,
-    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } },
+    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s2)' } },
       'Per-page aliases and mirrors live in the editor’s Page tab. Slug changes keep 301-ing automatically.'))
 }
 
@@ -957,8 +957,8 @@ function modulesSection(s, save) {
         },
       }))))))))
 
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Interface modules'),
         h('p.sub', {}, 'Hide what a team doesn’t need. Hidden modules disappear from the rail, ribbon and command palette.')),
       h('button.btn.ghost.small', { onclick: () => save({ modules: { hidden: [...hidden], hiddenForRole: perRole } }) }, 'Save')),
@@ -987,7 +987,7 @@ function securitySection(s, save) {
       trustedIssuers: (() => { try { return JSON.parse(vals.trustedIssuers || '{}') } catch { return sec.trustedIssuers || {} } })() },
   })
 
-  const previewOut = h('div', { style: { marginTop: '0.5rem' } })
+  const previewOut = h('div', { style: { marginTop: 'var(--s2)' } })
   const renderPreviewLink = token => {
     if (!token) { previewOut.replaceChildren(h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'No link yet — visitors get the plain sign-in wall.')); return }
     const url = `${location.origin}/?preview=${token}`
@@ -1004,14 +1004,14 @@ function securitySection(s, save) {
   const loadLogs = async () => {
     const { lines } = await get('/logs/errors')
     logsOut.replaceChildren(lines.length
-      ? h('div', {}, ...lines.slice(0, 20).map(l => h('div', { style: { fontSize: 'var(--t-xs)', fontFamily: 'var(--mono)', padding: '0.2rem 0', borderBottom: '1px solid var(--line-soft)' } },
+      ? h('div', {}, ...lines.slice(0, 20).map(l => h('div', { style: { fontSize: 'var(--t-xs)', fontFamily: 'var(--mono)', padding: 'var(--s0) 0', borderBottom: '1px solid var(--line-soft)' } },
         h('span.fnt', {}, `${(l.at || '').slice(5, 19)} `), h('strong', {}, l.path || ''), ` — ${l.error || l.raw || ''}`)))
       : h('p.mut', {}, 'No server errors logged. Good.'))
   }
 
   return h('div', {},
-    h('div.card', { style: { marginBottom: '1rem' } },
-      h('div.page-head', { style: { marginBottom: '0.6rem' } },
+    h('div.card', { style: { marginBottom: 'var(--s4)' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
         h('div', {}, h('strong', {}, 'Security'), h('p.sub', {}, 'Applied to every response. Balanced CSP suits most sites; strict switches inline scripts to nonces.')),
         h('button.btn.ghost.small', { onclick: doSave }, 'Save')),
       renderFields([
@@ -1026,8 +1026,8 @@ function securitySection(s, save) {
         { key: 'adminAllowlist', type: 'text', label: 'Admin IP allowlist', help: 'Comma-separated IPs or CIDRs. Blank = any network.' },
       ], vals, () => {})),
 
-    h('div.card', { style: { marginBottom: '1rem' } },
-      h('div.page-head', { style: { marginBottom: '0.6rem' } },
+    h('div.card', { style: { marginBottom: 'var(--s4)' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
         h('div', {}, h('strong', {}, 'Exposure'), h('p.sub', {}, 'Rename the studio path, lock a staging instance down, and self-check that nothing sensitive is reachable.')),
         h('button.btn.ghost.small', { onclick: doSave }, 'Save')),
       renderFields([
@@ -1039,17 +1039,17 @@ function securitySection(s, save) {
         ], width: 'half', help: 'Staging keeps the studio reachable and hides everything else' },
         { key: 'privateRedirect', type: 'text', label: 'Staging: send visitors to', width: 'half', help: "e.g. https://www.example.com — blank shows the sign-in wall instead" },
       ], vals, () => {}),
-      h('div', { style: { marginTop: '0.7rem' } },
+      h('div', { style: { marginTop: 'var(--s3)' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
           h('strong', { style: { fontSize: 'var(--t-m)' } }, 'Shareable preview link'),
           h('button.btn.ghost.small', { onclick: async () => {
             const r = await post('/security/preview-link', {})
             renderPreviewLink(r.token)
           } }, iconEl('link', 13), sec.previewToken ? 'Rotate' : 'Create')),
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.2rem 0 0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s0) 0 var(--s2)' } },
           'Lets anyone with the link view a Staging-gated site without signing in — for handing to a client, or a tool that just needs to fetch a page once. Rotating invalidates the old one immediately.'),
         previewOut),
-      h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.8rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginTop: 'var(--s4)' } },
         h('button.btn.soft.small', { onclick: async e => {
           probeOut.hidden = false; probeOut.textContent = 'Probing…'
           const r = await post('/security/probe', {})
@@ -1058,19 +1058,19 @@ function securitySection(s, save) {
         } }, iconEl('shield', 13), 'Probe my public URL for exposed files'),
         h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'Checks .blockhouse/, secure.db, site JSON, .git and .env from the outside.')),
       probeOut,
-      h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.6rem' } },
+      h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s3)' } },
         'Running behind Cloudflare? Pair this with an Access rule on the studio path and a WAF rule blocking /.blockhouse* and /.git* — blockhouse already refuses to serve them, the rules are belt and braces.')),
 
-    h('div.card', { style: { marginBottom: '1rem' } },
-      h('div.page-head', { style: { marginBottom: '0.4rem' } },
+    h('div.card', { style: { marginBottom: 'var(--s4)' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s2)' } },
         h('div', {}, h('strong', {}, 'Signed packages'), h('p.sub', {}, 'Ed25519 public keys of theme/plugin sellers you trust — installs verify against these.')),
         h('button.btn.ghost.small', { onclick: doSave }, 'Save')),
       renderFields([{ key: 'trustedIssuers', type: 'json', label: 'Trusted issuers', help: '{"studio.example": "<base64 public key>"}' }], vals, () => {})),
 
     h('div.card', {},
-      h('div.page-head', { style: { marginBottom: '0.4rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s2)' } },
         h('div', {}, h('strong', {}, 'Server error log')),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost.small', { onclick: loadLogs }, iconEl('refresh', 13), 'Refresh'),
           h('button.btn.ghost.small', { onclick: async () => { await del('/logs/errors'); loadLogs() } }, 'Clear'))),
       logsOut,
@@ -1081,9 +1081,9 @@ function securitySection(s, save) {
 
 function fontsSection(s, save) {
   const fonts = s.fonts ? JSON.parse(JSON.stringify(s.fonts)) : []
-  const list = h('div', { style: { display: 'grid', gap: '0.5rem', marginBottom: '0.7rem' } })
+  const list = h('div', { style: { display: 'grid', gap: 'var(--s2)', marginBottom: 'var(--s3)' } })
   const render = () => {
-    list.replaceChildren(...fonts.map((f, i) => h('div', { style: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 0.8fr 0.9fr auto', gap: '0.4rem', alignItems: 'center' } },
+    list.replaceChildren(...fonts.map((f, i) => h('div', { style: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 0.8fr 0.9fr auto', gap: 'var(--s2)', alignItems: 'center' } },
       h('input.input', { value: f.family || '', placeholder: 'Family name', style: { fontSize: 'var(--t-s)' }, oninput: e => (f.family = e.target.value) }),
       h('select.input', { style: { fontSize: 'var(--t-s)' }, onchange: e => (f.role = e.target.value || undefined) },
         h('option', { value: '' }, 'no role'),
@@ -1103,10 +1103,10 @@ function fontsSection(s, save) {
     fonts.push({ family: r.name.replace(/\.[^.]+$/, ''), file: r.file, weight: 400, style: 'normal', format: fmt, role: fonts.length ? undefined : 'display' })
     render(); toast('Font added — set a role and save', 'ok')
   })
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Fonts'), h('p.sub', {}, 'Upload woff2/woff/ttf — assign body/display/mono roles. Preloaded fonts avoid layout shift.')),
-      h('div', { style: { display: 'flex', gap: '0.5rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
         h('button.btn.ghost.small', { onclick: () => fileInput.click() }, iconEl('upload', 14), 'Upload'),
         h('button.btn.ghost.small', { onclick: () => save({ fonts }) }, 'Save'))),
     list, fileInput)
@@ -1114,8 +1114,8 @@ function fontsSection(s, save) {
 
 function codeSection(s, save) {
   const vals = { customCss: s.customCss || '', customJs: s.customJs || '' }
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Custom code (site-wide)'), h('p.sub', {}, 'Injected on every page. Per-page code lives in the editor’s Page tab.')),
       h('button.btn.ghost.small', { onclick: () => save(vals) }, 'Save')),
     renderFields([
@@ -1130,8 +1130,8 @@ function buildSection(s, save) {
     trailingSlash: b.trailingSlash !== false, minify: !!b.minify,
     basePath: b.basePath || '', generateSearchIndex: b.generateSearchIndex !== false,
   }
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, 'Build & export')),
       h('button.btn.ghost.small', { onclick: () => save({ build: vals }) }, 'Save')),
     renderFields([
@@ -1146,7 +1146,7 @@ function buildSection(s, save) {
 
 /** What a role may not do, said out loud rather than left as an absence. */
 export function permissionNote(what) {
-  return h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } },
+  return h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s2)' } },
     `Your account (${state.user.role}) cannot ${what}. An owner or admin can change that under Apps & permissions.`)
 }
 
@@ -1167,10 +1167,10 @@ registerView('plugins', async root => {
       width: 'min(36rem, 94vw)',
       body: h('div', {},
         h('p.dlg-text', {}, p.description || '', ` · v${p.version}`),
-        h('label.field-check', { style: { margin: '0.5rem 0' } }, enabled, h('span', {}, h('strong', {}, 'Enabled'))),
+        h('label.field-check', { style: { margin: 'var(--s2) 0' } }, enabled, h('span', {}, h('strong', {}, 'Enabled'))),
         h('div.insp-section-title', {}, `Permissions — approve only what it should touch`),
         ...permChecks.map(x => x.row),
-        h('button.btn.ghost.small', { style: { marginTop: '0.4rem' }, onclick: () => permChecks.forEach(x => (x.cb.checked = true)) }, 'Approve all')),
+        h('button.btn.ghost.small', { style: { marginTop: 'var(--s2)' }, onclick: () => permChecks.forEach(x => (x.cb.checked = true)) }, 'Approve all')),
       actions: [{
         label: 'Save', kind: 'primary', onClick: async () => {
           await patch(`/plugins/${p.id}`, { enabled: enabled.checked, approved: permChecks.filter(x => x.cb.checked).map(x => x.perm) })
@@ -1185,7 +1185,7 @@ registerView('plugins', async root => {
     const needle = q.trim().toLowerCase()
     const list = all.filter(p => !needle || `${p.id} ${p.name} ${p.description} ${PLUGIN_TAGS[p.id] || ''}`.toLowerCase().includes(needle))
     holder.replaceChildren(...list.map(p => h('button.card.plug-card', { onclick: () => openPlugin(p) },
-      h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.35rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginBottom: 'var(--s1)' } },
         h('span.row-ico', { html: icon(p.state.enabled ? 'plug' : 'lock', 17) }),
         h('strong', {}, p.name),
         h('span', { style: { flex: 1 } }),
@@ -1193,7 +1193,7 @@ registerView('plugins', async root => {
           ? h('span.mrow-tag', { style: { background: 'color-mix(in oklch, var(--ok) 18%, transparent)' } }, 'on')
           : h('span.mrow-tag', {}, 'off')),
       h('p.fnt', { style: { fontSize: 'var(--t-s)', minHeight: '2.2em' } }, p.description || ''),
-      h('div', { style: { display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.4rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s1)', alignItems: 'center', marginTop: 'var(--s2)' } },
         h('span.pill-perm', {}, PLUGIN_TAGS[p.id] || 'plugin'),
         h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, `v${p.version} · ${p.state.approved.length}/${p.permissions.length} perms`))),
     ), list.length ? '' : emptyState(icon('plug', 24), 'No plugins match', 'Clear the search, or install one below.'))
@@ -1230,7 +1230,7 @@ registerView('plugins', async root => {
   root.replaceChildren(h('div.main', {}, h('div.main-pad', {},
     h('div.page-head', {},
       h('div', {}, h('h1', {}, 'Apps & permissions'), h('p.sub', {}, 'An ecosystem, not a wall of switches: search, click a card for details, approve only the capabilities it should have. Installed packages are checksum-verified.')),
-      h('div', { style: { display: 'flex', gap: '0.5rem' } }, search, installBtn)),
+      h('div', { style: { display: 'flex', gap: 'var(--s2)' } }, search, installBtn)),
     holder)))
   refresh()
 })
@@ -1285,8 +1285,8 @@ async function resourceSection(panel, res) {
     })
   }
   refresh()
-  return h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.6rem' } },
+  return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
       h('div', {}, h('strong', {}, res.label)),
       h('button.btn.primary.small', { onclick: () => editItem(null) }, `＋ New`)),
     holder)
@@ -1321,28 +1321,28 @@ const CUSTOM_SECTIONS = {
         })
       }
       wrap.replaceChildren(
-        pending.length ? h('div.card', { style: { marginBottom: '1rem', borderColor: 'var(--warn)' } },
+        pending.length ? h('div.card', { style: { marginBottom: 'var(--s4)', borderColor: 'var(--warn)' } },
           h('strong', {}, `Access requests (${pending.length})`),
-          ...pending.map(r => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
+          ...pending.map(r => h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center', padding: 'var(--s2) 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
             h('div', { style: { flex: 1 } }, h('strong', {}, r.email), ` · ${r.role || '—'}${r.company ? ` @ ${r.company}` : ''} → ${r.areaLabel}`,
               r.note ? h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `“${r.note}”`) : ''),
             h('button.btn.primary.small', { onclick: async () => { await post(`/x/drive/requests/${r.id}/approve`, {}); toast('Approved — they can sign in now', 'ok'); draw() } }, 'Approve'),
             h('button.btn.ghost.small', { onclick: async () => { await post(`/x/drive/requests/${r.id}/decline`, {}); draw() } }, 'Decline')))) : '',
-        h('div.card', { style: { marginBottom: '1rem' } },
-          h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Document areas'),
+        h('div.card', { style: { marginBottom: 'var(--s4)' } },
+          h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('strong', {}, 'Document areas'),
             h('button.btn.ghost.small', { onclick: () => editArea() }, iconEl('plus', 13), 'New area')),
-          ...areas.map(a => h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
+          ...areas.map(a => h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center', padding: 'var(--s2) 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } },
             h('span.row-ico', { html: icon('folder', 15) }),
             h('div', { style: { flex: 1 } }, h('strong', {}, a.label),
               h('div.fnt', { style: { fontSize: 'var(--t-s)' } }, `${a.fileCount} files · ${a.groups.length ? `groups: ${a.groups.join(', ')}` : 'any signed-in member'} · upload under Assets → private/drive/${a.id}`)),
             h('button.btn.ghost.small', { onclick: () => editArea(a) }, 'Edit'),
             h('button.icon-btn', { onclick: async () => { if (await confirmDialog('Delete area', `Remove “${a.label}”? Files stay on disk.`)) { await del(`/x/drive/areas/${a.id}`); draw() } } }, iconEl('trash', 13)))),
-          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.5rem' } }, 'Put a “Document portal” block on a page (e.g. /downloads) — visitors request access there, members see their files.')),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s2)' } }, 'Put a “Document portal” block on a page (e.g. /downloads) — visitors request access there, members see their files.')),
         h('div.cards', {},
           h('div.card', {}, h('strong', {}, 'Most downloaded'),
-            top.length ? h('div', { style: { marginTop: '0.4rem' } }, ...top.map(t => h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 'var(--t-s)', padding: '0.2rem 0' } }, h('span', {}, t.file), h('strong', {}, String(t.n))))) : h('p.mut', {}, 'No downloads yet.')),
+            top.length ? h('div', { style: { marginTop: 'var(--s2)' } }, ...top.map(t => h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 'var(--t-s)', padding: 'var(--s0) 0' } }, h('span', {}, t.file), h('strong', {}, String(t.n))))) : h('p.mut', {}, 'No downloads yet.')),
           h('div.card', {}, h('strong', {}, 'Recent activity'),
-            recent.length ? h('div', { style: { marginTop: '0.4rem' } }, ...recent.slice(0, 8).map(r => h('div', { style: { fontSize: 'var(--t-s)', padding: '0.2rem 0' } }, `${r.email} ↓ ${r.file}`))) : h('p.mut', {}, 'Quiet so far.'))))
+            recent.length ? h('div', { style: { marginTop: 'var(--s2)' } }, ...recent.slice(0, 8).map(r => h('div', { style: { fontSize: 'var(--t-s)', padding: 'var(--s0) 0' } }, `${r.email} ↓ ${r.file}`))) : h('p.mut', {}, 'Quiet so far.'))))
     }
     await draw()
     return wrap
@@ -1354,12 +1354,12 @@ const CUSTOM_SECTIONS = {
     const draw = async () => {
       const [{ orders }, sum] = await Promise.all([get('/x/commerce/orders'), get('/x/commerce/summary')])
       wrap.replaceChildren(
-        h('div.cards', { style: { marginBottom: '1rem' } },
+        h('div.cards', { style: { marginBottom: 'var(--s4)' } },
           h('div.card.stat', {}, h('span.n', {}, String(sum.orders)), h('span.l', {}, 'Orders')),
           h('div.card.stat', {}, h('span.n', {}, String(sum.paid)), h('span.l', {}, 'Paid')),
           h('div.card.stat', {}, h('span.n', {}, `${sum.currency === 'GBP' ? '£' : sum.currency === 'EUR' ? '€' : '$'}${sum.revenue.toLocaleString()}`), h('span.l', {}, 'Revenue'))),
         h('div.card', {},
-          h('div.page-head', { style: { marginBottom: '0.4rem' } }, h('strong', {}, 'Orders'),
+          h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('strong', {}, 'Orders'),
             h('a.btn.ghost.small', { href: '#/settings/pluginsx' }, 'Commerce settings')),
           orders.length ? h('div.table-wrap', {}, h('table.data-table', {},
             h('thead', {}, h('tr', {}, h('th', {}, 'Order'), h('th', {}, 'Customer'), h('th', {}, 'Items'), h('th.num', {}, 'Total'), h('th', {}, 'Status'), h('th'))),
@@ -1371,9 +1371,9 @@ const CUSTOM_SECTIONS = {
               h('td', {}, h('span.chip', { class: CHIP[o.status] || 'draft' }, o.status)),
               h('td', { style: { textAlign: 'right', whiteSpace: 'nowrap' } },
                 ...['paid', 'fulfilled', 'cancelled'].filter(s2 => s2 !== o.status).map(s2 =>
-                  h('button.btn.ghost.small', { style: { marginLeft: '0.25rem' }, onclick: async () => { await post(`/x/commerce/orders/${o.id}/status`, { to: s2 }); draw() } }, s2))))))))
+                  h('button.btn.ghost.small', { style: { marginLeft: 'var(--s1)' }, onclick: async () => { await post(`/x/commerce/orders/${o.id}/status`, { to: s2 }); draw() } }, s2))))))))
             : emptyState(icon('cart', 24), 'No orders yet', 'Put “Add to cart” blocks on product pages and a “Cart & checkout” block on /cart.')),
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.6rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s3)' } },
           'Orders fire commerce.order.created / .paid / .fulfilled — point Automations at them for receipts, CRM sync or fulfilment. Stripe webhook endpoint: /x/commerce/stripe.'))
     }
     await draw()
@@ -1399,9 +1399,9 @@ const CUSTOM_SECTIONS = {
       wrap.replaceChildren(
         h('div.card', {},
           h('strong', {}, 'Markdown → site'),
-          h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.3rem 0 0.6rem' } },
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s1) 0 var(--s3)' } },
             `Tracking ${tracked} file(s). ${last ? `Last sync ${fmtDate(last.at)} — ${Object.entries(last.report).map(([k, v]) => `${v} ${k}`).join(', ')}.` : 'Never synced.'} Frontmatter (title, slug, category…) becomes fields; the body becomes the page. Configure the folder + content type under Settings → Plugin settings.`),
-          h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' } },
+          h('div', { style: { display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center' } },
             h('button.btn.primary.small', { onclick: () => runSync() }, iconEl('refresh', 13), 'Sync configured folder'),
             h('span.fnt', {}, 'or'),
             file,
@@ -1442,7 +1442,7 @@ const CUSTOM_SECTIONS = {
     const refreshList = async () => {
       const { items } = await get('/res/automations/recipes')
       listHolder.replaceChildren(
-        items.length ? h('div', { style: { display: 'grid', gap: '0.5rem' } }, ...items.map(r => h('div.card', { style: { padding: '0.7rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.8rem' } },
+        items.length ? h('div', { style: { display: 'grid', gap: 'var(--s2)' } }, ...items.map(r => h('div.card', { style: { padding: 'var(--s3) var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s4)' } },
           h('label.switch', { title: r.enabled ? 'On' : 'Off' },
             h('input', { type: 'checkbox', checked: !!r.enabled, onchange: async e => { await post('/res/automations/recipes', { ...r, enabled: e.target.checked }); toast(e.target.checked ? 'Recipe on' : 'Recipe off', 'ok') } }),
             h('span.switch-track')),
@@ -1457,18 +1457,18 @@ const CUSTOM_SECTIONS = {
     const refreshRuns = async () => {
       const { items } = await get('/x/automations/runs').catch(() => ({ items: [] }))
       runsHolder.replaceChildren(items.length
-        ? h('div', { style: { display: 'grid', gap: '0.3rem' } }, ...items.slice(0, 30).map(row => {
+        ? h('div', { style: { display: 'grid', gap: 'var(--s1)' } }, ...items.slice(0, 30).map(row => {
           const run = row.data || row
           const failed = (run.steps || []).some(st => st.error)
-          return h('details.card', { style: { padding: '0.5rem 0.8rem' } },
-            h('summary', { style: { cursor: 'pointer', display: 'flex', gap: '0.6rem', alignItems: 'center', fontSize: 'var(--t-s)' } },
+          return h('details.card', { style: { padding: 'var(--s2) var(--s4)' } },
+            h('summary', { style: { cursor: 'pointer', display: 'flex', gap: 'var(--s3)', alignItems: 'center', fontSize: 'var(--t-s)' } },
               h('span', { style: { color: failed ? 'var(--err)' : 'var(--ok)', display: 'inline-flex' }, html: icon(failed ? 'x' : 'check', 13) }),
               h('strong', {}, run.label || run.recipe || 'run'),
               run.test ? h('span.mrow-tag', {}, 'test') : '',
               h('code.pill-perm', {}, run.event || ''),
               h('span.fnt', { style: { marginLeft: 'auto', fontSize: 'var(--t-xs)' } }, `${run.ms ?? '—'}ms · ${fmtDate(row.createdAt)}`)),
-            h('div', { style: { marginTop: '0.5rem', display: 'grid', gap: '0.3rem' } },
-              ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: '0.5rem', alignItems: 'baseline' } },
+            h('div', { style: { marginTop: 'var(--s2)', display: 'grid', gap: 'var(--s1)' } },
+              ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: 'var(--s2)', alignItems: 'baseline' } },
                 h('code.pill-perm', {}, st.type),
                 st.error ? h('span', { style: { color: 'var(--err-ink)' } }, st.error)
                   : h('span.mut', {}, st.result ? JSON.stringify(st.result).slice(0, 160) : 'ok')))))
@@ -1480,7 +1480,7 @@ const CUSTOM_SECTIONS = {
       const r = existing ? JSON.parse(JSON.stringify(existing)) : { label: '', on: 'form.submitted', filter: '', actions: [], enabled: true }
       r.actions ??= []
       let payloadText = (EVENTS.find(ev => ev[0] === r.on)?.[2]) || '{}'
-      const stepsHolder = h('div', { style: { display: 'grid', gap: '0.5rem' } })
+      const stepsHolder = h('div', { style: { display: 'grid', gap: 'var(--s2)' } })
       const testOut = h('div')
 
       const paintSteps = () => {
@@ -1489,8 +1489,8 @@ const CUSTOM_SECTIONS = {
             const def = actions.find(x => x.type === a.type)
             const opts = typeof a.options === 'string' ? (JSON.parse(a.options || '{}') || {}) : (a.options ??= {})
             a.options = opts
-            return h('div.card', { style: { padding: '0.7rem 0.85rem' } },
-              h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.45rem' } },
+            return h('div.card', { style: { padding: 'var(--s3) var(--s4)' } },
+              h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)' } },
                 h('span.step-n', {}, String(i + 1)),
                 h('select.input', {
                   style: { flex: 1, fontSize: 'var(--t-m)' },
@@ -1511,7 +1511,7 @@ const CUSTOM_SECTIONS = {
       stepsHolder.addEventListener('focusin', e => {
         if (e.target.matches('input[type=text], input:not([type]), textarea')) lastInput = e.target
       })
-      const varChips = h('div', { style: { display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.4rem' } })
+      const varChips = h('div', { style: { display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap', marginTop: 'var(--s2)' } })
       const paintVars = () => {
         let payload = {}
         try { payload = JSON.parse(payloadText || '{}') } catch {}
@@ -1559,10 +1559,10 @@ const CUSTOM_SECTIONS = {
         try { payload = JSON.parse(payloadText || '{}') } catch { toast('Sample payload is not valid JSON', 'err'); return }
         const res = await post('/x/automations/dryrun', { recipe: r, payload })
         testOut.replaceChildren(
-          h('p', { style: { fontSize: 'var(--t-s)', margin: '0.5rem 0 0.3rem' } },
+          h('p', { style: { fontSize: 'var(--t-s)', margin: 'var(--s2) 0 var(--s1)' } },
             'Condition: ', res.condition ? h('strong', { style: { color: 'var(--ok-ink)' } }, 'matches — recipe would run') : h('strong', { style: { color: 'var(--warn-ink)' } }, 'does not match — recipe would be skipped')),
-          ...res.steps.map((st, i) => h('div.card', { style: { padding: '0.5rem 0.7rem', marginBottom: '0.3rem' } },
-            h('div', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', marginBottom: '0.2rem' } }, `${i + 1}. ${st.label}`, st.known ? '' : h('span', { style: { color: 'var(--err-ink)' } }, '  (unknown action!)')),
+          ...res.steps.map((st, i) => h('div.card', { style: { padding: 'var(--s2) var(--s3)', marginBottom: 'var(--s1)' } },
+            h('div', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', marginBottom: 'var(--s0)' } }, `${i + 1}. ${st.label}`, st.known ? '' : h('span', { style: { color: 'var(--err-ink)' } }, '  (unknown action!)')),
             h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: 0, whiteSpace: 'pre-wrap' } }, JSON.stringify(st.resolved, null, 1)))))
       }
       const doTest = async () => {
@@ -1572,9 +1572,9 @@ const CUSTOM_SECTIONS = {
         const { run } = await post('/x/automations/testrun', { recipe: r, payload })
         const failed = (run.steps || []).some(st => st.error)
         testOut.replaceChildren(
-          h('p', { style: { fontSize: 'var(--t-m)', margin: '0.5rem 0 0.3rem', fontWeight: 'var(--fw-semi)', color: failed ? 'var(--err)' : 'var(--ok)' } },
+          h('p', { style: { fontSize: 'var(--t-m)', margin: 'var(--s2) 0 var(--s1)', fontWeight: 'var(--fw-semi)', color: failed ? 'var(--err)' : 'var(--ok)' } },
             failed ? 'Ran with errors' : `Ran clean in ${run.ms}ms`),
-          ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: '0.5rem' } },
+          ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: 'var(--s2)' } },
             h('code.pill-perm', {}, st.type),
             st.error ? h('span', { style: { color: 'var(--err-ink)' } }, st.error) : h('span.mut', {}, st.result ? JSON.stringify(st.result).slice(0, 140) : 'ok'))))
         refreshRuns()
@@ -1588,12 +1588,12 @@ const CUSTOM_SECTIONS = {
           renderFields([{ key: 'label', type: 'text', label: 'Name', required: true }], r, () => {}),
           h('div.field', {}, h('label', {}, h('span', {}, 'When this happens'), h('span.help', {}, 'The trigger event')), evSelect, varChips),
           renderFields([{ key: 'filter', type: 'json', label: 'Only if (filter)', help: 'Payload must match, e.g. {"formId":"contact"} — blank runs always' }], r, () => {}),
-          h('div.insp-section-title', { style: { marginTop: '0.8rem' } }, 'Do these steps'),
+          h('div.insp-section-title', { style: { marginTop: 'var(--s4)' } }, 'Do these steps'),
           stepsHolder,
-          h('details', { style: { marginTop: '0.9rem' } },
+          h('details', { style: { marginTop: 'var(--s4)' } },
             h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, 'Test before saving'),
-            h('div.field', { style: { marginTop: '0.5rem' } }, h('label', {}, h('span', {}, 'Sample payload'), h('span.help', {}, 'What the event would deliver')), payloadArea),
-            h('div', { style: { display: 'flex', gap: '0.5rem' } },
+            h('div.field', { style: { marginTop: 'var(--s2)' } }, h('label', {}, h('span', {}, 'Sample payload'), h('span.help', {}, 'What the event would deliver')), payloadArea),
+            h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
               h('button.btn.ghost.small', { onclick: doDry }, iconEl('eye', 13), 'Preview steps (no side effects)'),
               h('button.btn.soft.small', { onclick: doTest }, iconEl('play', 13), 'Run for real')),
             testOut)),
@@ -1613,8 +1613,8 @@ const CUSTOM_SECTIONS = {
       const { hooks } = await get('/x/automations/hooks').catch(() => ({ hooks: {} }))
       const entries = Object.entries(hooks || {})
       hooksHolder.replaceChildren(
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.4rem' } }, 'Inbound URLs — POST JSON at them from anywhere (Zapier, CRMs, CI) to fire ', h('code.pill-perm', {}, 'webhook.received'), ' recipes.'),
-        ...entries.map(([k, secret]) => h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: 'var(--t-s)', marginBottom: '0.25rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s2)' } }, 'Inbound URLs — POST JSON at them from anywhere (Zapier, CRMs, CI) to fire ', h('code.pill-perm', {}, 'webhook.received'), ' recipes.'),
+        ...entries.map(([k, secret]) => h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center', fontSize: 'var(--t-s)', marginBottom: 'var(--s1)' } },
           h('code.pill-perm', {}, k),
           h('code', { style: { fontSize: 'var(--t-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 } }, `${state.meta.site.url}/x/automations/hook/${k}?s=${secret}`),
           h('button.icon-btn', { title: 'Copy URL', onclick: () => { navigator.clipboard?.writeText(`${state.meta.site.url}/x/automations/hook/${k}?s=${secret}`); toast('Copied', 'ok') }, html: icon('copy', 13) }))),
@@ -1629,13 +1629,13 @@ const CUSTOM_SECTIONS = {
     }
 
     wrap.replaceChildren(
-      h('div.page-head', { style: { marginBottom: '0.7rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
         h('div', {}, h('p.sub', {}, 'When something happens on the site, do something about it. Preview any recipe against a sample payload before it ever runs for real.')),
         h('button.btn.primary', { onclick: () => openBuilder(null) }, '＋ New recipe')),
       listHolder,
-      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.4rem 0 0.5rem' } }, 'Inbound webhooks'),
-      h('div.card', { style: { padding: '0.8rem 1rem' } }, hooksHolder),
-      h('h2', { style: { fontSize: 'var(--t-l)', margin: '1.4rem 0 0.5rem' } }, 'Recent runs'),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: 'var(--s5) 0 var(--s2)' } }, 'Inbound webhooks'),
+      h('div.card', { style: { padding: 'var(--s4) var(--s4)' } }, hooksHolder),
+      h('h2', { style: { fontSize: 'var(--t-l)', margin: 'var(--s5) 0 var(--s2)' } }, 'Recent runs'),
       runsHolder)
     refreshList(); refreshRuns(); refreshHooks()
     return wrap
@@ -1650,7 +1650,7 @@ const CUSTOM_SECTIONS = {
         h('td', {}, sItem.form), h('td.mono', { style: { fontSize: 'var(--t-s)', whiteSpace: 'pre-wrap' } }, JSON.stringify(sItem.data)),
         h('td.fnt', {}, fmtDate(sItem.createdAt)))))))
       : emptyState(icon('form', 26), 'No submissions yet', ''))
-    return h('div.card', {}, h('strong', {}, 'Submissions'), h('div', { style: { marginTop: '0.6rem' } }, holder))
+    return h('div.card', {}, h('strong', {}, 'Submissions'), h('div', { style: { marginTop: 'var(--s3)' } }, holder))
   },
 
   files: async () => {
@@ -1659,15 +1659,15 @@ const CUSTOM_SECTIONS = {
     const refresh = async () => {
       const [{ files }, { links }] = await Promise.all([get('/x/files/files'), get('/x/files/links')])
       list.replaceChildren(
-        h('p.sub', { style: { marginBottom: '0.5rem' } }, 'Files in the private area (upload via Media with “private”, or drop into media/private/):'),
+        h('p.sub', { style: { marginBottom: 'var(--s2)' } }, 'Files in the private area (upload via Media with “private”, or drop into media/private/):'),
         files.length ? h('div.table-wrap', {}, h('table.data-table', {},
           h('thead', {}, h('tr', {}, h('th', {}, 'File'), h('th', {}, 'Size'), h('th', {}, ''))),
           h('tbody', {}, ...files.map(f => h('tr', {},
             h('td.mono', { style: { fontSize: 'var(--t-s)' } }, f.key), h('td.mut', {}, humanSize(f.size)),
             h('td', { style: { textAlign: 'right' } }, h('button.btn.soft.small', { onclick: () => issue(f.key) }, 'Create link')))))))
           : emptyState(icon('download', 26), 'No private files yet', 'Upload to media/private/ to deliver files securely.'),
-        links.length ? h('div', { style: { marginTop: '1rem' } }, h('strong', {}, 'Active links'),
-          h('div.table-wrap', { style: { marginTop: '0.5rem' } }, h('table.data-table', {},
+        links.length ? h('div', { style: { marginTop: 'var(--s4)' } }, h('strong', {}, 'Active links'),
+          h('div.table-wrap', { style: { marginTop: 'var(--s2)' } }, h('table.data-table', {},
             h('thead', {}, h('tr', {}, h('th', {}, 'Label'), h('th', {}, 'Uses'), h('th', {}, 'Signatures'), h('th', {}, ''))),
             h('tbody', {}, ...links.map(l => h('tr', {},
               h('td', {}, l.label, h('div.row-sub', {}, l.file)),
@@ -1697,7 +1697,7 @@ const CUSTOM_SECTIONS = {
       })
     }
     refresh()
-    return h('div.card', {}, h('strong', {}, 'Private files & delivery links'), h('div', { style: { marginTop: '0.6rem' } }, list))
+    return h('div.card', {}, h('strong', {}, 'Private files & delivery links'), h('div', { style: { marginTop: 'var(--s3)' } }, list))
   },
 
   newsletter: async () => {
@@ -1735,8 +1735,8 @@ const CUSTOM_SECTIONS = {
       })
     }
     return h('div.card', {},
-      h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Subscribers'),
-        h('div', { style: { display: 'flex', gap: '0.5rem' } }, listSel, h('button.btn.primary.small', { onclick: campaign }, 'Send campaign…'))),
+      h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('strong', {}, 'Subscribers'),
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } }, listSel, h('button.btn.primary.small', { onclick: campaign }, 'Send campaign…'))),
       out)
   },
 
@@ -1748,13 +1748,13 @@ const CUSTOM_SECTIONS = {
     const test = h('div')
     return h('div.card', {},
       h('strong', {}, 'Endpoint'),
-      h('p.sub', { style: { margin: '0.2rem 0 0.7rem' } }, 'Any OpenAI-compatible API (OpenAI, Anthropic gateways, Ollama, LM Studio, your own agent). Powers ✦ buttons in the editor and the ai.generate automation action.'),
+      h('p.sub', { style: { margin: 'var(--s0) 0 var(--s3)' } }, 'Any OpenAI-compatible API (OpenAI, Anthropic gateways, Ollama, LM Studio, your own agent). Powers ✦ buttons in the editor and the ai.generate automation action.'),
       renderFields([
         { key: 'endpoint', type: 'text', label: 'Base URL', help: 'e.g. https://api.openai.com/v1 or http://localhost:11434/v1' },
         { key: 'model', type: 'text', label: 'Model', width: 'half' },
         { key: 'apiKey', type: 'text', label: cfg.hasKey ? 'API key (set — enter to replace)' : 'API key', width: 'half' },
       ], vals, () => {}),
-      h('div', { style: { display: 'flex', gap: '0.5rem' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
         h('button.btn.primary.small', { onclick: async () => { await put('/x/ai/config', vals); toast('Saved', 'ok') } }, 'Save'),
         h('button.btn.ghost.small', {
           onclick: async () => {
@@ -1774,7 +1774,7 @@ const CUSTOM_SECTIONS = {
     }
     refresh()
     return h('div.card', {},
-      h('div.page-head', { style: { marginBottom: '0.5rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s2)' } },
         h('div', {}, h('strong', {}, 'Search index'), h('p.sub', {}, 'Rebuilds automatically on publish. Drop a Search block on any page, or export a static index.json for flat builds.')),
         h('button.btn.ghost.small', { onclick: async () => { const r = await post('/x/search/reindex'); toast(`Reindexed ${r.entries} pages`, 'ok'); refresh() } }, iconEl('refresh', 14), 'Reindex')),
       out)
@@ -1788,7 +1788,7 @@ const CUSTOM_SECTIONS = {
         const vals = {}
         for (const st of cn.settings) vals[st.key] = st.value
         const status = h('span.chip', { class: cn.connected ? 'published' : 'draft' }, cn.connected ? 'connected' : 'not connected')
-        const testOut = h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.4rem' } })
+        const testOut = h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s2)' } })
 
         const runAction = a => {
           const opts = {}
@@ -1807,7 +1807,7 @@ const CUSTOM_SECTIONS = {
                 out.replaceChildren(h('div.spin'))
                 const r = await post(`/x/integrations/connectors/${cn.id}/run`, { action: a.key.split('.').pop(), options: opts })
                 out.replaceChildren(
-                  h('p', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)', color: r.ok ? 'var(--ok)' : 'var(--err)', margin: '0.5rem 0 0.3rem' } },
+                  h('p', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)', color: r.ok ? 'var(--ok)' : 'var(--err)', margin: 'var(--s2) 0 var(--s1)' } },
                     r.ok ? `✓ Succeeded in ${r.ms}ms` : `✗ ${r.error}`),
                   r.result !== undefined ? h('pre.code-out', { style: { fontSize: 'var(--t-xs)', maxHeight: '12rem', overflow: 'auto', whiteSpace: 'pre-wrap' } }, JSON.stringify(r.result, null, 1)) : '')
                 return false   // keep the dialog open to read the result
@@ -1816,35 +1816,35 @@ const CUSTOM_SECTIONS = {
           })
         }
         const actionsList = cn.actions.length
-          ? h('details', { style: { marginTop: '0.6rem' } },
+          ? h('details', { style: { marginTop: 'var(--s3)' } },
             h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-s)', color: 'var(--mut)' } }, `${cn.actions.length} automation action(s) — click to test any of them`),
-            h('div', { style: { marginTop: '0.4rem' } }, ...cn.actions.map(a =>
-              h('div', { style: { padding: '0.35rem 0', borderBottom: '1px solid var(--line-soft)', display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+            h('div', { style: { marginTop: 'var(--s2)' } }, ...cn.actions.map(a =>
+              h('div', { style: { padding: 'var(--s1) 0', borderBottom: '1px solid var(--line-soft)', display: 'flex', gap: 'var(--s2)', alignItems: 'center' } },
                 h('code.pill-perm', {}, a.key),
                 h('span.fnt', { style: { fontSize: 'var(--t-s)', flex: 1 } }, a.description || a.label),
                 h('button.btn.ghost.small', { onclick: () => runAction(a) }, iconEl('play', 12), 'Run…')))))
           : ''
 
-        return h('div.card', { style: { marginBottom: '0.9rem' } },
-          h('div.page-head', { style: { marginBottom: '0.5rem' } },
-            h('div', { style: { display: 'flex', gap: '0.7rem', alignItems: 'flex-start' } },
-              h('span', { style: { color: 'var(--acc)', marginTop: '0.15rem' } }, iconEl(cn.icon || 'plug', 20)),
-              h('div', {}, h('strong', {}, cn.name, cn.custom ? h('span.mrow-tag', { style: { marginLeft: '0.45rem' } }, 'custom') : ''),
+        return h('div.card', { style: { marginBottom: 'var(--s4)' } },
+          h('div.page-head', { style: { marginBottom: 'var(--s2)' } },
+            h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start' } },
+              h('span', { style: { color: 'var(--acc)', marginTop: 'var(--s0)' } }, iconEl(cn.icon || 'plug', 20)),
+              h('div', {}, h('strong', {}, cn.name, cn.custom ? h('span.mrow-tag', { style: { marginLeft: 'var(--s2)' } }, 'custom') : ''),
                 h('p.sub', {}, cn.description),
                 cn.identity ? h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, `Signed in as ${cn.identity}`) : '')),
-            h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } },
+            h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center' } },
               cn.custom ? h('button.icon-btn', { title: 'Edit definition', onclick: () => editCustom(cn.id), html: icon('pen', 14) }) : '',
               cn.custom ? h('button.icon-btn', { title: 'Delete connector', onclick: async () => { if (await confirmDialog('Delete connector?', `“${cn.name}” and its actions are removed.`)) { await del(`/x/integrations/custom/${cn.id}`); refresh() } }, html: icon('trash', 14) }) : '',
               status)),
-          cn.docs ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } }, cn.docs) : '',
-          cn.auth === 'oauth2' ? h('div', { style: { marginBottom: '0.5rem' } },
+          cn.docs ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s2)' } }, cn.docs) : '',
+          cn.auth === 'oauth2' ? h('div', { style: { marginBottom: 'var(--s2)' } },
             h('span.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Redirect URI: '), h('code.pill-perm', {}, cn.redirectUri)) : '',
           renderFields(cn.settings.map(st => ({
             key: st.key, label: st.label, type: st.type === 'select' ? 'text' : 'text', help: st.help,
             width: cn.settings.length > 2 ? 'half' : undefined,
           })), vals, () => {}),
-          cn.scopes?.length ? h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: '0.5rem' } }, 'Scopes: ', ...cn.scopes.map(sc => h('code.pill-perm', {}, sc.replace('https://www.googleapis.com/auth/', '')))) : '',
-          h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
+          cn.scopes?.length ? h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } }, 'Scopes: ', ...cn.scopes.map(sc => h('code.pill-perm', {}, sc.replace('https://www.googleapis.com/auth/', '')))) : '',
+          h('div', { style: { display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' } },
             h('button.btn.ghost.small', { onclick: async () => { await put(`/x/integrations/connectors/${cn.id}`, vals); toast('Saved', 'ok'); refresh() } }, 'Save settings'),
             cn.auth === 'oauth2'
               ? (cn.connected
@@ -1877,10 +1877,10 @@ const CUSTOM_SECTIONS = {
         id: '', name: '', description: '', icon: 'plug', auth: 'apikey', settings: [], actions: [],
       }
       def.actions ??= []
-      const actionsHolder = h('div', { style: { display: 'grid', gap: '0.5rem' } })
+      const actionsHolder = h('div', { style: { display: 'grid', gap: 'var(--s2)' } })
       const paintActs = () => actionsHolder.replaceChildren(
-        ...def.actions.map((a, i) => h('details.card', { open: !a.key, style: { padding: '0.6rem 0.8rem' } },
-          h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+        ...def.actions.map((a, i) => h('details.card', { open: !a.key, style: { padding: 'var(--s3) var(--s4)' } },
+          h('summary', { style: { cursor: 'pointer', fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)', display: 'flex', gap: 'var(--s2)', alignItems: 'center' } },
             a.label || a.key || 'New action',
             h('span', { style: { flex: 1 } }),
             h('button.icon-btn', { onclick: e => { e.preventDefault(); def.actions.splice(i, 1); paintActs() }, html: icon('trash', 12) })),
@@ -1912,7 +1912,7 @@ const CUSTOM_SECTIONS = {
             { key: 'testUrl', type: 'text', label: 'Test URL (optional)', width: 'half', help: 'GET this to verify the connection' },
             { key: 'docs', type: 'text', label: 'Setup note shown on the card' },
           ], def, (k, v) => { if (k === 'id' && !existing) def.id = String(v).toLowerCase().replace(/[^a-z0-9-]+/g, '-') }),
-          h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, 'Actions'),
+          h('div.insp-section-title', { style: { marginTop: 'var(--s3)' } }, 'Actions'),
           actionsHolder),
         actions: [{
           label: 'Save connector', kind: 'primary', onClick: async () => {
@@ -1932,7 +1932,7 @@ const CUSTOM_SECTIONS = {
 
     refresh()
     return h('div', {},
-      h('div.page-head', { style: { marginBottom: '0.7rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
         h('div', {}, h('p.sub', {}, 'Connect once here; every connector’s actions then appear in Automations recipes as ', h('code.pill-perm', {}, 'connector.action'), ' — and each has a live test bench.')),
         h('button.btn.primary', { onclick: () => openCustomBuilder(null) }, '＋ Custom connector')),
       holder)
@@ -1950,7 +1950,7 @@ const CUSTOM_SECTIONS = {
           h('thead', {}, h('tr', {}, h('th', {}, 'Member'), h('th', {}, 'Groups'), h('th', {}, 'Status'), h('th', {}, 'Joined'), h('th'))),
           h('tbody', {}, ...members.map(m => h('tr', { onclick: () => editMember(m, groups) },
             h('td', {}, h('strong', {}, m.name || '—'), h('div.row-sub', {}, m.email)),
-            h('td', {}, (m.groups || []).map(g => h('span.multi-tag', { style: { marginRight: '0.2rem' } }, g))),
+            h('td', {}, (m.groups || []).map(g => h('span.multi-tag', { style: { marginRight: 'var(--s0)' } }, g))),
             h('td', {}, h('span.chip', { class: m.status === 'active' ? 'published' : m.status === 'pending' ? 'review' : 'err' }, m.status)),
             h('td.fnt', {}, fmtDate(m.createdAt)),
             h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', {
@@ -1980,8 +1980,8 @@ const CUSTOM_SECTIONS = {
     const settings = await get('/x/members/settings').catch(() => ({}))
     const sVals = { allowSignup: settings.allowSignup !== false, requireApproval: !!settings.requireApproval, loginPath: settings.loginPath || '/account' }
     return h('div', {},
-      h('div.card', { style: { marginBottom: '1rem' } },
-        h('div.page-head', { style: { marginBottom: '0.6rem' } },
+      h('div.card', { style: { marginBottom: 'var(--s4)' } },
+        h('div.page-head', { style: { marginBottom: 'var(--s3)' } },
           h('div', {}, h('strong', {}, 'Membership settings')),
           h('button.btn.ghost.small', { onclick: async () => { await put('/x/members/settings', sVals); toast('Saved', 'ok') } }, 'Save')),
         renderFields([
@@ -1990,7 +1990,7 @@ const CUSTOM_SECTIONS = {
           { key: 'loginPath', type: 'text', label: 'Account page path', help: 'Where gated pages send visitors, and where sign-in lands', width: 'half' },
         ], sVals, () => {}),
         h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Gate a page in the editor: Page tab → Access. Members are separate from studio users — they never see the admin.')),
-      h('div.card', {}, h('strong', {}, 'Members'), h('div', { style: { marginTop: '0.6rem' } }, listHolder)))
+      h('div.card', {}, h('strong', {}, 'Members'), h('div', { style: { marginTop: 'var(--s3)' } }, listHolder)))
   },
 
   analytics: async () => {
@@ -2006,22 +2006,22 @@ const CUSTOM_SECTIONS = {
           const x = i * bw
           return `<rect x="${x + 1}" y="${chartH - bh}" width="${Math.max(bw - 2, 1)}" height="${Math.max(bh, 1)}" rx="2" fill="var(--acc)" opacity="0.85"><title>${d.day}: ${d.views} views</title></rect>`
         }).join('')
-        const chart = h('div', { style: { marginTop: '0.5rem' } })
+        const chart = h('div', { style: { marginTop: 'var(--s2)' } })
         chart.innerHTML = `<svg viewBox="0 0 ${w} ${chartH + 18}" width="100%" role="img" aria-label="Views over time"><g>${bars}</g><text x="0" y="${chartH + 14}" font-size="11" fill="var(--fnt)">${data.series[0]?.day || ''}</text><text x="${w}" y="${chartH + 14}" font-size="11" fill="var(--fnt)" text-anchor="end">${data.series[n - 1]?.day || ''}</text></svg>`
 
         const list = (title, rows, fmt) => h('div.card', {}, h('strong', {}, title),
-          rows.length ? h('div', { style: { marginTop: '0.5rem' } }, ...rows.map(r => h('div', { style: { display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } }, h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, fmt(r.k)), h('strong', {}, String(r.n)))))
-            : h('p.mut', { style: { marginTop: '0.4rem' } }, 'No data yet.'))
+          rows.length ? h('div', { style: { marginTop: 'var(--s2)' } }, ...rows.map(r => h('div', { style: { display: 'flex', justifyContent: 'space-between', padding: 'var(--s1) 0', borderBottom: '1px solid var(--line-soft)', fontSize: 'var(--t-m)' } }, h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, fmt(r.k)), h('strong', {}, String(r.n)))))
+            : h('p.mut', { style: { marginTop: 'var(--s2)' } }, 'No data yet.'))
 
         const avg = n ? Math.round(data.totalViews / n) : 0
         const best = data.series.reduce((a, b) => (b.views > (a?.views || 0) ? b : a), null)
         holder.replaceChildren(
-          h('div.cards', { style: { marginBottom: '1rem' } },
+          h('div.cards', { style: { marginBottom: 'var(--s4)' } },
             h('div.card.stat', {}, h('span.n', {}, String(data.totalViews)), h('span.l', {}, `Views (${days}d)`)),
             h('div.card.stat', {}, h('span.n', {}, String(data.totalVisitors)), h('span.l', {}, `Visitors (${days}d)`)),
             h('div.card.stat', {}, h('span.n', {}, String(avg)), h('span.l', {}, 'Avg / day')),
             h('div.card.stat', {}, h('span.n', {}, String(best?.views || 0)), h('span.l', {}, best ? `Best day · ${best.day.slice(5)}` : 'Best day'))),
-          h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Views over time'), chart),
+          h('div.card', { style: { marginBottom: 'var(--s4)' } }, h('strong', {}, 'Views over time'), chart),
           h('div.cards', {},
             list('Top pages', data.topPages, k => k),
             list('Referrers', data.topReferrers, k => k)))
@@ -2039,9 +2039,9 @@ const CUSTOM_SECTIONS = {
     }, `${d} days`)))
 
     return h('div', {},
-      h('div.page-head', { style: { marginBottom: '0.8rem' } },
+      h('div.page-head', { style: { marginBottom: 'var(--s4)' } },
         h('p.sub', {}, 'Cookieless and privacy-first: no cross-site identifiers, no PII — just salted daily counts.'),
-        h('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } }, seg,
+        h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center' } }, seg,
           h('a.btn.ghost.small', { href: `/api/x/analytics/export.csv?days=90`, download: 'analytics.csv' }, iconEl('download', 13), 'CSV'))),
       holder)
   },
@@ -2051,7 +2051,7 @@ const CUSTOM_SECTIONS = {
     const branchesHolder = h('div', {}, skeleton('rows', 3))
     const backupsHolder = h('div', {}, skeleton('rows', 4))
     const canRestore = state.user.role === 'admin' || state.user.role === 'owner' || (state.user.grants || []).includes('settings.write')
-    const syncMessage = h('input.input', { placeholder: 'Commit message (optional)', style: { marginBottom: '0.5rem', width: '100%' } })
+    const syncMessage = h('input.input', { placeholder: 'Commit message (optional)', style: { marginBottom: 'var(--s2)', width: '100%' } })
 
     const refreshStatus = async () => {
       const s = await get('/x/ops/status').catch(() => ({ git: false }))
@@ -2061,9 +2061,9 @@ const CUSTOM_SECTIONS = {
               h('p.sub', {}, s.branch ? `On branch ${s.branch}. ` : '', s.lastCommit
                 ? `Last synced: ${s.lastCommit.message} (${s.lastCommit.hash}, ${s.lastCommit.date})`
                 : 'Git repository detected — nothing synced yet.'),
-              s.dirty ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.2rem' } }, `${s.dirty} file(s) changed since last sync.`) : '')
+              s.dirty ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s0)' } }, `${s.dirty} file(s) changed since last sync.`) : '')
           : emptyState(icon('warn', 22), 'No git repository', 'This site’s directory (or a parent of it) needs its own .git for sync to work.'),
-        h('div', { style: { marginTop: '0.7rem' } },
+        h('div', { style: { marginTop: 'var(--s3)' } },
           syncMessage,
           h('button.btn.primary', { disabled: !s.git, onclick: async () => {
             const message = syncMessage.value.trim()
@@ -2121,7 +2121,7 @@ const CUSTOM_SECTIONS = {
                 if (res.error) toast(res.error, 'err'); else { toast(`Switched to ${res.branch}`, 'ok'); refreshBranches(); refreshStatus() }
               } }, 'Switch to')))))))
           : h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'Just the one branch so far — save a checkpoint before trying something you might want to back out of.'),
-        h('div', { style: { marginTop: '0.7rem', display: 'flex', gap: '0.5rem' } },
+        h('div', { style: { marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.ghost.small', { onclick: saveCheckpoint }, iconEl('plus', 13), 'Save checkpoint'),
           b.dirty || b.branches.length > 1 ? h('button.btn.ghost.small', { onclick: cancelWork }, iconEl('undo', 13), 'Cancel & revert') : ''))
     }
@@ -2132,9 +2132,9 @@ const CUSTOM_SECTIONS = {
     const refreshBackups = async () => {
       const { backups, settings } = await get('/x/ops/backups').catch(() => ({ backups: [], settings: {} }))
       backupsHolder.replaceChildren(
-        !settings.enabled ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.5rem' } },
+        !settings.enabled ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s2)' } },
           'Backups are disabled — turn them on in Settings → Plugin settings → Backups.') : '',
-        h('div', { style: { marginBottom: '0.7rem', display: 'flex', gap: '0.5rem' } },
+        h('div', { style: { marginBottom: 'var(--s3)', display: 'flex', gap: 'var(--s2)' } },
           backupLabel,
           h('button.btn.ghost', { onclick: async () => {
             const label = backupLabel.value.trim()
@@ -2162,8 +2162,8 @@ const CUSTOM_SECTIONS = {
 
     refreshStatus(); refreshBranches(); refreshBackups()
     return h('div', {},
-      h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Git sync'), statusHolder),
-      h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Branches'), h('p.sub', {}, 'Did some work, want to cancel it without losing it? Save a checkpoint, or just hit cancel — it branches automatically.'), branchesHolder),
+      h('div.card', { style: { marginBottom: 'var(--s4)' } }, h('strong', {}, 'Git sync'), statusHolder),
+      h('div.card', { style: { marginBottom: 'var(--s4)' } }, h('strong', {}, 'Branches'), h('p.sub', {}, 'Did some work, want to cancel it without losing it? Save a checkpoint, or just hit cancel — it branches automatically.'), branchesHolder),
       h('div.card', {}, h('strong', {}, 'Backups'), backupsHolder))
   }, { replaces: true }),
 }

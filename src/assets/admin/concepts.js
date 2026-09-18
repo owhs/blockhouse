@@ -71,7 +71,7 @@ registerView('concepts', async (root, [typeName]) => {
         h('span.row-ico', { html: icon(conceptIcon(cc), 15) }),
         h('span.row-label', {}, cc.labelPlural || cc.label),
         h('span.badge', {}, String(counts[cc.name] ?? 0)))),
-      h('button.tree-add', { style: { margin: '0.5rem' }, onclick: createWizard }, '＋ New content type'))
+      h('button.tree-add', { style: { margin: 'var(--s2)' }, onclick: createWizard }, '＋ New content type'))
   }
 
   const guardDirty = async () => !dirty || await confirmDialog('Unsaved changes', 'This content type has changes you have not saved. Leave and discard them?', 'Discard')
@@ -107,7 +107,7 @@ registerView('concepts', async (root, [typeName]) => {
 
     const urlChip = h('code', { style: { fontSize: 'var(--t-s)' } }, urlPreview(cc))
 
-    const iconPicker = h('div', { style: { display: 'flex', gap: '0.3rem', flexWrap: 'wrap' } },
+    const iconPicker = h('div', { style: { display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' } },
       ...TYPE_ICONS.map(name => h('button.icon-btn', {
         title: name,
         style: cc.icon === name ? { background: 'var(--acc-soft)', color: 'var(--acc-strong)' } : {},
@@ -144,7 +144,7 @@ registerView('concepts', async (root, [typeName]) => {
     ], cc.seo, markDirty)
 
     // ----- fields builder -----
-    const fieldsHolder = h('div', { style: { display: 'grid', gap: '0.45rem' } })
+    const fieldsHolder = h('div', { style: { display: 'grid', gap: 'var(--s2)' } })
     const paintFields = () => {
       fieldsHolder.replaceChildren(
         ...cc.fields.map((f, i) => fieldRow(f, i)),
@@ -154,7 +154,7 @@ registerView('concepts', async (root, [typeName]) => {
     }
     const fieldRow = (f, i) => {
       const open = h('details', { open: !f.key },
-        h('summary', { style: { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem' } },
+        h('summary', { style: { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)' } },
           iconEl('grip', 13),
           h('strong', { style: { fontSize: 'var(--t-m)' } }, f.label || f.key || 'New field'),
           h('code.fnt', { style: { fontSize: 'var(--t-xs)' } }, f.key || ''),
@@ -164,7 +164,7 @@ registerView('concepts', async (root, [typeName]) => {
           h('button.icon-btn', { title: 'Move up', onclick: e => { e.preventDefault(); if (i > 0) { cc.fields.splice(i - 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('back', 12, 'rot90') }),
           h('button.icon-btn', { title: 'Move down', onclick: e => { e.preventDefault(); if (i < cc.fields.length - 1) { cc.fields.splice(i + 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('fwd', 12, 'rot90') }),
           h('button.icon-btn', { title: 'Remove field', onclick: e => { e.preventDefault(); cc.fields.splice(i, 1); markDirty(); paintFields() }, html: icon('trash', 13) })),
-        h('div', { style: { padding: '0 0.65rem 0.65rem' } },
+        h('div', { style: { padding: '0 var(--s3) var(--s3)' } },
           renderFields([
             { key: 'label', type: 'text', label: 'Label', width: 'half' },
             { key: 'key', type: 'text', label: 'Key', width: 'half', help: 'Stable machine name — letters, numbers, dashes' },
@@ -186,8 +186,8 @@ registerView('concepts', async (root, [typeName]) => {
     }
     const fieldVals = f => ({ ...f, _options: (f.options || []).map(o => o.value ?? o).join('|') })
 
-    const danger = h('div.card', { style: { padding: '0.8rem 1rem', borderColor: 'color-mix(in oklch, var(--err) 35%, var(--line))' } },
-      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' } },
+    const danger = h('div.card', { style: { padding: 'var(--s4) var(--s4)', borderColor: 'color-mix(in oklch, var(--err) 35%, var(--line))' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s4)' } },
         h('div', {},
           h('strong', { style: { fontSize: 'var(--t-m)' } }, 'Delete this type'),
           h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 0 } }, (counts[cc.name] ?? 0) > 0 ? `Blocked — ${counts[cc.name]} document(s) still use it.` : 'No documents use it, so this is safe.')),
@@ -204,22 +204,22 @@ registerView('concepts', async (root, [typeName]) => {
           },
         }, iconEl('trash', 13), 'Delete')))
 
-    const section = (title, sub, body) => h('section', { style: { marginBottom: '1.3rem' } },
-      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: '0.1rem' } }, title),
-      sub ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.55rem' } }, sub) : '',
-      h('div.card', { style: { padding: '0.9rem 1rem' } }, body))
+    const section = (title, sub, body) => h('section', { style: { marginBottom: 'var(--s5)' } },
+      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s0)' } }, title),
+      sub ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s3)' } }, sub) : '',
+      h('div.card', { style: { padding: 'var(--s4) var(--s4)' } }, body))
 
     mainEl.replaceChildren(
       h('div.page-head', {},
         h('div', {},
           h('h1', {}, cc.labelPlural || cc.label),
           h('p.sub', {}, 'Everything about this content type — its address, its fields, its templates.')),
-        h('div', { style: { display: 'flex', gap: '0.5rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('a.btn.ghost', { href: `#/c/${cc.name}` }, 'Open list'),
           saveBtn)),
       section('Basics', null, h('div', {}, basics, h('div.field', {}, h('label', {}, h('span', {}, 'Icon')), iconPicker))),
       section('Addresses', null, h('div', {},
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.6rem' } }, 'Example URL: ', urlChip),
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s3)' } }, 'Example URL: ', urlChip),
         urls)),
       section('Fields', 'Structured data every document of this type carries — shown as a form in the editor’s Page tab, usable in templates as {{ fields.key }}.', fieldsHolder),
       section('Templates & SEO', null, h('div', {}, tpl, seo)),

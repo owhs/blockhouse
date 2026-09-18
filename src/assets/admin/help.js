@@ -12,22 +12,22 @@ registerView('help', async (root, [topic]) => {
   const body = h('div.main-pad', { style: { maxWidth: '58rem' } })
 
   const renderSection = s => h('section', { id: `help-${s.id}`, style: { marginBottom: '2rem', scrollMarginTop: '1rem' } },
-    h('h2', { style: { fontSize: 'var(--t-xl)', marginBottom: '0.3rem' } }, s.title),
-    s.summary ? h('p.sub', { style: { marginBottom: '0.9rem' } }, s.summary) : '',
-    ...(s.warnings || []).map(w => h('div.wb-warn', { style: { display: 'flex', gap: '0.6rem', padding: '0.7rem 0.9rem', borderRadius: 'var(--r-s)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', color: 'var(--warn-ink)', marginBottom: '0.7rem', fontSize: 'var(--t-m)' } }, iconEl('warn', 16), h('span', {}, w))),
-    s.facts?.length ? h('div.card', { style: { marginBottom: '0.9rem', padding: '0.3rem 1rem' } },
-      ...s.facts.map(f2 => h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(9rem, 14rem) 1fr', gap: '0.9rem', padding: '0.6rem 0', borderBottom: '1px solid var(--line-soft)' } },
+    h('h2', { style: { fontSize: 'var(--t-xl)', marginBottom: 'var(--s1)' } }, s.title),
+    s.summary ? h('p.sub', { style: { marginBottom: 'var(--s4)' } }, s.summary) : '',
+    ...(s.warnings || []).map(w => h('div.wb-warn', { style: { display: 'flex', gap: 'var(--s3)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-s)', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', color: 'var(--warn-ink)', marginBottom: 'var(--s3)', fontSize: 'var(--t-m)' } }, iconEl('warn', 16), h('span', {}, w))),
+    s.facts?.length ? h('div.card', { style: { marginBottom: 'var(--s4)', padding: 'var(--s1) var(--s4)' } },
+      ...s.facts.map(f2 => h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(9rem, 14rem) 1fr', gap: 'var(--s4)', padding: 'var(--s3) 0', borderBottom: '1px solid var(--line-soft)' } },
         h('span', { style: { fontSize: 'var(--t-s)', fontWeight: 'var(--fw-semi)', color: 'var(--mut)' } }, f2.label),
         h('span', {}, h('span', { style: { fontSize: 'var(--t-m)' } }, f2.value),
-          f2.hint ? h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.15rem' } }, f2.hint) : '')))) : '',
-    s.steps?.length ? h('ul', { style: { margin: '0 0 0.9rem 1.1rem', display: 'grid', gap: '0.35rem', fontSize: 'var(--t-m)', color: 'var(--mut)' } },
+          f2.hint ? h('div.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s0)' } }, f2.hint) : '')))) : '',
+    s.steps?.length ? h('ul', { style: { margin: '0 0 var(--s4) var(--s5)', display: 'grid', gap: 'var(--s1)', fontSize: 'var(--t-m)', color: 'var(--mut)' } },
       ...s.steps.map(st => h('li', {}, st))) : '',
-    ...(s.code || []).map(cd => h('div', { style: { marginBottom: '0.7rem' } },
-      h('div.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' } },
+    ...(s.code || []).map(cd => h('div', { style: { marginBottom: 'var(--s3)' } },
+      h('div.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s1)', display: 'flex', justifyContent: 'space-between' } },
         h('span', {}, cd.label),
         h('button.btn.ghost.small', { onclick: () => { navigator.clipboard?.writeText(cd.body); toast('Copied', 'ok') } }, 'Copy')),
       h('pre.code-out', { style: { whiteSpace: 'pre-wrap' } }, cd.body))),
-    s.links?.length ? h('p', {}, ...s.links.map(l => h('a.btn.ghost.small', { href: l.href, target: l.external ? '_blank' : undefined, style: { marginRight: '0.4rem' } }, l.label, l.external ? iconEl('external', 12) : ''))) : '')
+    s.links?.length ? h('p', {}, ...s.links.map(l => h('a.btn.ghost.small', { href: l.href, target: l.external ? '_blank' : undefined, style: { marginRight: 'var(--s2)' } }, l.label, l.external ? iconEl('external', 12) : ''))) : '')
 
   nav.replaceChildren(...sections.map(s =>
     h('button.row-item', { onclick: () => document.getElementById(`help-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
@@ -66,9 +66,9 @@ export function helpButton(panel, title) {
           const { tips } = await get(`/help/tips?panel=${encodeURIComponent(panel)}`).catch(() => ({ tips: [] }))
           return h('div', {},
             tips.length
-              ? h('ul', { style: { margin: '0 0 1rem 1.1rem', display: 'grid', gap: '0.5rem', fontSize: 'var(--t-m)', color: 'var(--mut)' } },
+              ? h('ul', { style: { margin: '0 0 var(--s4) var(--s5)', display: 'grid', gap: 'var(--s2)', fontSize: 'var(--t-m)', color: 'var(--mut)' } },
                 ...tips.map(t => h('li', {}, t)))
-              : h('p.mut', { style: { marginBottom: '1rem' } }, 'No tips for this screen yet.'),
+              : h('p.mut', { style: { marginBottom: 'var(--s4)' } }, 'No tips for this screen yet.'),
             h('a.btn.ghost.small', { href: `#/help`, onclick: async () => (await import('./sheet.js')).closeSheet() },
               iconEl('book', 13), 'Open the full handbook'))
         },

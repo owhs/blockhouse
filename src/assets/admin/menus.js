@@ -250,10 +250,10 @@ registerView('menus', async (root, [menuKey]) => {
 
     const isTop = active.items.includes(item)
     const groups = state.meta.memberGroups || []
-    const audiencePart = groups.length ? h('div', { style: { marginTop: '0.3rem' } },
-      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', marginBottom: '0.25rem' } }, 'Only show to member groups (blank = everyone allowed by the rule above):'),
-      h('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
-        ...groups.map(g => h('label.field-check', { style: { padding: '0.1rem 0' } },
+    const audiencePart = groups.length ? h('div', { style: { marginTop: 'var(--s1)' } },
+      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', marginBottom: 'var(--s1)' } }, 'Only show to member groups (blank = everyone allowed by the rule above):'),
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' } },
+        ...groups.map(g => h('label.field-check', { style: { padding: 'var(--s0) 0' } },
           h('input', {
             type: 'checkbox', checked: (item.memberGroups || []).includes(g.id),
             onchange: e => {
@@ -289,7 +289,7 @@ registerView('menus', async (root, [menuKey]) => {
         },
       }, l)))
       const panelBits = [seg,
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.4rem 0 0' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s2) 0 0' } },
           mode === 'catalogue' ? 'Full-screen: category tabs → item list → detail pane. Built for big product ranges.'
             : mode === 'showcase' ? 'Card rail with a hover-synced detail pane.'
               : mode === 'columns' ? 'Classic columns of grouped links, with optional icons and descriptions.'
@@ -312,7 +312,7 @@ registerView('menus', async (root, [menuKey]) => {
           if (v === '' || v == null) delete item[k]; else item[k] = v
           markDirty(); paintTree()
         }),
-        h('p.fnt', { style: { fontSize: 'var(--t-xs)', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' } }, 'Icon:', iconChips(item))))
+        h('p.fnt', { style: { fontSize: 'var(--t-xs)', display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' } }, 'Icon:', iconChips(item))))
     }
 
     inspEl.replaceChildren(...parts)
@@ -320,7 +320,7 @@ registerView('menus', async (root, [menuKey]) => {
 
   function iconChips(item) {
     const NAMES = ['compare', 'bespoke', 'classic', 'electric', 'tag', 'bolt', 'mail', 'globe', 'star', 'doc', 'building', 'phone', 'calendar', 'key']
-    return h('span', { style: { display: 'inline-flex', gap: '0.2rem', flexWrap: 'wrap', verticalAlign: 'middle' } },
+    return h('span', { style: { display: 'inline-flex', gap: 'var(--s0)', flexWrap: 'wrap', verticalAlign: 'middle' } },
       ...NAMES.map(n => h('button.icon-btn', {
         title: n, style: item.icon === n ? { background: 'var(--acc-soft)' } : {},
         onclick: () => { item.icon = item.icon === n ? undefined : n; markDirty(); paintInspector() },
@@ -330,10 +330,10 @@ registerView('menus', async (root, [menuKey]) => {
 
   function tilesEditor(mega) {
     mega.tiles ??= []
-    const holder = h('div', { style: { display: 'grid', gap: '0.3rem', marginTop: '0.6rem' } })
+    const holder = h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)' } })
     const paint = () => holder.replaceChildren(
       h('strong', { style: { fontSize: 'var(--t-s)' } }, 'Utility tiles ', h('span.fnt', { style: { fontWeight: 'var(--fw-regular)' } }, '— icon shortcuts under the panel')),
-      ...mega.tiles.map((t, ti) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
+      ...mega.tiles.map((t, ti) => h('div', { style: { display: 'flex', gap: 'var(--s1)' } },
         h('input.input', { value: t.icon || '', placeholder: 'icon', style: { maxWidth: '7rem', fontSize: 'var(--t-s)' }, oninput: e => { t.icon = e.target.value; markDirty() } }),
         h('input.input', { value: t.label || '', placeholder: 'Label', style: { fontSize: 'var(--t-s)' }, oninput: e => { t.label = e.target.value; markDirty() } }),
         h('input.input', { value: t.href || '', placeholder: '/link', style: { fontSize: 'var(--t-s)' }, oninput: e => { t.href = e.target.value; markDirty() } }),
@@ -345,11 +345,11 @@ registerView('menus', async (root, [menuKey]) => {
 
   function footerEditor(mega) {
     mega.footer ??= []
-    const holder = h('div', { style: { display: 'grid', gap: '0.3rem', marginTop: '0.6rem' } })
+    const holder = h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)' } })
     const paint = () => holder.replaceChildren(
       h('strong', { style: { fontSize: 'var(--t-s)' } }, 'Footer brand bar'),
       h('input.input', { value: mega.footerTitle || '', placeholder: 'Bar title (e.g. OUR OTHER BRANDS:)', style: { fontSize: 'var(--t-s)' }, oninput: e => { mega.footerTitle = e.target.value; markDirty() } }),
-      ...mega.footer.map((f2, fi) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
+      ...mega.footer.map((f2, fi) => h('div', { style: { display: 'flex', gap: 'var(--s1)' } },
         h('input.input', { value: f2.label || '', placeholder: 'LABEL', style: { fontSize: 'var(--t-s)' }, oninput: e => { f2.label = e.target.value; markDirty() } }),
         h('input.input', { value: f2.href || '', placeholder: 'https://… or /path', style: { fontSize: 'var(--t-s)' }, oninput: e => { f2.href = e.target.value; markDirty() } }),
         h('button.icon-btn', { onclick: () => { mega.footer.splice(fi, 1); markDirty(); paint() }, html: icon('x', 12) }))),
@@ -414,7 +414,7 @@ registerView('menus', async (root, [menuKey]) => {
       h('div.menu-left-foot', {}, saveBtn)),
     h('div.menu-right', {},
       h('div.menu-preview-bar', {},
-        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview — draft only; the site changes when you save'),
+        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview — draft only; the site changes when you save'),
         deviceSeg),
       frameHolder,
       inspEl)))

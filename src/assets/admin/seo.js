@@ -11,7 +11,7 @@ registerView('seo', async root => {
 
   main.append(h('div.page-head', {},
     h('div', {}, h('h1', {}, 'SEO & redirects'), h('p.sub', {}, 'Site-wide audit, internal link checks and redirect management. Per-page controls live in each document’s SEO tab.')),
-    h('div', { style: { display: 'flex', gap: '0.5rem' } },
+    h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
       h('a.btn.ghost.small', { href: '/sitemap.xml', target: '_blank' }, 'sitemap.xml'),
       h('a.btn.ghost.small', { href: '/robots.txt', target: '_blank' }, 'robots.txt'))))
 
@@ -21,34 +21,34 @@ registerView('seo', async root => {
     const feats = state.meta.features || {}
     const { concepts } = await get('/concepts')
     feedsHolder.replaceChildren(
-      h('div', { style: { display: 'grid', gap: '0.3rem' } },
-        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
+      h('div', { style: { display: 'grid', gap: 'var(--s1)' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
           h('strong', {}, 'Sitemap:'),
           feats.sitemap === false
             ? h('span', {}, 'off — ', h('a', { href: '#/settings/features' }, 'turn on in Features'))
             : h('span', {}, 'on · ', h('a', { href: '/sitemap.xml', target: '_blank' }, 'view'), ' · robots.txt points at it. Gated and unpublished pages never appear.')),
-        h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'baseline', fontSize: 'var(--t-m)' } },
           h('strong', {}, 'RSS:'),
           feats.rss === false
             ? h('span', {}, 'off site-wide — ', h('a', { href: '#/settings/features' }, 'turn on in Features'), '. Blockhouse also removes feed links from menus, templates and content.')
             : h('span', {}, 'on for the types ticked below:')),
         ...(feats.rss === false ? [] : concepts.filter(c2 => c2.indexPath).map(c2 =>
-          h('label.field-check', { style: { marginLeft: '0.5rem' } },
+          h('label.field-check', { style: { marginLeft: 'var(--s2)' } },
             h('input', { type: 'checkbox', checked: !!c2.feed, onchange: async e => {
               await put(`/concepts/${c2.name}`, { concept: { ...c2, feed: e.target.checked } })
               toast(e.target.checked ? `Feed on — ${c2.indexPath}/feed.xml` : 'Feed off (link removed everywhere)', 'ok')
             } }),
             h('span', {}, `${c2.labelPlural || c2.label} — `, h('code.pill-perm', {}, `${c2.indexPath}/feed.xml`)))))))
   }
-  main.append(h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Feeds & sitemap')),
+  main.append(h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('strong', {}, 'Feeds & sitemap')),
     feedsHolder))
   paintFeeds()
 
   // ---------- audit ----------
   const auditHolder = h('div', {}, skeleton('rows', 6))
-  main.append(h('div.card', { style: { marginBottom: '1rem' } },
-    h('div.page-head', { style: { marginBottom: '0.5rem' } }, h('strong', {}, 'Content audit'), h('span.fnt', { id: 'audit-sum' })),
+  main.append(h('div.card', { style: { marginBottom: 'var(--s4)' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s2)' } }, h('strong', {}, 'Content audit'), h('span.fnt', { id: 'audit-sum' })),
     auditHolder))
 
   get('/seo/audit').then(({ docs, total }) => {
@@ -60,9 +60,9 @@ registerView('seo', async root => {
       h('thead', {}, h('tr', {}, h('th', {}, 'Document'), h('th', {}, 'Health'), h('th', {}, 'Issues'))),
       h('tbody', {}, ...docs.map(d => {
         const dots = [
-          d.errors ? h('span', { style: { color: 'var(--err-ink)', fontWeight: 'var(--fw-bold)', marginRight: '0.6rem' } }, `${d.errors} `, 'error' + (d.errors > 1 ? 's' : '')) : '',
+          d.errors ? h('span', { style: { color: 'var(--err-ink)', fontWeight: 'var(--fw-bold)', marginRight: 'var(--s3)' } }, `${d.errors} `, 'error' + (d.errors > 1 ? 's' : '')) : '',
           d.warns ? h('span', { style: { color: 'var(--warn-ink)', fontWeight: 'var(--fw-bold)' } }, `${d.warns} `, 'warning' + (d.warns > 1 ? 's' : '')) : '',
-          !d.errors && !d.warns ? h('span', { style: { color: 'var(--ok-ink)', fontWeight: 'var(--fw-bold)', display: 'inline-flex', gap: '0.3rem', alignItems: 'center' } }, iconEl('check', 13), 'clean') : '',
+          !d.errors && !d.warns ? h('span', { style: { color: 'var(--ok-ink)', fontWeight: 'var(--fw-bold)', display: 'inline-flex', gap: 'var(--s1)', alignItems: 'center' } }, iconEl('check', 13), 'clean') : '',
         ]
         return h('tr', {
           tabindex: '0', role: 'link',
@@ -73,7 +73,7 @@ registerView('seo', async root => {
           h('td', {}, h('strong', {}, d.title), h('div.row-sub', {}, `${d.concept} · ${d.path}`)),
           h('td', {}, ...dots),
           h('td', { style: { maxWidth: '28rem' } }, ...(d.issues.slice(0, 3).map(i =>
-            h('div.seo-check', { class: i.level, style: { padding: '0.15rem 0' } },
+            h('div.seo-check', { class: i.level, style: { padding: 'var(--s0) 0' } },
               h('span.seo-ico', { html: icon(i.level === 'error' ? 'warn' : i.level === 'warn' ? 'info' : 'check', 12) }),
               h('span', {}, h('span.sr-only', {}, `${i.level}: `), i.label)))),
             d.issues.length > 3 ? h('span.fnt', {}, `+${d.issues.length - 3} more…`) : ''))
@@ -108,9 +108,9 @@ registerView('seo', async root => {
   const code = h('select.input', { style: { maxWidth: '7rem' } }, h('option', { value: '301' }, '301'), h('option', { value: '302' }, '302'))
 
   main.append(h('div.card', {},
-    h('div.page-head', { style: { marginBottom: '0.6rem' } }, h('strong', {}, 'Redirects'),
+    h('div.page-head', { style: { marginBottom: 'var(--s3)' } }, h('strong', {}, 'Redirects'),
       h('span.fnt', {}, 'exported to _redirects on static builds')),
-    h('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' } },
+    h('div', { style: { display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' } },
       from, to, code,
       h('button.btn.primary.small', {
         onclick: () => {

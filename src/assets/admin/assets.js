@@ -17,7 +17,7 @@ registerView('media', async root => {
 
   const grid = h('div.media-grid')
   const treeHolder = h('div.panel-body')
-  const bulkBar = h('div', { style: { display: 'none', gap: '0.5rem', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap' } })
+  const bulkBar = h('div', { style: { display: 'none', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s4)', flexWrap: 'wrap' } })
   const countLabel = h('span.fnt', { style: { fontSize: 'var(--t-s)' } })
 
   const qs = () => {
@@ -42,7 +42,7 @@ registerView('media', async root => {
     ]
     treeHolder.replaceChildren(
       ...rows,
-      idx.tags.length ? h('div.panel-title', { style: { padding: '0.9rem 0.65rem 0.35rem' } }, 'Tags') : '',
+      idx.tags.length ? h('div.panel-title', { style: { padding: 'var(--s4) var(--s3) var(--s1)' } }, 'Tags') : '',
       ...idx.tags.map(t => h('button.row-item', {
         class: filter.tag === t.tag ? 'active' : '',
         onclick: () => { filter.tag = filter.tag === t.tag ? '' : t.tag; refresh() },
@@ -215,9 +215,9 @@ registerView('media', async root => {
     h('div.main', {}, h('div.main-pad', { style: { maxWidth: '78rem' } },
       h('div.page-head', {},
         h('div', {}, h('h1', {}, 'Assets'), h('p.sub', {}, 'Folders, tags and non-destructive image editing. Originals are never overwritten.')),
-        h('div', { style: { display: 'flex', gap: '0.5rem' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
           h('button.btn.primary', { onclick: () => fileInput.click() }, iconEl('upload', 15), 'Upload'))),
-      h('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.9rem', flexWrap: 'wrap' } }, search, typeSeg, countLabel),
+      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginBottom: 'var(--s4)', flexWrap: 'wrap' } }, search, typeSeg, countLabel),
       bulkBar, drop, grid))))
 
   await refresh()
@@ -279,9 +279,9 @@ function processWizard(m, onDone) {
     title: `Edit image — ${m.name}`,
     width: 'min(44rem, 95vw)',
     body: h('div', {},
-      h('p.dlg-text', { style: { marginBottom: '0.6rem' } }, 'Creates a new asset; the original stays untouched.'),
+      h('p.dlg-text', { style: { marginBottom: 'var(--s3)' } }, 'Creates a new asset; the original stays untouched.'),
       stage,
-      h('div', { style: { display: 'flex', gap: '0.4rem', margin: '0.6rem 0', flexWrap: 'wrap', alignItems: 'center' } },
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', margin: 'var(--s3) 0', flexWrap: 'wrap', alignItems: 'center' } },
         h('button.btn.ghost.small', { onclick: e => { cropping = !cropping; e.currentTarget.classList.toggle('primary', cropping); e.currentTarget.textContent = cropping ? 'Drag on the image…' : 'Crop' } }, 'Crop'),
         h('button.btn.ghost.small', { onclick: () => { crop.x = 0; crop.y = 0; crop.w = 1; crop.h = 1; cropBox.style.display = 'none'; sync() } }, 'Reset crop'),
         preset('Hero 1600', 1600), preset('Card 800', 800), preset('Thumb 400', 400), preset('OG 1200×630', 1200, 630),

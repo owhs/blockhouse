@@ -85,7 +85,7 @@ export function renderField(def, values, onChange, opts = {}) {
       }
       wrap.append(labelRow(def), ta)
       if (def.type === 'svg') {
-        prev = h('div', { style: { padding: '0.6rem', border: '1px dashed var(--line)', borderRadius: 'var(--r-s)', display: 'none', maxHeight: '9rem', overflow: 'hidden', color: 'var(--acc)' } })
+        prev = h('div', { style: { padding: 'var(--s3)', border: '1px dashed var(--line)', borderRadius: 'var(--r-s)', display: 'none', maxHeight: '9rem', overflow: 'hidden', color: 'var(--acc)' } })
         wrap.appendChild(prev)
         updatePrev(val)
       }
@@ -102,7 +102,7 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'color': {
-      const input = h('input', { type: 'color', value: val || '#888888', style: { height: '2.1rem', padding: '0.15rem' } })
+      const input = h('input', { type: 'color', value: val || '#888888', style: { height: '2.1rem', padding: 'var(--s0)' } })
       input.addEventListener('input', () => deb(input.value))
       wrap.append(labelRow(def), input)
       return wrap
@@ -329,7 +329,7 @@ export function pickMedia() {
     const dlg = dialog({
       title: 'Choose an image',
       width: 'min(46rem, 94vw)',
-      body: [h('div', { style: { marginBottom: '0.8rem' } }, h('button.btn.ghost.small', { onclick: () => file.click() }, '⇧ Upload new'), file), grid],
+      body: [h('div', { style: { marginBottom: 'var(--s4)' } }, h('button.btn.ghost.small', { onclick: () => file.click() }, '⇧ Upload new'), file), grid],
       onClose: () => done(undefined),
     })
     load()

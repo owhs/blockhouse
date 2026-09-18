@@ -121,7 +121,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       dismissable: false,   // a choice is required; dismissing used to leave the doc permanently un-saveable
       body: h('div', {},
         h('p.dlg-text', {}, who ? `${who} saved a newer version ${when}.` : `A newer version was saved ${when} — from another tab or another person.`),
-        h('p.dlg-text', { style: { marginTop: '0.5rem' } }, 'Nothing is thrown away either way: keeping yours stores theirs as a restore point first.')),
+        h('p.dlg-text', { style: { marginTop: 'var(--s2)' } }, 'Nothing is thrown away either way: keeping yours stores theirs as a restore point first.')),
       actions: [
         {
           label: 'Take theirs', onClick: async () => {
@@ -284,7 +284,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         targets.push({ id: node.id, label: labelOf(node, byType[node.type]), depth: depth + 1 })
       }
     }
-    const body = h('div', { style: { display: 'grid', gap: '0.2rem' } },
+    const body = h('div', { style: { display: 'grid', gap: 'var(--s0)' } },
       ...targets.map(t => h('button.row-item', {
         style: { paddingLeft: `${0.65 + t.depth * 0.8}rem` },
         onclick: () => { ops.move(id, t.id, 0); selectBlock(id); dlg.closeWith() },
@@ -444,7 +444,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       tree.appendChild(row)
     }
     outlineBody.replaceChildren(
-      doc.blocks.length ? tree : h('div', { style: { padding: '0.6rem 0.4rem' } },
+      doc.blocks.length ? tree : h('div', { style: { padding: 'var(--s3) var(--s2)' } },
         h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'This page is empty.')),
       h('button.tree-add', { onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 12), ' Add block'))
 
@@ -536,13 +536,13 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
     if (!found) {
       inspBody.replaceChildren(
-        h('div.empty', { style: { padding: '2.4rem 1rem' } },
+        h('div.empty', { style: { padding: 'var(--s7) var(--s4)' } },
           h('div.empty-ico', {}, iconEl('layout', 26)),
           h('h3', {}, doc.blocks.length ? 'Nothing selected' : 'This page is empty'),
           h('p', {}, doc.blocks.length
             ? 'Pick a block in the outline, or click one in the preview.'
             : 'Start with a layout, or add a single block.'),
-          h('div', { style: { display: 'grid', gap: '0.35rem', marginTop: '0.6rem', width: '100%' } },
+          h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)', width: '100%' } },
             ...(doc.blocks.length ? [] : STARTERS.map(s => h('button.btn.ghost.small', { onclick: () => applyStarter(s) }, s.label))),
             h('button.btn.primary.small', { onclick: () => addBlock('', doc.blocks.length) }, 'Add a block'))))
       return
@@ -554,10 +554,10 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         snapshotOnce(`Edit ${labelOf(found.node, def)}`)
         markDirty({ patch: { id: found.node.id, prop: key, value } })
       })
-      : h('div', { style: { padding: '0.2rem 0' } },
+      : h('div', { style: { padding: 'var(--s0) 0' } },
         h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block’s text is edited straight on the page.'),
         h('button.btn.ghost.small', {
-          style: { marginTop: '0.4rem' },
+          style: { marginTop: 'var(--s2)' },
           onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: found.node.id }, '*'),
         }, 'Show it in the preview'))
 
@@ -591,7 +591,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   /** Persisted disclosure group. Mara's screen stays clean; Priya's levers stay one click away. */
   function group(key, title, open, ...body) {
     const d = h('details.insp-group', { open: disclosure(`e.${key}`, open) },
-      h('summary', {}, title), h('div', { style: { paddingTop: '0.3rem' } }, ...body))
+      h('summary', {}, title), h('div', { style: { paddingTop: 'var(--s1)' } }, ...body))
     d.addEventListener('toggle', () => setDisclosure(`e.${key}`, d.open))
     return d
   }
@@ -634,7 +634,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       group('addresses', 'Addresses & redirects', false, routingPanel()),
       group('access', 'Who can see this page', false, accessPanel()),
       group('code', 'Custom code for this page only', false,
-        h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: '0.4rem' } },
+        h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
           'Runs on this page for every visitor. Site-wide code lives in Settings → Custom code.'),
         renderFields([
           { key: 'css', type: 'code', lang: 'css', label: 'CSS', rows: 4 },
@@ -704,16 +704,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   }
 
   function routingPanel() {
-    const row = (label, value, hint) => h('div', { style: { display: 'grid', gap: '0.1rem', marginBottom: '0.5rem' } },
+    const row = (label, value, hint) => h('div', { style: { display: 'grid', gap: 'var(--s0)', marginBottom: 'var(--s2)' } },
       h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, label),
       h('code', { style: { fontSize: 'var(--t-s)', wordBreak: 'break-all' } }, value),
       hint ? h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, hint) : '')
 
-    const aliases = h('div', { style: { display: 'grid', gap: '0.35rem' } })
+    const aliases = h('div', { style: { display: 'grid', gap: 'var(--s1)' } })
     const drawAliases = () => {
       const list = doc.aliases || []
       aliases.replaceChildren(
-        ...list.map((a, i) => h('div', { style: { display: 'flex', gap: '0.3rem' } },
+        ...list.map((a, i) => h('div', { style: { display: 'flex', gap: 'var(--s1)' } },
           h('input.input', {
             value: a, style: { flex: '1' }, placeholder: '/old-url', 'aria-label': `Extra address ${i + 1}`,
             onchange: e => {
@@ -732,7 +732,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         h('button.btn.ghost.small', {
           onclick: () => { doc.aliases = [...(doc.aliases || []), '']; markDirty(); drawAliases() },
         }, iconEl('plus', 12), 'Add address'),
-        list.length ? h('label.field-check', { style: { marginTop: '0.3rem' } },
+        list.length ? h('label.field-check', { style: { marginTop: 'var(--s1)' } },
           h('input', {
             type: 'checkbox', checked: !!doc.mirror,
             onchange: e => { doc.mirror = e.target.checked; if (!doc.mirror) delete doc.mirror; markDirty() },
@@ -748,9 +748,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     return h('div', {},
       row('Canonical URL', (meta.site.url || '') + (href || path), 'Changing the slug adds an automatic redirect from the old one.'),
       row('Static file', exportFile || 'index.html', `URL style: ${meta.urls?.style || 'directory'} · layout: ${meta.urls?.layout || 'pattern'}`),
-      h('a.btn.ghost.small', { href: '#/settings/urls', style: { marginBottom: '0.5rem' } }, 'Change URL style →'),
+      h('a.btn.ghost.small', { href: '#/settings/urls', style: { marginBottom: 'var(--s2)' } }, 'Change URL style →'),
       shortlink ? row('Shortlink', (meta.site.url || '') + shortlink, 'Stable even if the slug changes.') : '',
-      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', margin: '0.6rem 0 0.3rem' } }, 'Extra addresses'),
+      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', margin: 'var(--s3) 0 var(--s1)' } }, 'Extra addresses'),
       aliases)
   }
 
@@ -780,7 +780,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         modeSelect,
         mode === 'groups'
           ? (groups.length
-            ? h('div', { style: { display: 'grid', gap: '0.25rem', margin: '0.2rem 0 0.6rem' } },
+            ? h('div', { style: { display: 'grid', gap: 'var(--s1)', margin: 'var(--s0) 0 var(--s3)' } },
               ...groups.map(g => h('label.field-check', {},
                 h('input', {
                   type: 'checkbox', checked: (doc.access.groups || []).includes(g.id),
@@ -812,7 +812,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const holder = h('div', {}, skeleton('rows', 3))
     get(`/content/${doc.id}/versions`).then(({ versions }) => {
       holder.replaceChildren(...(versions.length ? versions.slice(0, 10).map(v =>
-        h('div', { style: { display: 'flex', gap: '0.3rem', alignItems: 'center' } },
+        h('div', { style: { display: 'flex', gap: 'var(--s1)', alignItems: 'center' } },
           h('button.row-item', {
             style: { flex: 1 },
             onclick: () => window.open(`/preview/${doc.id}?version=${encodeURIComponent(v.key)}`, '_blank', 'noopener'),
@@ -889,11 +889,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       body: h('div', {},
         h('p.dlg-text', {}, `“${doc.title}” will go live at `, h('code', {}, path), '.'),
         doc.publishAt && new Date(doc.publishAt) > new Date()
-          ? h('p.dlg-text', { style: { marginTop: '0.5rem' } }, `Scheduled for ${new Date(doc.publishAt).toLocaleString()} — it stays hidden until then.`)
+          ? h('p.dlg-text', { style: { marginTop: 'var(--s2)' } }, `Scheduled for ${new Date(doc.publishAt).toLocaleString()} — it stays hidden until then.`)
           : '',
-        errors.length ? h('div', { style: { marginTop: '0.7rem' } },
+        errors.length ? h('div', { style: { marginTop: 'var(--s3)' } },
           h('div.insp-section-title', {}, 'SEO issues'),
-          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: '0.3rem' } }, 'Publishing is not blocked — click one to go and fix it.'),
+          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s1)' } }, 'Publishing is not blocked — click one to go and fix it.'),
           ...errors.map(chk => h('button.row-item', {
             onclick: () => { document.querySelector('dialog.dlg[open]')?.closeWith?.(); setTab('seo') },
           }, h('span.row-ico', { html: icon('warn', 14) }), h('span.row-label', {}, chk.label)))) : '',
@@ -915,7 +915,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     })
   }
 
-  const actionsHolder = h('span', { style: { display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } })
+  const actionsHolder = h('span', { style: { display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center' } })
   function renderActions() {
     if (readOnly) {
       actionsHolder.replaceChildren(h('span.chip', { title: 'Your account can read this but not change it' }, 'Read only'))
@@ -1165,11 +1165,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const dlg = dialog({
       title: m.text ? `“${m.text}”` : 'This part of the page',
       body: h('div', {},
-        h('p.dlg-text', { style: { marginBottom: '0.6rem' } }, opts.length > 1 ? 'This is controlled in more than one place — pick where to edit:' : 'Edit it here:'),
-        h('div', { style: { display: 'grid', gap: '0.3rem' } },
+        h('p.dlg-text', { style: { marginBottom: 'var(--s3)' } }, opts.length > 1 ? 'This is controlled in more than one place — pick where to edit:' : 'Edit it here:'),
+        h('div', { style: { display: 'grid', gap: 'var(--s1)' } },
           ...(opts.length ? opts : [{ label: 'This comes from the template', icon: 'info', go: null, hint: 'It is not page content — template files or Design control it.' }])
             .map(o => h('button.row-item', {
-              style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '0.6rem 0.7rem' },
+              style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: 'var(--s3) var(--s3)' },
               onclick: () => { if (o.go) { dlg.closeWith(); o.go() } },
             },
               h('span.row-ico', { html: icon(o.icon, 16) }),

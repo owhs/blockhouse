@@ -245,11 +245,11 @@ function renderShell() {
         h('button.top-site.site-switch', { title: 'Switch site', onclick: openSiteSwitcher }, '· ', m.site.name, iconEl('chevD', 10))),
       h('div.top-mid', {},
         h('button.searchish', { onclick: openPalette },
-          h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '0.45rem' } },
+          h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' } },
             iconEl('search', 14), h('span.searchish-label', {}, 'Search everything')),
           h('span.kbd', {}, '⌘K'))),
       h('div.top-end', {},
-        h('a.btn.ghost.small', { href: '/', target: '_blank', rel: 'noopener', style: { display: 'inline-flex', gap: '0.4rem' } }, 'View site', iconEl('external', 13)),
+        h('a.btn.ghost.small', { href: '/', target: '_blank', rel: 'noopener', style: { display: 'inline-flex', gap: 'var(--s2)' } }, 'View site', iconEl('external', 13)),
         h('button.icon-btn', { title: 'Keyboard shortcuts  ?', 'aria-label': 'Keyboard shortcuts', onclick: showShortcuts }, iconEl('help', 16)),
         h('button.icon-btn', { title: 'Personalize studio', 'aria-label': 'Personalize studio', onclick: personalize }, iconEl('palette', 16)),
         h('button.icon-btn', { title: 'Toggle studio theme', 'aria-label': 'Toggle studio light or dark', onclick: toggleTheme }, iconEl('contrast', 16)),
@@ -317,10 +317,10 @@ function showShortcuts() {
   dialog({
     title: 'Keyboard shortcuts',
     width: 'min(34rem, 94vw)',
-    body: h('div', {}, ...SHORTCUTS.map(([group, rows]) => h('div', { style: { marginBottom: '1rem' } },
+    body: h('div', {}, ...SHORTCUTS.map(([group, rows]) => h('div', { style: { marginBottom: 'var(--s4)' } },
       h('div.insp-section-title', {}, group),
       ...rows.map(([k, what]) => h('div', {
-        style: { display: 'grid', gridTemplateColumns: 'minmax(7rem, 9rem) 1fr', gap: '0.8rem', padding: '0.35rem 0', alignItems: 'baseline' },
+        style: { display: 'grid', gridTemplateColumns: 'minmax(7rem, 9rem) 1fr', gap: 'var(--s4)', padding: 'var(--s1) 0', alignItems: 'baseline' },
       }, h('span.kbd', {}, k), h('span', { style: { fontSize: 'var(--t-m)', color: 'var(--mut)' } }, what)))))),
   })
 }
@@ -374,7 +374,7 @@ function personalize() {
         h('button.btn.ghost.small', {
           onclick: () => { setPref('pinned', []); setPref('navCollapsed', {}); setGroupBy('section'); paintNav(); toast('Navigation reset', 'ok') },
         }, 'Reset pins and groups')),
-      h('p.dlg-text', { style: { marginTop: '0.4rem' } },
+      h('p.dlg-text', { style: { marginTop: 'var(--s2)' } },
         'These are yours alone — per browser, per person, never the site. Right-click any rail item to pin it. ⌘B collapses the rail.')),
   })
 }
@@ -383,13 +383,13 @@ async function openSiteSwitcher() {
   const { projects } = await get('/projects').catch(() => ({ projects: [] }))
   const body = h('div', {},
     projects.length
-      ? h('div', { style: { display: 'grid', gap: '0.25rem' } }, ...projects.map(p =>
+      ? h('div', { style: { display: 'grid', gap: 'var(--s1)' } }, ...projects.map(p =>
         h('a.row-item', { href: p.current ? '#/' : p.url + '/admin/', style: { textDecoration: 'none' } },
           h('span.row-ico', { html: icon(p.current ? 'check' : 'globe', 15) }),
           h('span.row-label', {}, p.label),
           h('span.fnt', { style: { fontSize: 'var(--t-xs)', marginLeft: 'auto' } }, p.current ? 'current' : p.url))))
       : h('p.dlg-text', {}, 'No other sites registered on this machine yet.'),
-    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: '0.8rem' } },
+    h('p.fnt', { style: { fontSize: 'var(--t-s)', marginTop: 'var(--s4)' } },
       'Register each project once: ', h('code.pill-perm', {}, 'blockhouse sites add --dir <site> --port <port>'),
       ' — every studio then lists them all here.'))
   dialog({ title: 'Your sites', body })
@@ -493,10 +493,10 @@ function render404(name) {
       h('div.empty-ico', {}, iconEl('compass', 28)),
       h('h3', {}, `Nothing lives at #/${name}`),
       h('p', {}, guesses.length ? 'Did you mean one of these?' : 'That address does not match a view in this studio.'),
-      h('div', { style: { display: 'grid', gap: '0.25rem', marginTop: '0.6rem', minWidth: 'min(22rem, 80vw)' } },
+      h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)', minWidth: 'min(22rem, 80vw)' } },
         ...guesses.map(g => h('button.row-item', { onclick: () => (location.hash = g.hash) },
           h('span.row-ico', { html: icon(g.icon, 15) }), h('span.row-label', {}, g.label))),
-        h('button.btn.ghost.small', { style: { marginTop: '0.4rem' }, onclick: openPalette }, 'Search everything  ⌘K'))))))
+        h('button.btn.ghost.small', { style: { marginTop: 'var(--s2)' }, onclick: openPalette }, 'Search everything  ⌘K'))))))
 }
 
 // ---------- search ----------

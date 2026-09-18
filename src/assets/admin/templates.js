@@ -81,7 +81,7 @@ registerView('templates', async (root, [relParam]) => {
     },
   }, iconEl('eye', 13), 'Preview')
   const pvPathSel = h('select.input', {
-    style: { width: 'auto', padding: '0.2rem 1.6rem 0.2rem 0.5rem', fontSize: 'var(--t-s)' },
+    style: { width: 'auto', padding: 'var(--s0) var(--s6) var(--s0) var(--s2)', fontSize: 'var(--t-s)' },
     onchange: e => { pvPath = e.target.value; if (previewOn) reloadPreview() },
   }, h('option', { value: '/' }, 'Home'))
   get('/content').then(({ docs }) => {
@@ -99,23 +99,23 @@ registerView('templates', async (root, [relParam]) => {
     if (refPanel.hidden) return
     const info = refs?.files?.[current?.rel]
     const list = (title, items, fmt) => items?.length
-      ? h('div', { style: { marginBottom: '0.6rem' } }, h('div.insp-section-title', {}, title),
+      ? h('div', { style: { marginBottom: 'var(--s3)' } }, h('div.insp-section-title', {}, title),
         ...items.map(x => fmt(x)))
       : ''
-    const link = rel2 => h('button.row-item', { onclick: () => openFile(rel2), style: { padding: '0.25rem 0.4rem' } },
+    const link = rel2 => h('button.row-item', { onclick: () => openFile(rel2), style: { padding: 'var(--s1) var(--s2)' } },
       h('span.row-ico', { html: icon('page', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, rel2))
     refPanel.replaceChildren(
       h('div.insp-section-title', {}, 'This file'),
-      info ? h('div', { style: { marginBottom: '0.6rem' } },
+      info ? h('div', { style: { marginBottom: 'var(--s3)' } },
         list('Includes', info.includes, link),
         list('Included by', info.includedBy, link),
-        list('Slots it renders', info.slots, s => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${s} → edit content`))),
-        list('Menus it renders', info.menus, m => h('button.row-item', { style: { padding: '0.25rem 0.4rem' }, onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${m} → edit menu`))),
-        list('Regions', info.regions, r => h('span.pill-perm', { style: { marginRight: '0.3rem' } }, r)),
+        list('Slots it renders', info.slots, s => h('button.row-item', { style: { padding: 'var(--s1) var(--s2)' }, onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${s} → edit content`))),
+        list('Menus it renders', info.menus, m => h('button.row-item', { style: { padding: 'var(--s1) var(--s2)' }, onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${m} → edit menu`))),
+        list('Regions', info.regions, r => h('span.pill-perm', { style: { marginRight: 'var(--s1)' } }, r)),
       ) : h('p.mut', {}, 'No cross-reference data for this file.'),
       h('div.insp-section-title', {}, 'Variables'),
       ...LIQUID.variables.map(([v, d]) => h('div.tpl-refrow', {}, h('code.pill-perm', {}, v), h('span', {}, d))),
-      h('div.insp-section-title', { style: { marginTop: '0.6rem' } }, 'Filters'),
+      h('div.insp-section-title', { style: { marginTop: 'var(--s3)' } }, 'Filters'),
       ...LIQUID.filters.slice(0, 18).map(([f, d]) => h('div.tpl-refrow', {}, h('code.pill-perm', {}, `| ${f}`), h('span', {}, d))),
     )
   }

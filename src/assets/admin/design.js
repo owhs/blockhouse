@@ -163,7 +163,7 @@ registerView('design', async root => {
         t._source === 'installed'
           ? `installed${t._pkg ? ` · v${t._pkg.version}` : ''}${t._pkg?.verified === true ? ' · ✓ signed' : t._pkg?.verified === false ? ' · unsigned' : ''}`
           : `${t.font} · radius ${t.radius}px`),
-      t._source === 'installed' ? h('span.mrow-tools', { style: { marginTop: '0.3rem', display: 'inline-flex', gap: '0.3rem' } },
+      t._source === 'installed' ? h('span.mrow-tools', { style: { marginTop: 'var(--s1)', display: 'inline-flex', gap: 'var(--s1)' } },
         h('button.btn.ghost.small', { onclick: async e => {
           e.stopPropagation()
           const r = await post(`/packages/template/${t.name}/verify`, {})
@@ -178,7 +178,7 @@ registerView('design', async root => {
         } }, 'Remove')) : '')))
   }
 
-  const note = h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: '0.4rem 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
+  const note = h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s2) 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
 
   const slider = (label, min, max, step, getV, setV, fmt) => {
     const out = h('output', { style: { font: '600 0.78rem var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(getV()))
@@ -188,7 +188,7 @@ registerView('design', async root => {
     })
     const row = h('div.design-slider', {},
       h('label', {}, label),
-      h('div', { style: { display: 'flex', gap: '0.7rem', alignItems: 'center' } }, input, out))
+      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center' } }, input, out))
     row.sync = () => { input.value = getV(); out.value = fmt(getV()) }
     return row
   }
@@ -212,21 +212,21 @@ registerView('design', async root => {
     }, l)))
 
   const controls = h('div.design-controls', {},
-    h('div.page-head', { style: { marginBottom: '0.8rem' } },
+    h('div.page-head', { style: { marginBottom: 'var(--s4)' } },
       h('div', {}, h('h1', {}, 'Design'), h('p.sub', {}, 'Template, palette and scheme — previewed on the real site.')),
-      h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center' } }, helpButton('design', 'Design'), saveBtn)),
+      h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center' } }, helpButton('design', 'Design'), saveBtn)),
 
     h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
       h('h2.design-h', {}, 'Template'), installThemeBtn),
     tplGrid, note,
 
     h('h2.design-h', {}, 'Palette'),
-    h('div.card', { style: { padding: '0.9rem 1rem', display: 'grid', gap: '0.8rem' } },
+    h('div.card', { style: { padding: 'var(--s4) var(--s4)', display: 'grid', gap: 'var(--s4)' } },
       hueRow, chromaRow, radiusRow,
       h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Two numbers drive the whole palette: hue rotates every colour together, intensity sets how vivid the accent is. Both work in light and dark automatically.')),
 
     h('h2.design-h', {}, 'Colour scheme'),
-    h('div.card', { style: { padding: '0.9rem 1rem', display: 'grid', gap: '0.55rem' } },
+    h('div.card', { style: { padding: 'var(--s4) var(--s4)', display: 'grid', gap: 'var(--s3)' } },
       schemeSeg,
       h('label.field-check', {},
         h('input', { type: 'checkbox', checked: schemeVal.showToggle, onchange: e => { schemeVal.showToggle = e.target.checked; dirty = true; saveBtn.textContent = 'Save design •' } }),
@@ -234,7 +234,7 @@ registerView('design', async root => {
       h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Locking to one scheme pins the public site and the editor preview to it.')),
 
     h('h2.design-h', {}, 'More'),
-    h('div.card', { style: { padding: '0.7rem 1rem', display: 'grid', gap: '0.35rem' } },
+    h('div.card', { style: { padding: 'var(--s3) var(--s4)', display: 'grid', gap: 'var(--s1)' } },
       h('a', { href: '#/settings', style: { fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)' } }, 'Fonts, brand variables, custom CSS/JS →'),
       h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Custom fonts, {{var.…}} brand values and global code live under Settings.')))
 
@@ -245,7 +245,7 @@ registerView('design', async root => {
     controls,
     h('div.design-preview', {},
       h('div.design-preview-bar', {},
-        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: '0.4rem', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview'),
+        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview'),
         h('button.btn.ghost.small', { onclick: () => (iframe.src = `/?__ts=${++seq}`) }, iconEl('refresh', 13), 'Reload')),
       frameHolder)))
 
