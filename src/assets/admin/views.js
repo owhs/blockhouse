@@ -235,6 +235,7 @@ registerView('users', async root => {
     ['seo.tools', 'SEO tools'], ['media.manage', 'Manage the asset library'],
     ['plugin:*', 'Use every plugin'], ['users.manage', 'Manage users'],
     ['settings.write', 'Change site settings'], ['plugins.manage', 'Approve plugins'],
+    ['deploy.export', 'Run diagnostics & export'], ['audit.read', 'Read the audit log'],
   ]
   const genPass = () => 'blockhouse-' + Math.random().toString(36).slice(2, 8) + '-' + Math.random().toString(36).slice(2, 8)
   const initials = n => (n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()

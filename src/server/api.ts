@@ -32,6 +32,15 @@ function guard(perm: string) {
   }
 }
 
+/** Like guard(), but passes if the user holds any one of several permissions
+ *  — for routes a narrower grant should also unlock, not just settings.write. */
+function guardAny(...perms: string[]) {
+  return async (c: C, next: any) => {
+    if (!perms.some(p => can(user(c), p))) return c.json({ error: `permission required: one of ${perms.join(', ')}` }, user(c) ? 403 : 401)
+    await next()
+  }
+}
+
 // simple in-memory rate limiter (login etc.)
 const buckets = new Map<string, { n: number; reset: number }>()
 function rateLimit(key: string, max: number, windowMs: number): boolean {
@@ -176,6 +185,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
         settings: can(u, 'settings.write'), menus: can(u, 'menus.write'),
         plugins: can(u, 'plugins.manage'), delete: can(u, 'content.delete'),
         seo: can(u, 'seo.tools'), html: can(u, 'content.publish'),
+        audit: can(u, 'users.manage') || can(u, 'audit.read'),
       },
       dev: env.dev,
       settingsSections: env.registry.settingsSections,
@@ -512,7 +522,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
   })
 
   // audit trail
-  app.get('/audit', guard('users.manage'), async c => {
+  app.get('/audit', guardAny('users.manage', 'audit.read'), async c => {
     const rows = await env.secure.logsList('audit', 200)
     return c.json({ entries: rows.map((r: any) => ({ id: r.id, at: r.createdAt, ...r.data })) })
   })
@@ -1019,7 +1029,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
 
   // ---------- ops: diagnostics + page weight ----------
 
-  app.get('/doctor', guard('settings.write'), async c => {
+  app.get('/doctor', guardAny('settings.write', 'deploy.export'), async c => {
     const { doctor } = await import('../cli/doctor.ts')
     const dir = (env as any).projectDir
     if (!dir) return c.json({ error: 'diagnostics need a filesystem project (not available on Workers)' }, 501)
@@ -1034,12 +1044,12 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     })
   })
 
-  app.get('/budget', guard('settings.write'), async c => {
+  app.get('/budget', guardAny('settings.write', 'deploy.export'), async c => {
     const { measureSite } = await import('../export/budget.ts')
     return c.json(await measureSite(env))
   })
 
-  app.get('/deploy/preset/:target', guard('settings.write'), async c => {
+  app.get('/deploy/preset/:target', guardAny('settings.write', 'deploy.export'), async c => {
     const { deployInit, TARGETS } = await import('../cli/deploy-init.ts')
     const target = c.req.param('target') as any
     if (!TARGETS.includes(target)) return c.json({ error: 'unknown target' }, 400)
@@ -1067,7 +1077,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return env.secure.kvGet(PROFILE_NS, 'all', [])
   }
 
-  app.get('/deploy/profiles', guard('settings.write'), async c => {
+  app.get('/deploy/profiles', guardAny('settings.write', 'deploy.export'), async c => {
     const profiles = await loadProfiles()
     return c.json({ profiles: profiles.map(maskProfile) })
   })
@@ -1163,9 +1173,10 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return c.json({ ok: true, log })
   })
 
-  app.post('/export', guard('settings.write'), async c => {
+  app.post('/export', guardAny('settings.write', 'deploy.export'), async c => {
     const { exportStatic } = await import('../export/static.ts')
     const res = await exportStatic(env, { outDir: 'dist' })
+    await audit(env, 'export.run', { outDir: res.outDir, pages: res.pages, assets: res.assets, by: user(c)!.id })
     return c.json(res)
   })
 

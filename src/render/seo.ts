@@ -38,7 +38,12 @@ export async function headHtml(ctx: RenderCtx, doc: Doc | null, concept: Concept
   // points at the document's own URL, never at the address being served.
   const canonicalPath = ctx.canonicalPath || ctx.path
   const canonical = doc?.seo?.canonical || site.url + (canonicalPath === '/' ? '/' : hrefFor(canonicalPath, site))
-  const robots = doc?.seo?.noindex ? 'noindex,nofollow' : (site.seo.robots || 'index,follow')
+  // A private/staging site must never tell crawlers to index it, regardless
+  // of doc- or site-level SEO config — someone reaching this page at all
+  // means the gate let them through (a studio session or a shared preview
+  // link), not that the page is meant to be public.
+  const isPrivate = Boolean(site.security?.private) && site.security!.private !== 'off'
+  const robots = isPrivate ? 'noindex,nofollow' : doc?.seo?.noindex ? 'noindex,nofollow' : (site.seo.robots || 'index,follow')
 
   let ogImage = ''
   let ogAlt = ''
@@ -197,6 +202,9 @@ export async function sitemapXml(env: any): Promise<string> {
 
 export async function robotsTxt(env: any): Promise<string> {
   const site: SiteConfig = await env.site()
+  if (site.security?.private && site.security.private !== 'off') {
+    return `User-agent: *\nDisallow: /\n`
+  }
   const sitemap = site.features?.sitemap === false ? '' : `\nSitemap: ${site.url}/sitemap.xml`
   return `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n${sitemap}\n`
 }

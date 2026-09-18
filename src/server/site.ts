@@ -55,7 +55,7 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
     }
     const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
     const ap = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
-    if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path.startsWith('/x/members/')) return next()
+    if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path === '/robots.txt' || path.startsWith('/x/members/')) return next()
     if (mode === 'members') {
       const gate = (env as any).memberGate
       const member = gate ? await gate.resolve(c).catch(() => null) : null

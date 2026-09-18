@@ -14,6 +14,7 @@ import './assets.js'
 import './seo.js'
 import './help.js'
 import './deploy.js'
+import './audit.js'
 import './concepts.js'
 import './design.js'
 import './templates.js'
@@ -133,6 +134,7 @@ function navGroups() {
   const plugins = m.panels.map(p => ({ key: `p/${p.key}`, icon: PLUGIN_ICONS[p.plugin] || p.icon || 'plug', label: p.label, hash: `#/p/${p.key}` }))
   const admin = []
   if (m.perms.users) admin.push({ key: 'users', icon: 'users', label: 'Users', hash: '#/users' })
+  if (m.perms.audit) admin.push({ key: 'audit', icon: 'table', label: 'Audit log', hash: '#/audit' })
   if (m.perms.plugins) admin.push({ key: 'plugins', icon: 'plug', label: 'Plugins', hash: '#/plugins' })
   admin.push({ key: 'deploy', icon: 'rocket', label: 'Deploy', hash: '#/deploy' })
   if (m.perms.settings) admin.push({ key: 'settings', icon: 'gear', label: 'Settings', hash: '#/settings' })
@@ -302,7 +304,7 @@ async function route() {
   viewEl.replaceChildren(h('div.spin'))
   const table = {
     '': 'dashboard', c: 'contentList', e: 'editor', media: 'media', menus: 'menus', seo: 'seo',
-    users: 'users', settings: 'settings', plugins: 'plugins', p: 'pluginPanel', help: 'help', deploy: 'deploy',
+    users: 'users', settings: 'settings', plugins: 'plugins', p: 'pluginPanel', help: 'help', deploy: 'deploy', audit: 'audit',
     types: 'concepts', design: 'design', tpl: 'templates', chrome: 'chrome',
   }
   const view = VIEWS[table[name] ?? 'dashboard'] || VIEWS.dashboard

@@ -200,6 +200,17 @@ async function security({ env }: Ctx): Promise<Check[]> {
   })
   out.push({ group: 'Security', label: 'Audit log', level: s.auditLog === false ? 'warn' : 'ok', detail: s.auditLog === false ? 'disabled' : 'recording logins, publishes and permission changes' })
 
+  try {
+    const recent = await env.secure.logsList('audit', 50)
+    const lastExport = recent.find((r: any) => r.data?.action === 'export.run' || r.data?.action === 'deploy.run')
+    out.push({
+      group: 'Deploy', label: 'Last export', level: lastExport ? 'ok' : 'info',
+      detail: lastExport
+        ? `${new Date(lastExport.data.at || lastExport.createdAt).toLocaleString()} — ${lastExport.data.outDir || lastExport.data.target || 'dist'} (${lastExport.data.pages ?? '?'} pages)`
+        : 'no export recorded yet',
+    })
+  } catch { /* audit log unavailable — not a doctor failure on its own */ }
+
   // member-only pages without the plugin that enforces them
   const membersOn = !!site.plugins?.members?.enabled
   const gated = (await env.content.listDocs()).filter(d => d.access?.mode && d.access.mode !== 'public')
