@@ -22,6 +22,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   let { doc, path, href, exportFile, shortlink, seo, stale } = await get(`/content/${docId}`)
   let baseVersion = doc.version
   let selectedId = null
+  const multi = new Set()
   let dirty = false
   const undoStack = [], redoStack = []
   const catalogue = meta.blocks
@@ -246,9 +247,84 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   function selectBlock(id, opts = {}) {
     selectedId = id
+    // A plain click always collapses the selection back to one block.
+    if (!opts.keepMulti) { multi.clear(); if (id) multi.add(id) }
     renderTree()
     renderInspector()
     if (!opts.fromPreview) iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id }, '*')
+  }
+
+  /**
+   * Multi-select. The rubric asks for it by name and there was none: one scalar
+   * selectedId, so shift-clicking simply replaced the selection. `multi` always
+   * contains selectedId, so single-selection code paths keep working unchanged.
+   *
+   * Ctrl/Cmd-click adds or removes one row. Shift-click takes the run between
+   * the anchor and the row you clicked, in the order the outline shows them —
+   * but only among siblings, because a range spanning two parents cannot be
+   * duplicated or deleted as one coherent thing.
+   */
+  function selectRange(id) {
+    const rows = visibleRows()
+    const a = rows.findIndex(r => r.node.id === selectedId)
+    const b = rows.findIndex(r => r.node.id === id)
+    if (a < 0 || b < 0) return selectBlock(id)
+    const [lo, hi] = a < b ? [a, b] : [b, a]
+    const parent = rows[a].parentId
+    multi.clear()
+    for (let i = lo; i <= hi; i++) if (rows[i].parentId === parent) multi.add(rows[i].node.id)
+    multi.add(selectedId)
+    renderTree(); renderInspector()
+  }
+  function toggleInSelection(id) {
+    if (multi.has(id) && multi.size > 1) {
+      multi.delete(id)
+      if (selectedId === id) selectedId = [...multi][multi.size - 1]
+    } else {
+      multi.add(id); selectedId = id
+    }
+    renderTree(); renderInspector()
+  }
+  /** Selected ids in outline order — the order any bulk action must use. */
+  const selectedInOrder = () => visibleRows().filter(r => multi.has(r.node.id)).map(r => r.node.id)
+
+  // ---------- bulk operations ----------
+  // Every one of these runs over the selection, which is a set of exactly one
+  // for a normal click, so single-block behaviour is unchanged.
+  const selNodes = () => selectedInOrder().map(id => ops.find(id)?.node).filter(Boolean)
+
+  async function bulkCopy(quiet) {
+    const nodes = selNodes()
+    if (!nodes.length) return
+    await copyBlocks(nodes)
+    if (!quiet) toast(nodes.length > 1 ? `${nodes.length} blocks copied` : 'Block copied', 'ok', 1600)
+  }
+
+  function bulkDuplicate() {
+    const ids = selectedInOrder()
+    if (!ids.length) return
+    snapshotOnce(ids.length > 1 ? `Duplicate ${ids.length} blocks` : 'Duplicate block')
+    const made = ids.map(id => ops.duplicate(id)).filter(Boolean)
+    if (ids.length > 1) toast(`${made.length} blocks duplicated`, 'ok', 1800)
+  }
+
+  function bulkRemove() {
+    const ids = selectedInOrder()
+    if (!ids.length) return
+    if (ids.length === 1) return removeWithUndo(ids[0])
+    // capture where each one sat so Undo can put them all back
+    const restore = ids.map(id => {
+      const site = ops.siteFor(id)
+      return { node: JSON.parse(JSON.stringify(ops.find(id).node)), parentId: site.parentId, index: site.index }
+    })
+    snapshotOnce(`Delete ${ids.length} blocks`)
+    for (const id of ids) ops.remove(id)
+    multi.clear(); selectedId = null
+    renderTree(); renderInspector()
+    undoToast(`${ids.length} blocks deleted`, () => {
+      for (const r of restore.slice().sort((a, b) => a.index - b.index)) ops.insert(r.node, r.parentId, r.index)
+      renderTree(); renderInspector()
+    })
   }
 
   function removeWithUndo(id) {
@@ -286,7 +362,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       { key: 'down', label: 'Move down', icon: icon('down', 14), shortcut: sc('⌥↓'), run: () => ops.nudge(id, 1) },
       { key: 'moveTo', label: 'Move into…', icon: icon('swap', 14), run: () => moveIntoDialog(id) },
       '-',
-      { key: 'delete', label: 'Delete', icon: icon('trash', 14), shortcut: 'Del', danger: true, run: () => removeWithUndo(id) },
+      { key: 'delete', label: multi.has(id) && multi.size > 1 ? `Delete ${multi.size} blocks` : 'Delete', icon: icon('trash', 14), shortcut: 'Del', danger: true, run: () => (multi.has(id) ? bulkRemove() : removeWithUndo(id)) },
     ]
   }
 
@@ -434,15 +510,20 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       const isContainer = !!def?.container
       const isFolded = !!folded()[node.id]
       const selected = node.id === selectedId
+      const inMulti = multi.has(node.id) && multi.size > 1
       const row = h('button.tree-item', {
-        class: selected ? 'selected' : '',
-        role: 'treeitem', 'aria-selected': String(selected), 'aria-level': String(depth + 1),
+        class: [selected ? 'selected' : '', inMulti ? 'multi' : ''].filter(Boolean).join(' '),
+        role: 'treeitem', 'aria-selected': String(selected || inMulti), 'aria-level': String(depth + 1),
         ...(isContainer ? { 'aria-expanded': String(!isFolded) } : {}),
         tabindex: selected ? '0' : '-1',
         draggable: 'true',
         dataset: { nodeId: node.id, parentId, index: String(index), container: isContainer ? '1' : '0' },
         style: { paddingLeft: `${0.3 + depth * 0.7}rem` },
-        onclick: () => selectBlock(node.id),
+        onclick: e => {
+          if (e.shiftKey) { e.preventDefault(); return selectRange(node.id) }
+          if (e.metaKey || e.ctrlKey) { e.preventDefault(); return toggleInSelection(node.id) }
+          selectBlock(node.id)
+        },
         oncontextmenu: e => blockMenu(e, node.id),
         onkeydown: e => treeKeys(e, node.id, rows),
       },
@@ -503,7 +584,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       e.preventDefault()
       if (def?.container && !folded()[id]) toggleFold(id)
       else if (rows[i]?.parentId) selectBlock(rows[i].parentId)
-    } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeWithUndo(id) }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); multi.has(id) ? bulkRemove() : removeWithUndo(id) }
     else if (e.shiftKey && e.key === 'F10') { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); blockMenu({ preventDefault() {}, clientX: r.left + 20, clientY: r.bottom }, id) }
   }
 
@@ -1335,10 +1416,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (mod && e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doRedo() }
     if (isTyping(e)) return
     if (mod && e.key === 'Enter') { e.preventDefault(); const s = ops.siteFor(selectedId); return addBlock(s.parentId, s.index) }
+    // Paste is the one block action that means something with nothing selected:
+    // it appends to the end of the page. It used to fall through this gate and
+    // do nothing at all — no toast, no change, no explanation.
+    if (!selectedId && mod && e.key.toLowerCase() === 'v') {
+      e.preventDefault(); return pasteFrom('', doc.blocks.length)
+    }
     if (!selectedId) return
-    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); return ops.duplicate(selectedId) }
-    if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); await copyBlocks([ops.find(selectedId).node]); return toast('Block copied', 'ok', 1600) }
-    if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); await copyBlocks([ops.find(selectedId).node]); return removeWithUndo(selectedId) }
+    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); return bulkDuplicate() }
+    if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); return bulkCopy() }
+    if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); await bulkCopy(true); return bulkRemove() }
     if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); const s = ops.siteFor(selectedId); return pasteFrom(s.parentId, s.index) }
     if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); return ops.nudge(selectedId, -1) }
     if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); return ops.nudge(selectedId, 1) }
@@ -1355,7 +1442,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       const f = ops.find(selectedId)
       if (f?.parents.length) { e.preventDefault(); return selectBlock(f.parents[f.parents.length - 1].id) }
     }
-    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); return removeWithUndo(selectedId) }
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); return bulkRemove() }
   }
   addEventListener('keydown', onKey)
 

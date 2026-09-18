@@ -219,6 +219,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .field input:focus, .field textarea:focus, .field select:focus, .input:focus { outline: 0; border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in oklch, var(--acc) 18%, transparent); }
 .field .invalid, .field input.invalid { border-color: var(--err) !important; }
 .field-error { font-size: var(--t-xs); color: var(--err-ink); font-weight: var(--fw-semi); }
+.field input.invalid, .field textarea.invalid, .input.invalid { border-color: var(--err); box-shadow: 0 0 0 3px color-mix(in oklch, var(--err) 16%, transparent); }
 .field .mono, textarea.mono { font-family: var(--mono); font-size: var(--t-s); }
 /* Beats `.field > label { justify-content: space-between }` — a checkbox and its
    caption belong together on the left, not at opposite ends of the row. */
@@ -282,6 +283,8 @@ a { color: var(--acc-bright); text-decoration: none; }
 .tree-item { cursor: pointer; position: relative; }
 .tree-item:hover { background: var(--bg-hover); }
 .tree-item.selected { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
+.tree-item.multi { background: color-mix(in oklch, var(--acc) 14%, transparent); }
+.tree-item.multi.selected { background: var(--bg-active); }
 .tree-item.dragging { opacity: 0.4; }
 .tree-item .t-ico { width: 1.25rem; display: grid; place-items: center; opacity: 0.75; flex-shrink: 0; }
 .tree-item .t-label { flex: 1; font-size: var(--t-m); font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

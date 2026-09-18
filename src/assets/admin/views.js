@@ -3,7 +3,7 @@
 
 import { get, post, put, patch, del } from './api.js'
 import { h, dialog, confirmDialog, promptDialog, toast, fmtDate, emptyState, spinner, skeleton } from './ui.js'
-import { renderFields } from './fields.js'
+import { renderFields, validateFields } from './fields.js'
 import { registerView, state, DATA_SECTIONS, prefs, setPref, hooks, registerGuard, refreshMeta } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { SETTINGS_ROWS, assertCatalogue } from './catalog.js'
@@ -520,6 +520,12 @@ registerView('settings', async (root, [groupKey], query) => {
   const { settings } = await get('/settings')
   const s = settings
   s.seo ??= {}; s.images ??= {}; s.theme ??= {}; s.theme.tokens ??= {}; s.mail ??= {}; s.features ??= {}; s.plugins ??= {}
+  const IDENTITY_DEFS = [
+    { key: 'name', type: 'text', label: 'Site name', required: true },
+    { key: 'url', type: 'text', label: 'Canonical URL', format: 'url', help: 'https://example.com' },
+    { key: 'tagline', type: 'text', label: 'Tagline' },
+    { key: 'language', type: 'text', label: 'Language code', width: 'half' },
+  ]
   const dirtyCards = new Set()
   const save = async patchObj => { await put('/settings', { patch: patchObj }); toast('Saved', 'ok') }
 
@@ -533,11 +539,20 @@ registerView('settings', async (root, [groupKey], query) => {
   }
   const mailVals = { driver: s.mail.driver || 'console', from: s.mail.from || '', options: s.mail.options || {} }
 
-  const card = (title2, sub, body, onSave) => {
+  const card = (title2, sub, body, onSave, validate) => {
     const dot = h('span.dirty-dot', { hidden: true, title: 'Unsaved changes' })
     const btn = onSave ? h('button.btn.ghost.small', {
       onclick: async e => {
         const b = e.currentTarget
+        // A card must not report success for a value it knows is malformed.
+        // "not-a-valid-url" used to save into site.json and raise a Saved toast,
+        // from where it fed canonical tags, RSS, the sitemap and share images.
+        const bad = validate?.() || []
+        if (bad.length) {
+          toast(`${bad[0].label}: ${bad[0].message}`, 'err', 5200)
+          el.querySelector('input[aria-invalid="true"]')?.focus()
+          return
+        }
         b.classList.add('busy'); b.disabled = true
         try {
           await onSave()
@@ -604,12 +619,8 @@ registerView('settings', async (root, [groupKey], query) => {
 
   const GROUPS = [
     { key: 'general', label: 'General', icon: 'home', body: () => [
-      card('Identity', null, renderFields([
-        { key: 'name', type: 'text', label: 'Site name' },
-        { key: 'url', type: 'text', label: 'Canonical URL', help: 'https://example.com' },
-        { key: 'tagline', type: 'text', label: 'Tagline' },
-        { key: 'language', type: 'text', label: 'Language code', width: 'half' },
-      ], siteVals, () => {}), () => save(siteVals)),
+      card('Identity', null, renderFields(IDENTITY_DEFS, siteVals, () => {}), () => save(siteVals),
+        () => validateFields(IDENTITY_DEFS, siteVals)),
       card('SEO defaults', 'Per-page overrides live in each document’s SEO tab.', renderFields([
         { key: 'titlePattern', type: 'text', label: 'Title pattern', help: '{title} and {site} are replaced' },
         { key: 'description', type: 'textarea', label: 'Default meta description', rows: 2 },
@@ -1673,7 +1684,21 @@ const CUSTOM_SECTIONS = {
               h('td', {}, l.label, h('div.row-sub', {}, l.file)),
               h('td', {}, `${l.uses}${l.maxUses ? `/${l.maxUses}` : ''}`),
               h('td.mut', {}, (l.signatures || []).map(sg => sg.name).join(', ') || '—'),
-              h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', { onclick: async () => { await del(`/x/files/links/${l.id}`); refresh() } }, iconEl('trash', 14))))))))) : '')
+              h('td', { style: { textAlign: 'right' } }, h('button.icon-btn', {
+                title: 'Revoke this link', 'aria-label': `Revoke the link for ${l.label}`,
+                // Revoking kills a signed URL that may already be in someone's
+                // inbox, and cannot be undone — every other delete in this file
+                // confirms; this one used to fire on a single click.
+                onclick: async () => {
+                  const ok = await confirmDialog('Revoke this link?',
+                    `Anyone holding the link to “${l.label}” stops being able to download it, including people you have already sent it to. This cannot be undone.`,
+                    'Revoke link')
+                  if (!ok) return
+                  await del(`/x/files/links/${l.id}`)
+                  toast('Link revoked', 'ok')
+                  refresh()
+                },
+              }, iconEl('trash', 14))))))))) : '')
     }
     const issue = file => {
       const vals = { file, label: file, oneTime: false, expiresDays: 7, requireSignature: false, email: '' }

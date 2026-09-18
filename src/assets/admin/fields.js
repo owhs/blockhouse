@@ -5,6 +5,42 @@ import { get, post } from './api.js'
 import { h, debounce, dialog, makeSortable, toast, sc } from './ui.js'
 import { mountRichtext } from './richtext.js'
 
+
+/**
+ * Field validation. A settings form used to accept "not-a-valid-url" as the
+ * site's Canonical URL, write it to site.json and show a success toast — the
+ * value then feeds canonical tags, RSS, the sitemap and share images.
+ *
+ * A def can carry `validate(value) -> message | null`, or name a built-in
+ * `format`. Returns the message, or null when the value is fine.
+ */
+const FORMATS = {
+  url: v => (!v || /^https?:\/\/[^\s/$.?#][^\s]*$/i.test(v))
+    ? null : 'Enter a full address including https://, for example https://example.com',
+  email: v => (!v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
+    ? null : 'Enter an email address, for example hello@example.com',
+  slug: v => (!v || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v))
+    ? null : 'Use lowercase letters, numbers and hyphens only',
+}
+
+export function fieldError(def, value) {
+  const v = value == null ? '' : String(value)
+  if (def.required && !v.trim()) return `${def.label || def.key} is required`
+  if (def.format && FORMATS[def.format]) return FORMATS[def.format](v)
+  if (typeof def.validate === 'function') return def.validate(v) || null
+  return null
+}
+
+/** Every error currently in a set of defs+values, as [{key, label, message}]. */
+export function validateFields(defs, values) {
+  const out = []
+  for (const def of defs || []) {
+    const msg = fieldError(def, values[def.key] ?? def.default ?? '')
+    if (msg) out.push({ key: def.key, label: def.label || def.key, message: msg })
+  }
+  return out
+}
+
 export function renderFields(defs, values, onChange, opts = {}) {
   const grid = h('div.fields-grid')
   for (const def of defs || []) grid.appendChild(renderField(def, values, onChange, opts))
@@ -198,9 +234,18 @@ export function renderField(def, values, onChange, opts = {}) {
             .catch(() => {})
         }
       }
-      input.addEventListener('input', () => deb(input.value))
-      input.addEventListener('blur', () => deb.now(input.value))
-      wrap.append(labelRow(def), input)
+      const err = h('div.field-error', { hidden: true })
+      const check = () => {
+        const msg = fieldError(def, input.value)
+        err.textContent = msg || ''
+        err.hidden = !msg
+        input.classList.toggle('invalid', !!msg)
+        input.setAttribute('aria-invalid', String(!!msg))
+      }
+      input.addEventListener('input', () => { deb(input.value); check() })
+      input.addEventListener('blur', () => { deb.now(input.value); check() })
+      wrap.append(labelRow(def), input, err)
+      if (val) check()
       return wrap
     }
   }

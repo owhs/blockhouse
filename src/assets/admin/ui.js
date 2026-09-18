@@ -185,8 +185,22 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
     else if (opener?.isConnected) opener.focus()
   }
 
-  dlg.addEventListener('cancel', e => { e.preventDefault(); if (dismissable) close(undefined) })
-  dlg.addEventListener('mousedown', e => { if (e.target === dlg && dismissable) close(undefined) })
+  // Dismissing a dialog you have typed into used to throw the input away with
+  // no warning: the X, the backdrop and Escape all went straight to close().
+  // A dialog now knows whether it holds work, and asks before discarding it.
+  const fieldsOf = () => [...dlg.querySelectorAll('input:not([type=hidden]), textarea, select')]
+  let openSnapshot = null
+  const snapshotFields = () => fieldsOf().map(f => (f.type === 'checkbox' || f.type === 'radio') ? String(f.checked) : f.value).join(String.fromCharCode(31))
+  const hasWork = () => openSnapshot !== null && snapshotFields() !== openSnapshot
+  async function tryDismiss() {
+    if (!dismissable) return
+    if (!hasWork()) return close(undefined)
+    const discard = await confirmDialog('Discard what you typed?',
+      'This form has changes that have not been used yet. Closing loses them.', 'Discard')
+    if (discard) close(undefined)
+  }
+  dlg.addEventListener('cancel', e => { e.preventDefault(); tryDismiss() })
+  dlg.addEventListener('mousedown', e => { if (e.target === dlg) tryDismiss() })
 
   // focus trap — Tab must not escape into the page behind the modal
   dlg.addEventListener('keydown', e => {
@@ -221,7 +235,7 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
   dlg.append(
     title || headerExtra || dismissable
       ? h('header.dlg-head', {}, h('h2', {}, title || ''), headerExtra || '',
-        dismissable ? h('button.icon-btn', { onclick: () => close(undefined), 'aria-label': 'Close', html: icon('x', 14) }) : '')
+        dismissable ? h('button.icon-btn', { onclick: () => tryDismiss(), 'aria-label': 'Close', html: icon('x', 14) }) : '')
       : '',
     h('div.dlg-body', {}, body),
     actions.length ? h('footer.dlg-foot', {}, ...actionBtns) : '',
@@ -229,6 +243,7 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
   document.body.appendChild(dlg)
   dlgStack.push(dlg)
   dlg.showModal()
+  openSnapshot = snapshotFields()
   void dlg.offsetWidth   // see sheet.js: rAF does not run in a background tab
   dlg.classList.add('in')
   dlg.closeWith = close

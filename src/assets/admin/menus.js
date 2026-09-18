@@ -4,7 +4,7 @@
 // every edit repaints the actual header within half a second.
 
 import { get, put, del } from './api.js'
-import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame, confirmDialog, unsavedDialog } from './ui.js'
+import { h, debounce, dialog, makeSortable, toast, emptyState, fitPreviewFrame, confirmDialog, unsavedDialog, undoToast } from './ui.js'
 import { renderFields } from './fields.js'
 import { registerView, state, registerGuard } from './state.js'
 import { icon, iconEl } from './icons.js'
@@ -112,7 +112,7 @@ registerView('menus', async (root, [menuKey]) => {
           h('span.mrow-tools', {},
             h('button.icon-btn', { title: 'Move up', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('up', 13) }),
             h('button.icon-btn', { title: 'Move down', onclick: e => { e.stopPropagation(); const i = items.indexOf(item); if (i < items.length - 1) { items.splice(i + 1, 0, items.splice(i, 1)[0]); markDirty(); paintTree() } }, html: icon('down', 13) }),
-            h('button.icon-btn', { title: 'Remove', onclick: e => { e.stopPropagation(); items.splice(items.indexOf(item), 1); if (sel?.ref === item) sel = null; markDirty(); paintTree(); paintInspector() }, html: icon('trash', 12) }))))
+            h('button.icon-btn', { title: 'Remove', onclick: e => { e.stopPropagation(); const at = items.indexOf(item); items.splice(at, 1); if (sel?.ref === item) sel = null; markDirty(); paintTree(); paintInspector(); undoToast(`Removed “${item.label || 'link'}”`, () => { items.splice(at, 0, item); markDirty(); paintTree(); paintInspector() }) }, html: icon('trash', 12) }))))
 
         // nested structure
         if (item.mega) {
@@ -131,7 +131,7 @@ registerView('menus', async (root, [menuKey]) => {
                 h('span.mrow-tag', {}, `${(tab.items || []).length}`),
                 h('span.mrow-tools', {},
                   h('button.icon-btn', { title: 'Add entry', onclick: e => { e.stopPropagation(); (tab.items ??= []).push(newCard()); markDirty(); paintTree() }, html: icon('plus', 12) }),
-                  h('button.icon-btn', { title: 'Remove tab', onclick: e => { e.stopPropagation(); mega.tabs.splice(mega.tabs.indexOf(tab), 1); markDirty(); paintTree(); paintInspector() }, html: icon('trash', 12) }))))
+                  h('button.icon-btn', { title: 'Remove tab', onclick: e => { e.stopPropagation(); const at = mega.tabs.indexOf(tab); mega.tabs.splice(at, 1); markDirty(); paintTree(); paintInspector(); undoToast(`Removed tab “${tab.label || 'tab'}”`, () => { mega.tabs.splice(at, 0, tab); markDirty(); paintTree(); paintInspector() }) }, html: icon('trash', 12) }))))
               tab.items ??= []
               wrap.appendChild(level(tab.items, depth + 2, topId))
             }
@@ -154,7 +154,7 @@ registerView('menus', async (root, [menuKey]) => {
                 h('span.mrow-label', {}, col.title || 'Column'),
                 h('span.mrow-tools', {},
                   h('button.icon-btn', { title: 'Add link', onclick: e => { e.stopPropagation(); (col.items ??= []).push({ id: uid(), label: 'New link', type: 'link', href: '/' }); markDirty(); paintTree() }, html: icon('plus', 12) }),
-                  h('button.icon-btn', { title: 'Remove column', onclick: e => { e.stopPropagation(); mega.columns.splice(mega.columns.indexOf(col), 1); markDirty(); paintTree(); paintInspector() }, html: icon('trash', 12) }))))
+                  h('button.icon-btn', { title: 'Remove column', onclick: e => { e.stopPropagation(); const at = mega.columns.indexOf(col); mega.columns.splice(at, 1); markDirty(); paintTree(); paintInspector(); undoToast('Removed a column', () => { mega.columns.splice(at, 0, col); markDirty(); paintTree(); paintInspector() }) }, html: icon('trash', 12) }))))
               col.items ??= []
               wrap.appendChild(level(col.items, depth + 2, topId))
             }
