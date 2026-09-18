@@ -703,6 +703,9 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .nav-tools { display: flex; gap: var(--s1); padding-top: var(--s2); }
 
 /* ---------- side sheet: bring the control to the user ---------- */
+.nav-scrim { position: fixed; inset: 0; background: light-dark(#3c3c4922, #00000066); z-index: 45; }
+.app:not(.nav-open) .nav-scrim { display: none; }
+@media (min-width: 861px) { .nav-scrim { display: none; } }
 .sheet-scrim { position: fixed; inset: 0; background: light-dark(#3c3c4922, #00000055); z-index: 90; opacity: 0; transition: opacity var(--dur-2) var(--ease); }
 .sheet-scrim.in { opacity: 1; }
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(30rem, 94vw); background: var(--bg-panel); border-left: 1px solid var(--line); box-shadow: var(--shadow-l); z-index: 91; display: grid; grid-template-rows: auto 1fr; translate: 100% 0; transition: translate var(--dur-3) var(--ease); }

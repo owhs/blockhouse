@@ -251,7 +251,51 @@ function renderShell() {
     }))
   }
 
-  const closeNavOnMobile = () => shellEl?.classList.remove('nav-open')
+  // The nav drawer below 860px covers the page but was not modal: no scrim, no
+  // focus move, and 13 controls behind it stayed tabbable, so Tab walked
+  // straight out of the open drawer into the page it was covering.
+  const drawerWidth = () => matchMedia('(max-width: 860px)').matches
+  let navOpener = null
+  function setNavOpen(on) {
+    if (!shellEl) return
+    const wasOpen = shellEl.classList.contains('nav-open')
+    if (on === wasOpen) return
+    shellEl.classList.toggle('nav-open', on)
+    const modal = on && drawerWidth()
+    // Not the whole topbar: the nav toggle lives there and must stay live, or
+    // it sits in plain sight doing nothing while the drawer it opened is up.
+    const behind = [...shellEl.querySelectorAll('.top-brand, .top-mid, .top-end'), viewEl, ribbon]
+    for (const el of behind) if (el) el.inert = modal
+    side.setAttribute('aria-modal', String(modal))
+    if (modal) side.setAttribute('role', 'dialog'); else side.removeAttribute('role')
+    if (on) {
+      navOpener = document.activeElement
+      scrim.hidden = false
+      if (modal) side.querySelector('button, a, [tabindex]')?.focus()
+    } else {
+      scrim.hidden = true
+      // activeElement is <body> when the drawer was opened by a synthetic click,
+      // so fall back to the control that owns the drawer rather than dropping
+      // focus to the top of the document.
+      const back = (navOpener && navOpener.isConnected && navOpener !== document.body)
+        ? navOpener : shellEl.querySelector('.nav-toggle')
+      back?.focus()
+      navOpener = null
+    }
+  }
+  const closeNavOnMobile = () => setNavOpen(false)
+  const scrim = h('div.nav-scrim', { hidden: true, onclick: () => setNavOpen(false) })
+  // Tab must not leave an open drawer, and Escape must close it.
+  side.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); setNavOpen(false); return }
+    if (e.key !== 'Tab' || !shellEl?.classList.contains('nav-open') || !drawerWidth()) return
+    const f = [...side.querySelectorAll('button, a[href], input, select, [tabindex]:not([tabindex="-1"])')]
+      .filter(el => el.offsetParent !== null)
+    if (!f.length) return
+    const [first, last] = [f[0], f[f.length - 1]]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  })
 
   /** Shut every ribbon menu. A menu with no way out but a second precise click
       is a trap, so this runs on outside click, Escape, and route changes too. */
@@ -274,7 +318,7 @@ function renderShell() {
     h('header.topbar', {},
       h('button.icon-btn.nav-toggle', {
         'aria-label': 'Menu', title: 'Menu',
-        onclick: () => shellEl.classList.toggle('nav-open'),
+        onclick: () => setNavOpen(!shellEl.classList.contains('nav-open')),
       }, iconEl('menu', 17)),
       h('div.top-brand', {}, h('span.mark', {}, 'B'), 'Studio',
         h('button.top-site.site-switch', { title: 'Switch site', onclick: openSiteSwitcher }, '· ', m.site.name, iconEl('chevD', 10))),
@@ -294,7 +338,7 @@ function renderShell() {
         h('button.icon-btn', { title: 'Personalize studio', 'aria-label': 'Personalize studio', onclick: personalize }, iconEl('palette', 16)),
         h('button.icon-btn', { title: 'Toggle studio theme', 'aria-label': 'Toggle studio light or dark', onclick: toggleTheme }, iconEl('contrast', 16)),
         h('button.icon-btn', { title: `Signed in as ${state.user.email} — sign out`, 'aria-label': 'Sign out', onclick: signOut }, iconEl('power', 16)))),
-    side, ribbon, viewEl)
+    side, ribbon, viewEl, scrim)
 
   app.replaceChildren(shellEl)
   hooks.paintNav = paintNav
