@@ -823,7 +823,7 @@ button.card.plug-card:hover { border-color: var(--acc); }
 
 /* Controls that exist only once something has collapsed into a drawer.
    Must sit BEFORE the breakpoints, or it wins at every width. */
-.nav-toggle, .panel-toggle, .insp-toggle, .outline-toggle { display: none; }
+.nav-toggle, .panel-toggle, .insp-toggle { display: none; }
 
 @media (max-width: 1400px) {
   .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
@@ -835,9 +835,10 @@ button.card.plug-card:hover { border-color: var(--acc); }
     visibility: hidden; pointer-events: none;
     transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
   }
-  .outline.open, .outline.closed.open { translate: 0 0; visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
+  /* In drawer mode only .open decides anything. .closed is the wide-mode
+     collapse flag and must not leave the drawer half-shown. */
   .outline.closed { width: 14rem; translate: -100% 0; }
-  .outline-toggle { display: inline-flex; }
+  .outline.open, .outline.closed.open { translate: 0 0; visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
 }
 
 @media (max-width: 1280px) {

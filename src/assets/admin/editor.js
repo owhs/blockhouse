@@ -1035,6 +1035,35 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const onWide = () => setTimeout(paintScale, 280)
   addEventListener('bh:wide', onWide)
 
+  // Below 1400px the outline is an overlay drawer; above it, a column that can
+  // collapse. Same button, same mental model, different mechanism.
+  let outlineBtn = null
+  const outlineIsDrawer = () => matchMedia('(max-width: 1400px)').matches
+  function toggleOutline(force) {
+    const drawer = outlineIsDrawer()
+    const on = force ?? !(drawer ? outlineEl.classList.contains('open') : outlineOpen)
+    if (drawer) {
+      outlineEl.classList.toggle('open', on)
+    } else {
+      outlineOpen = on
+      setDisclosure('outline', on)
+      outlineEl.classList.toggle('closed', !on)
+    }
+    outlineBtn?.setAttribute('aria-expanded', String(on))
+    outlineBtn?.classList.toggle('on', on)
+    setTimeout(paintScale, 260)
+  }
+  // Crossing the breakpoint must not strand the panel in the other mode's state.
+  const onOutlineBp = () => {
+    if (outlineIsDrawer()) { outlineEl.classList.remove('closed') }
+    else { outlineEl.classList.remove('open'); outlineEl.classList.toggle('closed', !outlineOpen) }
+    outlineBtn?.setAttribute('aria-expanded', String(outlineIsDrawer() ? outlineEl.classList.contains('open') : outlineOpen))
+  }
+  addEventListener('resize', onOutlineBp)
+  // The button's initial state must describe the mode it is actually in: in
+  // drawer mode the outline starts closed whatever the wide-mode pref says.
+  queueMicrotask(onOutlineBp)
+
   const backTo = peekReturn()
   const editorEl = h('div.editor', {},
     outlineEl,
@@ -1045,20 +1074,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
             title: backTo ? `Back to ${backTo.label}` : 'Back', 'aria-label': backTo ? `Back to ${backTo.label}` : 'Back',
             onclick: () => { const r = popReturn(); location.hash = r ? r.hash : `#/c/${doc.concept}` },
           }, iconEl('back', 16)),
-          h('button.icon-btn.outline-toggle', {
-            title: 'Outline', 'aria-label': 'Open the page outline',
-            onclick: () => outlineEl.classList.toggle('open'),
-          }, iconEl('sidebar', 15)),
-          h('button.icon-btn', {
-            title: 'Collapse the outline for a bigger canvas', 'aria-label': 'Collapse outline',
-            class: outlineOpen ? '' : 'on',
-            onclick: e => {
-              outlineOpen = !outlineOpen
-              setDisclosure('outline', outlineOpen)
-              outlineEl.classList.toggle('closed', !outlineOpen)
-              e.currentTarget.classList.toggle('on', !outlineOpen)
-              setTimeout(paintScale, 260)
-            },
+          // One control, not two. There used to be a drawer toggle (.open) and a
+          // collapse toggle (.closed) side by side doing the same job badly:
+          // below 1400px the outline is a drawer that only .open reveals, so
+          // the collapse button left it visible, at translate 0, with
+          // pointer-events: none — a panel you could see and could not click,
+          // with clicks falling through to the preview iframe behind it.
+          outlineBtn = h('button.icon-btn.outline-btn', {
+            title: 'Page outline', 'aria-label': 'Page outline',
+            'aria-expanded': String(outlineOpen),
+            onclick: () => toggleOutline(),
           }, iconEl('list', 15))),
         h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState),
         h('span.editor-top-group', {}, deviceSeg,
@@ -1293,6 +1318,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (railWasOpen) appEl?.classList.remove('side-collapsed')
     appEl?.classList.remove('insp-hidden')
     removeEventListener('bh:wide', onWide)
+    removeEventListener('resize', onOutlineBp)
     removeEventListener('message', onBridgeMsg)
     removeEventListener('keydown', onKey)
     removeEventListener('resize', onResize)
