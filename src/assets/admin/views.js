@@ -236,6 +236,7 @@ registerView('users', async root => {
     ['plugin:*', 'Use every plugin'], ['users.manage', 'Manage users'],
     ['settings.write', 'Change site settings'], ['plugins.manage', 'Approve plugins'],
     ['deploy.export', 'Run diagnostics & export'], ['audit.read', 'Read the audit log'],
+    ['plugin:ops.manage', 'Sync to git & manage backups'],
   ]
   const genPass = () => 'blockhouse-' + Math.random().toString(36).slice(2, 8) + '-' + Math.random().toString(36).slice(2, 8)
   const initials = n => (n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -1804,4 +1805,60 @@ const CUSTOM_SECTIONS = {
           h('a.btn.ghost.small', { href: `/api/x/analytics/export.csv?days=90`, download: 'analytics.csv' }, iconEl('download', 13), 'CSV'))),
       holder)
   },
+
+  ops: Object.assign(async () => {
+    const statusHolder = h('div', {}, h('div.spin'))
+    const backupsHolder = h('div', {}, h('div.spin'))
+    const canRestore = state.user.role === 'admin' || state.user.role === 'owner' || (state.user.grants || []).includes('settings.write')
+
+    const refreshStatus = async () => {
+      const s = await get('/x/ops/status').catch(() => ({ git: false }))
+      statusHolder.replaceChildren(
+        s.git
+          ? h('div', {},
+              h('p.sub', {}, s.lastCommit
+                ? `Last synced: ${s.lastCommit.message} (${s.lastCommit.hash}, ${s.lastCommit.date})`
+                : 'Git repository detected — nothing synced yet.'),
+              s.dirty ? h('p.fnt', { style: { fontSize: '0.78rem', marginTop: '0.2rem' } }, `${s.dirty} file(s) changed since last sync.`) : '')
+          : emptyState(icon('warn', 22), 'No git repository', 'This site’s directory (or a parent of it) needs its own .git for sync to work.'),
+        h('div', { style: { marginTop: '0.7rem' } },
+          h('button.btn.primary', { disabled: !s.git, onclick: async () => {
+            const res = await post('/x/ops/sync', {})
+            toast(res.synced ? `Synced — ${res.hash}` : 'Nothing to sync', res.synced ? 'ok' : undefined)
+            refreshStatus()
+          } }, iconEl('refresh', 14), 'Sync now')))
+    }
+
+    const humanSizeMB = n => `${(n / (1024 * 1024)).toFixed(1)} MB`
+
+    const refreshBackups = async () => {
+      const { backups } = await get('/x/ops/backups').catch(() => ({ backups: [] }))
+      backupsHolder.replaceChildren(
+        h('div', { style: { marginBottom: '0.7rem' } },
+          h('button.btn.ghost', { onclick: async () => {
+            const res = await post('/x/ops/backups/run', {}).catch(e => ({ error: e.message }))
+            if (res.error) toast(res.error, 'err'); else { toast('Backup created', 'ok'); refreshBackups() }
+          } }, iconEl('download', 14), 'Back up now')),
+        backups.length ? h('div.table-wrap', {}, h('table.data-table', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'kind'), h('th', {}, 'when'), h('th', {}, 'size'), h('th', {}, ''))),
+          h('tbody', {}, ...backups.map(b => h('tr', {},
+            h('td', {}, b.kind === 'prerestore' ? h('span.badge.warn', {}, 'pre-restore') : 'backup'),
+            h('td.mut', {}, new Date(b.at).toLocaleString()),
+            h('td.mut', {}, humanSizeMB(b.sizeBytes)),
+            h('td', { style: { textAlign: 'right' } },
+              canRestore
+                ? h('button.btn.soft.small', { onclick: async () => {
+                    if (!(await confirmDialog('Restore', `This overwrites this site’s current users/sessions and media with "${b.name}". A safety snapshot of the current state is taken first.`))) return
+                    const res = await post('/x/ops/backups/restore', { name: b.name }).catch(e => ({ error: e.message }))
+                    if (res.error) toast(res.error, 'err'); else { toast('Restored', 'ok'); refreshStatus(); refreshBackups() }
+                  } }, 'Restore')
+                : ''))))))
+          : emptyState(icon('db', 22), 'No backups yet', 'Hit "Back up now" above.'))
+    }
+
+    refreshStatus(); refreshBackups()
+    return h('div', {},
+      h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Git sync'), statusHolder),
+      h('div.card', {}, h('strong', {}, 'Backups'), backupsHolder))
+  }, { replaces: true }),
 }
