@@ -1808,36 +1808,100 @@ const CUSTOM_SECTIONS = {
 
   ops: Object.assign(async () => {
     const statusHolder = h('div', {}, h('div.spin'))
+    const branchesHolder = h('div', {}, h('div.spin'))
     const backupsHolder = h('div', {}, h('div.spin'))
     const canRestore = state.user.role === 'admin' || state.user.role === 'owner' || (state.user.grants || []).includes('settings.write')
+    const syncMessage = h('input.input', { placeholder: 'Commit message (optional)', style: { marginBottom: '0.5rem', width: '100%' } })
 
     const refreshStatus = async () => {
       const s = await get('/x/ops/status').catch(() => ({ git: false }))
       statusHolder.replaceChildren(
         s.git
           ? h('div', {},
-              h('p.sub', {}, s.lastCommit
+              h('p.sub', {}, s.branch ? `On branch ${s.branch}. ` : '', s.lastCommit
                 ? `Last synced: ${s.lastCommit.message} (${s.lastCommit.hash}, ${s.lastCommit.date})`
                 : 'Git repository detected — nothing synced yet.'),
               s.dirty ? h('p.fnt', { style: { fontSize: '0.78rem', marginTop: '0.2rem' } }, `${s.dirty} file(s) changed since last sync.`) : '')
           : emptyState(icon('warn', 22), 'No git repository', 'This site’s directory (or a parent of it) needs its own .git for sync to work.'),
         h('div', { style: { marginTop: '0.7rem' } },
+          syncMessage,
           h('button.btn.primary', { disabled: !s.git, onclick: async () => {
-            const res = await post('/x/ops/sync', {})
+            const message = syncMessage.value.trim()
+            const res = await post('/x/ops/sync', message ? { message } : {})
             toast(res.synced ? `Synced — ${res.hash}` : 'Nothing to sync', res.synced ? 'ok' : undefined)
-            refreshStatus()
+            syncMessage.value = ''
+            refreshStatus(); refreshBranches()
           } }, iconEl('refresh', 14), 'Sync now')))
     }
 
+    // ----- branches: "cancel without losing it" is a checkout, not a deletion -----
+    const refreshBranches = async () => {
+      const b = await get('/x/ops/branches').catch(() => ({ git: false, branches: [] }))
+      if (!b.git) { branchesHolder.replaceChildren(''); return }
+
+      const saveCheckpoint = async () => {
+        const nameInput = h('input.input', { placeholder: 'e.g. redesign-hero, try-new-copy', autofocus: true })
+        dialog({
+          title: 'Save checkpoint',
+          body: h('div', {},
+            h('p.dlg-text', {}, 'Labels the current state of this site as a branch you can come back to. Nothing on the live site changes.'),
+            h('div.field', {}, h('label', {}, 'Branch name'), nameInput)),
+          actions: [{ label: 'Save', kind: 'primary', onClick: async () => {
+            const name = nameInput.value.trim()
+            if (!name) { nameInput.focus(); return false }
+            const res = await post('/x/ops/branches', { name }).catch(e => ({ error: e.message }))
+            if (res.error) { toast(res.error, 'err'); return false }
+            toast(`Saved as "${res.branch}"`, 'ok'); refreshBranches(); refreshStatus(); return true
+          } }],
+        })
+      }
+
+      const cancelWork = async () => {
+        const others = b.branches.filter(x => !x.current).map(x => x.name)
+        const revertTo = others.includes('master') ? 'master' : (others[0] || 'master')
+        const msg = b.dirty
+          ? `Saves your current changes to a new branch first (so nothing's lost), then switches the live site back to "${revertTo}".`
+          : `Switches the live site back to "${revertTo}". Nothing is currently uncommitted, so there's nothing to lose.`
+        if (!(await confirmDialog('Cancel these changes?', msg))) return
+        const res = await post('/x/ops/branches/cancel', { revertTo }).catch(e => ({ error: e.message }))
+        if (res.error) { toast(res.error, 'err'); return }
+        toast(res.savedBranch ? `Saved as "${res.savedBranch}" — now on ${res.revertedTo}` : `Now on ${res.revertedTo}`, 'ok', 5000)
+        refreshBranches(); refreshStatus()
+      }
+
+      branchesHolder.replaceChildren(
+        b.branches.length > 1 ? h('div.table-wrap', {}, h('table.data-table', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'branch'), h('th', {}, 'last commit'), h('th', {}, ''))),
+          h('tbody', {}, ...b.branches.map(br => h('tr', {},
+            h('td', {}, br.current ? h('span.badge.ok', {}, br.name) : br.name),
+            h('td.mut', { style: { fontSize: '0.78rem' } }, `${br.message} (${br.date})`),
+            h('td', { style: { textAlign: 'right' } },
+              br.current ? '' : h('button.btn.ghost.small', { onclick: async () => {
+                const res = await post(`/x/ops/branches/${encodeURIComponent(br.name)}/checkout`, {}).catch(e => ({ error: e.message }))
+                if (res.error) toast(res.error, 'err'); else { toast(`Switched to ${res.branch}`, 'ok'); refreshBranches(); refreshStatus() }
+              } }, 'Switch to')))))))
+          : h('p.fnt', { style: { fontSize: '0.78rem' } }, 'Just the one branch so far — save a checkpoint before trying something you might want to back out of.'),
+        h('div', { style: { marginTop: '0.7rem', display: 'flex', gap: '0.5rem' } },
+          h('button.btn.ghost.small', { onclick: saveCheckpoint }, iconEl('plus', 13), 'Save checkpoint'),
+          b.dirty || b.branches.length > 1 ? h('button.btn.ghost.small', { onclick: cancelWork }, iconEl('undo', 13), 'Cancel & revert') : ''))
+    }
+
     const humanSizeMB = n => `${(n / (1024 * 1024)).toFixed(1)} MB`
+    const backupLabel = h('input.input', { placeholder: 'Label (optional) — e.g. before-redesign', style: { width: '100%' } })
 
     const refreshBackups = async () => {
-      const { backups } = await get('/x/ops/backups').catch(() => ({ backups: [] }))
+      const { backups, settings } = await get('/x/ops/backups').catch(() => ({ backups: [], settings: {} }))
       backupsHolder.replaceChildren(
-        h('div', { style: { marginBottom: '0.7rem' } },
+        !settings.enabled ? h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.5rem' } },
+          'Backups are disabled — turn them on in Settings → Plugin settings → Backups.') : '',
+        h('div', { style: { marginBottom: '0.7rem', display: 'flex', gap: '0.5rem' } },
+          backupLabel,
           h('button.btn.ghost', { onclick: async () => {
-            const res = await post('/x/ops/backups/run', {}).catch(e => ({ error: e.message }))
-            if (res.error) toast(res.error, 'err'); else { toast('Backup created', 'ok'); refreshBackups() }
+            const label = backupLabel.value.trim()
+            const res = await post('/x/ops/backups/run', label ? { label } : {}).catch(e => ({ error: e.message }))
+            if (res.error) toast(res.error, 'err')
+            else if (res.skipped) toast('Nothing changed — skipped', undefined, 4000)
+            else { toast('Backup created', 'ok'); backupLabel.value = ''; refreshBackups() }
           } }, iconEl('download', 14), 'Back up now')),
         backups.length ? h('div.table-wrap', {}, h('table.data-table', {},
           h('thead', {}, h('tr', {}, h('th', {}, 'kind'), h('th', {}, 'when'), h('th', {}, 'size'), h('th', {}, ''))),
@@ -1850,15 +1914,16 @@ const CUSTOM_SECTIONS = {
                 ? h('button.btn.soft.small', { onclick: async () => {
                     if (!(await confirmDialog('Restore', `This overwrites this site’s current users/sessions and media with "${b.name}". A safety snapshot of the current state is taken first.`))) return
                     const res = await post('/x/ops/backups/restore', { name: b.name }).catch(e => ({ error: e.message }))
-                    if (res.error) toast(res.error, 'err'); else { toast('Restored', 'ok'); refreshStatus(); refreshBackups() }
+                    if (res.error) toast(res.error, 'err'); else { toast('Restored', 'ok'); refreshStatus(); refreshBranches(); refreshBackups() }
                   } }, 'Restore')
                 : ''))))))
-          : emptyState(icon('db', 22), 'No backups yet', 'Hit "Back up now" above.'))
+          : emptyState(icon('db', 22), 'No backups yet', settings.enabled ? 'Hit "Back up now" above.' : 'Backups are disabled.'))
     }
 
-    refreshStatus(); refreshBackups()
+    refreshStatus(); refreshBranches(); refreshBackups()
     return h('div', {},
       h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Git sync'), statusHolder),
+      h('div.card', { style: { marginBottom: '1rem' } }, h('strong', {}, 'Branches'), h('p.sub', {}, 'Did some work, want to cancel it without losing it? Save a checkpoint, or just hit cancel — it branches automatically.'), branchesHolder),
       h('div.card', {}, h('strong', {}, 'Backups'), backupsHolder))
   }, { replaces: true }),
 }
