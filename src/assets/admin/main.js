@@ -410,20 +410,27 @@ async function confirmLeave() {
 }
 
 let lastHash = location.hash
+// A navigation while a guard dialog is still open used to start a SECOND
+// confirmLeave; whichever resolved last would route, painting a view the
+// address bar no longer pointed at. One token settles it: only the newest
+// navigation is allowed to finish.
+let navSeq = 0
 
 function onHashChange() {
   const target = location.hash
+  const my = ++navSeq
   if (guards.size) {
     // put the old hash back while we ask, so cancelling really cancels
     confirmLeave().then(ok => {
+      if (my !== navSeq) return          // a newer navigation has taken over
       if (!ok) { history.replaceState(null, '', lastHash || '#/'); return }
       lastHash = target
-      paintNav(); route()
+      paintNav(); route(my)
     })
     return
   }
   lastHash = target
-  paintNav(); route()
+  paintNav(); route(my)
 }
 
 export function parseHash() {
@@ -440,7 +447,8 @@ const ROUTES = {
   tpl: 'templates', chrome: 'chrome',
 }
 
-async function route() {
+async function route(token) {
+  const my = token ?? ++navSeq
   closeSheet()
   guards.clear()
   const { name, rest, query } = parseHash()
@@ -455,8 +463,14 @@ async function route() {
   const t = setTimeout(() => viewEl.replaceChildren(spinner()), 180)
   try {
     const view = VIEWS[viewName] || VIEWS.dashboard
-    currentCleanup = (await view(viewEl, rest, query)) || null
+    const cleanup = (await view(viewEl, rest, query)) || null
+    // A slow view (the editor waits on /content/:id) could resolve after a
+    // later navigation had already mounted: assigning here would orphan the
+    // newer view's cleanup and leak its listeners forever.
+    if (my !== navSeq) { cleanup?.(); return }
+    currentCleanup = cleanup
   } catch (e) {
+    if (my !== navSeq) return
     console.error(e)
     viewEl.replaceChildren(h('div.empty', {},
       h('div.empty-ico', {}, iconEl('warn', 28)),

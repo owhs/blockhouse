@@ -13,7 +13,7 @@ import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, 
 import { icon, iconEl } from './icons.js'
 import { registerCommands } from './search.js'
 import { helpButton } from './help.js'
-import { quickDesign, quickChrome } from './quick.js'
+import { quickDesign, quickChrome, quickMenu } from './quick.js'
 import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard } from './docops.js'
 
 registerView('editor', async (root, [docId, tabParam], query) => {
@@ -869,6 +869,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         'aria-checked': String((prefs().device || '') === k),
         class: (prefs().device || '') === k ? 'active' : '',
         onclick: () => setDevice(k),
+        onkeydown: e => {
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+          e.preventDefault(); e.stopPropagation()
+          const opts = ['', 'tablet', 'mobile']
+          const at = opts.indexOf(prefs().device || '')
+          const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1
+          const next = opts[(at + step + opts.length) % opts.length]
+          setDevice(next)
+          deviceSeg.querySelector(`[data-device="${next}"]`)?.focus()
+        },
       }, iconEl(icoName, 14))))
 
   async function publishFlow() {
@@ -1031,9 +1041,17 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState),
         h('span.editor-top-group', {}, deviceSeg,
           h('button.icon-btn', {
-            title: 'Colour & shape', 'aria-label': 'Change colour and shape',
-            onclick: () => quickDesign(iframe),
-          }, iconEl('palette', 15)),
+            title: 'Quick edits — colour, menu, header & footer',
+            'aria-label': 'Quick edits to the site around this page',
+            onclick: e => contextMenu(e.clientX, e.clientY, [
+              { icon: icon('palette', 14), label: 'Colour & shape', onClick: () => quickDesign(iframe) },
+              ...(meta.perms.menus ? (meta.menus || []).map(mu => ({
+                icon: icon('menu', 14), label: `Links in ${mu.label || mu.key}`, onClick: () => quickMenu(mu.key, () => refreshPreview()),
+              })) : []),
+              { icon: icon('layout', 14), label: 'Announcement bar', onClick: () => quickChrome('header.announce', () => refreshPreview()) },
+              { icon: icon('layout', 14), label: 'Footer links & social', onClick: () => quickChrome('footer.social', () => refreshPreview()) },
+            ]),
+          }, iconEl('wand', 15)),
           helpButton('editor', 'the editor'),
           h('button.icon-btn', {
             title: 'Show or hide the inspector', 'aria-label': 'Toggle inspector',
@@ -1115,7 +1133,8 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     for (const o of m.options || []) {
       if (o.kind === 'menu' && meta.perms.menus) {
         const mm = meta.menus.find(x => x.key === o.key)
-        add(`Edit the “${mm?.label || o.key}” menu`, 'menu', () => goTo(`#/menus/${o.key}`), 'Structure, panels and links — with live preview')
+        add(`Edit the “${mm?.label || o.key}” links`, 'menu', () => quickMenu(o.key, () => refreshPreview()), 'Here, without leaving this page')
+        add('Open the menu studio', 'external', () => goTo(`#/menus/${o.key}`), 'Structure, mega panels and live preview')
       }
       if ((o.kind === 'header' || o.kind === 'footer') && meta.perms.settings) {
         const slot = o.kind === 'header' ? 'header.announce' : 'footer.social'
@@ -1163,7 +1182,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   // ---------- keyboard ----------
 
+  // Typing, and anything that owns its own arrow keys. A <button role="radio">
+  // is not an input, so without this the global block-navigation handler stole
+  // the arrows from the device-width segment and moved the selection instead.
   const isTyping = e => /input|textarea|select/i.test(e.target.tagName) || e.target.isContentEditable
+  const ownsArrows = e => !!e.target.closest?.('[role="radiogroup"], [role="radio"], [role="tablist"], [role="tab"], [role="menu"], .seg')
   const onKey = async e => {
     const mod = e.metaKey || e.ctrlKey
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
@@ -1180,7 +1203,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); return ops.nudge(selectedId, 1) }
     // walking the page works from anywhere in the editor, not only when a tree
     // row happens to hold focus
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !ownsArrows(e)) {
       const list = flatten(doc.blocks)
       const i = list.findIndex(x => x.node.id === selectedId)
       const next = list[Math.max(0, Math.min(i + (e.key === 'ArrowDown' ? 1 : -1), list.length - 1))]

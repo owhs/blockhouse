@@ -212,9 +212,15 @@ registerView('contentList', async (root, [conceptName], query) => {
       meta.perms.publish ? h('button.btn.primary.small', {
         onclick: async e => {
           const btn = e.currentTarget; btn.classList.add('busy'); btn.disabled = true
-          let n = 0
-          for (const id of ids) { try { await post(`/content/${id}/publish`); n++ } catch {} }
-          toast(`Published ${n} of ${ids.length}`, n === ids.length ? 'ok' : 'err')
+          const failed = []
+          for (const id of ids) {
+            try { await post(`/content/${id}/publish`) }
+            catch { failed.push(docs.find(d => d.id === id)?.title || id) }
+          }
+          const n = ids.length - failed.length
+          toast(failed.length
+            ? `Published ${n} of ${ids.length}. Could not publish: ${failed.join(', ')}`
+            : `Published ${n} document${n === 1 ? '' : 's'}`, failed.length ? 'err' : 'ok')
           docs = (await get(isAll ? '/content' : `/content?concept=${conceptName}`)).docs
           selected.clear(); paintRail(); paintList()
           hooks.refreshCounts?.()

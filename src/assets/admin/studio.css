@@ -231,8 +231,8 @@ a { color: var(--acc-bright); text-decoration: none; }
 
 .preview-wrap { position: relative; background: light-dark(oklch(90% 0.004 var(--acc-h)), oklch(15% 0.006 var(--acc-h))); overflow: auto; display: grid; }
 .preview-frame-holder { margin: 0 auto; width: 100%; height: 100%; transition: width var(--dur-3) var(--ease); background: #fff; box-shadow: var(--shadow); overflow: hidden; }
-.preview-wrap.w-mobile .preview-frame-holder { width: 390px; margin-block: var(--s4); height: calc(100% - 2rem); border-radius: var(--r-l); overflow: hidden; }
-.preview-wrap.w-tablet .preview-frame-holder { width: 820px; margin-block: var(--s4); height: calc(100% - 2rem); border-radius: var(--r); overflow: hidden; }
+.preview-wrap.w-mobile .preview-frame-holder { width: 390px; margin-block: var(--s4); height: calc(100% - var(--s4) * 2); border-radius: var(--r-l); overflow: hidden; }
+.preview-wrap.w-tablet .preview-frame-holder { width: 820px; margin-block: var(--s4); height: calc(100% - var(--s4) * 2); border-radius: var(--r); overflow: hidden; }
 .preview-frame-holder iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 
 .inspector { background: var(--bg-panel); border-left: 1px solid var(--line); display: grid; grid-template-rows: auto auto 1fr; min-height: 0; position: relative; }
@@ -554,7 +554,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .ide-pop-item { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s1) var(--s3); border-radius: var(--r-xs); text-align: left; font: 0.8rem/1.4 var(--mono); }
 .ide-pop-item.active, .ide-pop-item:hover { background: var(--acc-soft); }
 .ide-pop-label { font-weight: var(--fw-semi); color: var(--ink); }
-.ide-pop-hint { font: 0.7rem/1.3 var(--sans, system-ui); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ide-pop-hint { font: var(--t-xs)/1.3 var(--font); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* token colours — tuned for both schemes */
 .tk-kw { color: light-dark(#7c3aed, #c4b5fd); font-weight: var(--fw-semi); }

@@ -2,7 +2,7 @@
 // md→html for display, DOM→md serializer on edit. Deliberately small surface:
 // p, h2–h4, bold/italic/code, links, ul/ol, blockquote.
 
-import { h, promptDialog } from './ui.js'
+import { h, promptDialog, toast } from './ui.js'
 import { post } from './api.js'
 
 export function mountRichtext(md, onChange, opts = {}) {
@@ -64,7 +64,10 @@ export function mountRichtext(md, onChange, opts = {}) {
         if (hasSel) document.execCommand('insertText', false, r.result)
         else surface.innerHTML = mdToHtml(r.result)
         emit()
-      } catch {}
+      } catch (err) {
+        // api.js already toasts the reason; say what it means for this button
+        if (err?.status === 404) toast('The AI assist app is not installed on this site', 'err')
+      }
       b.textContent = '✦'
     }),
     h('span.rt-sep'),

@@ -6,7 +6,8 @@
 // its full view — this is a second door, never a second source of truth.
 
 import { get, put } from './api.js'
-import { h, debounce, toast } from './ui.js'
+import { h, debounce, toast, confirmDialog, undoToast } from './ui.js'
+import { registerGuard } from './state.js'
 import { iconEl } from './icons.js'
 import { openSheet, closeSheet } from './sheet.js'
 import { renderFields } from './fields.js'
@@ -34,8 +35,11 @@ export async function quickDesign(previewFrame) {
   const mark = () => { dirty = true; saveBtn.textContent = 'Save to the site •'; push() }
 
   async function save() {
-    const next = { ...tokens, hue: String(work.hue), 'accent-chroma': String(work.chroma), radius: `${work.radius}px` }
-    await put('/settings', { patch: { theme: { ...theme, tokens: next } } })
+    // re-read so a template or font changed elsewhere since this panel opened
+    // is not rolled back by our copy of the theme
+    const cur = await get('/settings').then(r => r.settings.theme || {}).catch(() => theme)
+    const next = { ...(cur.tokens || {}), ...tokens, hue: String(work.hue), 'accent-chroma': String(work.chroma), radius: `${work.radius}px` }
+    await put('/settings', { patch: { theme: { ...cur, tokens: next } } })
     Object.assign(tokens, next)
     dirty = false
     saveBtn.textContent = 'Saved'
@@ -56,6 +60,18 @@ export async function quickDesign(previewFrame) {
   const hue = slider('Accent hue', 0, 360, 1, 'hue', v => `${Math.round(v)}°`)
   hue.querySelector('input').classList.add('hue-track')
 
+  // The sheet is a second door onto the same work, so it needs the same
+  // contract: leaving with unsaved changes asks, exactly as the full view does.
+  const dispose = registerGuard('quick-design', async () => {
+    if (!dirty) return true
+    const keep = await confirmDialog('Unsaved colour changes',
+      'The palette in the side panel is not live yet. Save it to the site, or discard?', 'Save to the site')
+    if (keep) await save()
+    // decided either way — clear it so closeSheet does not ask a second time
+    dirty = false
+    return true
+  })
+
   await openSheet({
     title: 'Colour & shape',
     sub: 'Changes show in the preview immediately; nothing is live until you save',
@@ -67,7 +83,13 @@ export async function quickDesign(previewFrame) {
         h('a.btn.ghost.small', { href: '#/design', onclick: () => closeSheet() }, 'Open Design', iconEl('external', 12))),
       h('p.fnt', { style: { fontSize: '0.75rem' } },
         'Two numbers drive the whole palette. Templates, fonts and colour scheme live in Design.')),
-    onClose: () => { if (dirty) toast('Colour changes were not saved', 'info') },
+    onClose: async () => {
+      dispose()
+      if (!dirty) return
+      if (await confirmDialog('Unsaved colour changes',
+        'Save the palette to the site, or discard it?', 'Save to the site')) await save()
+      else previewFrame?.contentWindow?.location.reload()   // put the preview back
+    },
   })
 }
 
@@ -88,16 +110,21 @@ export async function quickChrome(slotKey, onSaved) {
   const list = slots[slotKey] || []
   let dirty = false
 
-  const saveBtn = h('button.btn.primary', {
-    onclick: async () => {
-      await put('/chrome', { slots })
-      dirty = false
-      saveBtn.textContent = 'Saved'
-      toast('Header and footer updated on every page', 'ok')
-      onSaved?.()
-      setTimeout(() => { saveBtn.textContent = 'Save to every page' }, 1400)
-    },
-  }, 'Save to every page')
+  async function saveSlots() {
+    // This panel and the full Header & footer view both PUT the whole object.
+    // Re-read first and merge only the slot being edited, so a second editor's
+    // work in another slot is not overwritten by a stale copy of it.
+    const fresh = await get('/chrome').catch(() => null)
+    const merged = fresh ? { ...fresh.slots, [slotKey]: slots[slotKey] } : slots
+    await put('/chrome', { slots: merged })
+    Object.assign(slots, merged)
+    dirty = false
+    saveBtn.textContent = 'Saved'
+    toast('Header and footer updated on every page', 'ok')
+    onSaved?.()
+    setTimeout(() => { saveBtn.textContent = 'Save to every page' }, 1400)
+  }
+  const saveBtn = h('button.btn.primary', { onclick: saveSlots }, 'Save to every page')
   const mark = () => { dirty = true; saveBtn.textContent = 'Save to every page •' }
 
   const body = h('div', { style: { display: 'grid', gap: '0.6rem' } })
@@ -117,10 +144,107 @@ export async function quickChrome(slotKey, onSaved) {
   }
   paint()
 
+  const dispose = registerGuard('quick-chrome', async () => {
+    if (!dirty) return true
+    const keep = await confirmDialog('Unsaved header & footer changes',
+      'These are not live yet. Save them to every page, or discard?', 'Save to every page')
+    if (keep) await saveSlots()
+    dirty = false
+    return true
+  })
+
   await openSheet({
     title: NICE[slotKey] || slotKey,
     sub: 'The content in this slot, on every page',
     body,
-    onClose: () => { if (dirty) toast('Header and footer changes were not saved', 'info') },
+    onClose: async () => {
+      dispose()
+      if (!dirty) return
+      if (await confirmDialog('Unsaved header & footer changes',
+        'Save them to every page, or discard?', 'Save to every page')) await saveSlots()
+    },
+  })
+}
+
+/**
+ * Add or retitle a top-level link in a menu, beside the page you are on.
+ * "Add a link to the main menu" is the rubric's own worked example of a job
+ * that should not cost you your place in a document.
+ */
+export async function quickMenu(menuKey, onSaved) {
+  const { menus } = await get('/menus')
+  const menu = menus.find(m => m.key === menuKey) || menus[0]
+  if (!menu) return toast('This site has no menus yet', 'err')
+  const { docs } = await get('/content').catch(() => ({ docs: [] }))
+  let dirty = false
+
+  const saveBtn = h('button.btn.primary', { onclick: doSave }, 'Publish to the site')
+  const mark = () => { dirty = true; saveBtn.textContent = 'Publish to the site •' }
+
+  async function doSave() {
+    await put(`/menus/${menu.key}`, { menu })
+    dirty = false
+    saveBtn.textContent = 'Published'
+    toast(`The ${menu.label || menu.key} menu is live`, 'ok')
+    onSaved?.()
+    setTimeout(() => { saveBtn.textContent = 'Publish to the site' }, 1400)
+  }
+
+  const rows = h('div', { style: { display: 'grid', gap: '0.2rem' } })
+  const paint = () => {
+    rows.replaceChildren(...(menu.items || []).map((it, i) => h('div', { style: { display: 'flex', gap: '0.3rem', alignItems: 'center' } },
+      h('input.input', {
+        value: it.label || '', 'aria-label': `Label for item ${i + 1}`, style: { flex: 1 },
+        oninput: e => { it.label = e.target.value; mark() },
+      }),
+      h('button.icon-btn', {
+        title: 'Remove', 'aria-label': `Remove ${it.label || 'this item'}`,
+        onclick: async () => {
+          const gone = menu.items.splice(i, 1)[0]
+          mark(); paint()
+          undoToast(`Removed “${gone.label || 'item'}”`, () => { menu.items.splice(i, 0, gone); mark(); paint() })
+        },
+      }, iconEl('trash', 13)))))
+  }
+  paint()
+
+  const pick = h('select.input', { 'aria-label': 'Page to link to' },
+    h('option', { value: '' }, 'Choose a page…'),
+    ...docs.map(d => h('option', { value: d.id }, `${d.title} — ${d.path}`)))
+
+  const dispose = registerGuard('quick-menu', async () => {
+    if (!dirty) return true
+    const keep = await confirmDialog('Unsaved menu changes',
+      `The ${menu.label || menu.key} menu has changes that are not live yet. Publish them, or discard?`, 'Publish now')
+    if (keep) await doSave()
+    dirty = false
+    return true
+  })
+
+  await openSheet({
+    title: menu.label || `${menu.key} menu`,
+    sub: 'Rename or remove links here; the full editor does structure and mega panels',
+    body: h('div', { style: { display: 'grid', gap: '0.7rem' } },
+      h('div.field', {}, h('label', {}, 'Add a link to a page'),
+        h('div', { style: { display: 'flex', gap: '0.4rem' } }, pick,
+          h('button.btn.ghost.small', {
+            onclick: () => {
+              const d = docs.find(x => x.id === pick.value)
+              if (!d) return toast('Choose a page first', 'info', 2000)
+              ;(menu.items ??= []).push({ id: 'mi' + Math.random().toString(36).slice(2, 8), type: 'doc', label: d.title, docId: d.id })
+              pick.value = ''
+              mark(); paint()
+            },
+          }, iconEl('plus', 12), 'Add'))),
+      h('div.insp-section-title', {}, 'Links'),
+      rows,
+      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.3rem' } }, saveBtn,
+        h('a.btn.ghost.small', { href: `#/menus/${menu.key}`, onclick: () => closeSheet() },
+          'Open the menu studio', iconEl('external', 12)))),
+    onClose: async () => {
+      dispose()
+      if (!dirty) return
+      if (await confirmDialog('Unsaved menu changes', 'Publish them to the site, or discard?', 'Publish now')) await doSave()
+    },
   })
 }
