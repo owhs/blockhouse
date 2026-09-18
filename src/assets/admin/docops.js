@@ -9,6 +9,24 @@
 
 export const uid = () => 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 
+/**
+ * A new block has to be VISIBLE the moment it is added.
+ *
+ * Block defaults carry structure (level, align) but not content, so a fresh
+ * Heading rendered as `<h2></h2>` and a fresh Rich text as an empty div: the
+ * canvas did not change, the new block could not be clicked, and adding one
+ * was indistinguishable from the action failing. Seed the block's primary text
+ * field with a short line the person immediately overwrites.
+ */
+const SEED_KEYS = ['text', 'md', 'title', 'question', 'label', 'heading', 'body']
+export function seedProps(def) {
+  const props = JSON.parse(JSON.stringify(def.defaults || {}))
+  const field = (def.fields || []).find(f =>
+    SEED_KEYS.includes(f.key) && ['text', 'textarea', 'richtext', 'markdown'].includes(f.type || 'text'))
+  if (field && !props[field.key]) props[field.key] = `${def.label || 'New block'}`
+  return props
+}
+
 export function reId(node) {
   node.id = uid()
   for (const c of node.children || []) reId(c)

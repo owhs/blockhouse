@@ -19,6 +19,15 @@
     [data-wb]:hover { outline: 1.5px dashed color-mix(in srgb, var(--wb) 60%, transparent); outline-offset: 3px; }
     [data-wb].wb-selected { outline: 2px solid var(--wb) !important; outline-offset: 3px; position: relative; }
     [data-wbe] { cursor: text; }
+    /* An emptied field renders as a zero-height void: nothing to see, nothing
+       to double-click, no way back to it except the outline. Give it a visible
+       placeholder so it stays a thing on the page. */
+    [data-wbe]:empty::before {
+      content: "Empty — double-click to write";
+      opacity: .45; font-style: italic; font-weight: 400;
+      outline: 1px dashed color-mix(in srgb, var(--wb) 45%, transparent);
+      outline-offset: 3px; display: inline-block; min-width: 12ch;
+    }
     [data-wbe].wb-live { outline: 1.5px solid var(--wb); outline-offset: 2px; border-radius: 2px; background: color-mix(in srgb, var(--wb) 6%, transparent); }
     .wb-flash { animation: wbflash .8s ease; }
     @keyframes wbflash { 0%, 40% { background-color: color-mix(in srgb, var(--wb) 14%, transparent); } }

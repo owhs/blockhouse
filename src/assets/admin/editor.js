@@ -15,7 +15,7 @@ import { registerCommands } from './search.js'
 import { helpButton } from './help.js'
 import { quickDesign, quickChrome, quickMenu } from './quick.js'
 import { sheetIsOpen } from './sheet.js'
-import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard } from './docops.js'
+import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard, seedProps } from './docops.js'
 
 registerView('editor', async (root, [docId, tabParam], query) => {
   const meta = state.meta
@@ -307,7 +307,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
     const make = b => {
       setPref('recentBlocks', [b.type, ...(prefs().recentBlocks || []).filter(t => t !== b.type)].slice(0, 8))
-      const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
+      const node = { id: uid(), type: b.type, props: seedProps(b) }
       if (b.container) node.children = []
       if (b.type === 'faq') node.children = [{ id: uid(), type: 'faq-item', props: { question: 'A good question?' }, children: [{ id: uid(), type: 'richtext', props: { md: 'A clear answer.' } }] }]
       if (b.type === 'tabs') node.children = [{ id: uid(), type: 'tab', props: { label: 'Tab 1' }, children: [] }, { id: uid(), type: 'tab', props: { label: 'Tab 2' }, children: [] }]
@@ -365,7 +365,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const b = catalogue.find(x => x.type === type)
     if (!b) return
     const site = ops.siteFor(selectedId)
-    const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
+    const node = { id: uid(), type: b.type, props: seedProps(b) }
     if (b.container) node.children = []
     ops.insert(node, site.parentId, site.index)
     selectBlock(node.id)
@@ -570,22 +570,32 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       propsForm)
   }
 
+  // `inside` nests the rest within the first type. Pushing them flat, as this
+  // did, produced an empty Section with two orphans beside it.
   const STARTERS = [
-    { label: 'Hero + paragraph', types: ['section', 'heading', 'richtext'] },
+    { label: 'Heading + paragraph', types: ['section', 'heading', 'richtext'], inside: true },
     { label: 'Two columns', types: ['columns'] },
     { label: 'Full-width image', types: ['image'] },
   ]
-  function applyStarter(s) {
+  function applyStarter(starter) {
+    const defs = starter.types.map(t => catalogue.find(x => x.type === t)).filter(Boolean)
+    if (!defs.length) return
     snapshot('Add starter layout')
-    for (const t of s.types) {
-      const b = catalogue.find(x => x.type === t)
-      if (!b) continue
-      const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }
-      if (b.container) node.children = []
-      doc.blocks.push(node)
+    const build = def => {
+      const node = { id: uid(), type: def.type, props: seedProps(def) }
+      if (def.container) node.children = []
+      return node
+    }
+    const first = build(defs[0])
+    doc.blocks.push(first)
+    for (const def of defs.slice(1)) {
+      const node = build(def)
+      if (starter.inside && first.children) first.children.push(node)
+      else doc.blocks.push(node)
     }
     markDirty({ structural: true })
-    renderTree(); renderInspector()
+    renderTree()
+    selectBlock((first.children?.[0] || first).id)
   }
 
   /** Persisted disclosure group. Mara's screen stays clean; Priya's levers stay one click away. */
@@ -1238,7 +1248,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       ...catalogue.slice(0, 40).map(b => ({
         label: `Add block: ${b.label}`, icon: b.icon || 'layout', group: 'Add a block',
         keywords: `${b.type} ${b.group || ''} insert add new`,
-        run: () => { const s = ops.siteFor(selectedId); const node = { id: uid(), type: b.type, props: JSON.parse(JSON.stringify(b.defaults || {})) }; if (b.container) node.children = []; ops.insert(node, s.parentId, s.index); selectBlock(node.id) },
+        run: () => { const s = ops.siteFor(selectedId); const node = { id: uid(), type: b.type, props: seedProps(b) }; if (b.container) node.children = []; ops.insert(node, s.parentId, s.index); selectBlock(node.id) },
       })),
       ...flatten(doc.blocks).slice(0, 30).map(({ node }) => ({
         label: `Go to: ${labelOf(node, byType[node.type])}`, icon: byType[node.type]?.icon || 'layout',
