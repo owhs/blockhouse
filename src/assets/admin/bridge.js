@@ -9,18 +9,24 @@
   } catch {}
   addEventListener('scroll', () => { try { sessionStorage.setItem(KEY, String(scrollY)) } catch {} }, { passive: true })
 
+  // This stylesheet is injected into the PREVIEWED PAGE, not the studio, so the
+  // studio's own tokens cannot reach it. Use the site's --accent where the
+  // theme defines one, so the editor chrome belongs to the page it is drawn
+  // over rather than being a fixed green on top of someone else's palette.
   const style = document.createElement('style')
   style.textContent = `
-    [data-wb]:hover { outline: 1.5px dashed color-mix(in srgb, #3e7d5f 60%, transparent); outline-offset: 3px; }
-    [data-wb].wb-selected { outline: 2px solid #3e7d5f !important; outline-offset: 3px; position: relative; }
+    :root { --wb: var(--accent, #3e7d5f); --wb-ink: var(--accent-contrast, #fff); }
+    [data-wb]:hover { outline: 1.5px dashed color-mix(in srgb, var(--wb) 60%, transparent); outline-offset: 3px; }
+    [data-wb].wb-selected { outline: 2px solid var(--wb) !important; outline-offset: 3px; position: relative; }
     [data-wbe] { cursor: text; }
-    [data-wbe].wb-live { outline: 1.5px solid #3e7d5f; outline-offset: 2px; border-radius: 2px; background: color-mix(in srgb, #3e7d5f 6%, transparent); }
+    [data-wbe].wb-live { outline: 1.5px solid var(--wb); outline-offset: 2px; border-radius: 2px; background: color-mix(in srgb, var(--wb) 6%, transparent); }
     .wb-flash { animation: wbflash .8s ease; }
-    @keyframes wbflash { 0%, 40% { background-color: color-mix(in srgb, #3e7d5f 14%, transparent); } }
-    .wb-toolbar { position: absolute; z-index: 999; display: flex; gap: 2px; background: #163527; border-radius: 8px; padding: 3px; box-shadow: 0 6px 20px #0005; }
-    .wb-toolbar button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 5px; background: transparent; color: #cfe8db; cursor: pointer; }
-    .wb-toolbar button:hover { background: #24513c; color: #fff; }
-    .wb-tip { position: absolute; top: -1.55rem; left: -2px; background: #3e7d5f; color: #fff; font: 600 10.5px/1.7 system-ui; padding: 0 7px; border-radius: 5px 5px 5px 0; z-index: 99; pointer-events: none; white-space: nowrap; }
+    @keyframes wbflash { 0%, 40% { background-color: color-mix(in srgb, var(--wb) 14%, transparent); } }
+    .wb-toolbar { position: absolute; z-index: 999; display: flex; gap: 2px; background: color-mix(in srgb, var(--wb) 78%, #000); border-radius: 8px; padding: 3px; box-shadow: 0 6px 20px #0005; }
+    .wb-toolbar button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 5px; background: transparent; color: var(--wb-ink); cursor: pointer; }
+    .wb-toolbar button:hover { background: color-mix(in srgb, var(--wb) 55%, #000); }
+    .wb-tip { position: absolute; top: -1.55rem; left: -2px; background: var(--wb); color: var(--wb-ink); font: 600 10.5px/1.7 system-ui; padding: 0 7px; border-radius: 5px 5px 5px 0; z-index: 99; pointer-events: none; white-space: nowrap; }
+    @media (prefers-reduced-motion: reduce) { .wb-flash { animation: none; } }
   `
   document.head.appendChild(style)
 

@@ -23,9 +23,9 @@ const PRESETS = {
 }
 
 const LEVEL = {
-  ok: { ico: 'check', colour: 'var(--ok)' },
-  warn: { ico: 'warn', colour: 'var(--warn)' },
-  fail: { ico: 'x', colour: 'var(--bad)' },
+  ok: { ico: 'check', colour: 'var(--ok-ink)' },
+  warn: { ico: 'warn', colour: 'var(--warn-ink)' },
+  fail: { ico: 'x', colour: 'var(--err-ink)' },
   info: { ico: 'info', colour: 'var(--mut)' },
 }
 
@@ -81,9 +81,9 @@ registerView('deploy', async root => {
     }
 
     const s = data.summary
-    const verdict = s.fail ? { text: `${s.fail} problem${s.fail === 1 ? '' : 's'} to fix`, colour: 'var(--bad)', ico: 'x' }
-      : s.warn ? { text: `${s.warn} warning${s.warn === 1 ? '' : 's'}`, colour: 'var(--warn)', ico: 'warn' }
-        : { text: 'All checks passed', colour: 'var(--ok)', ico: 'check' }
+    const verdict = s.fail ? { text: `${s.fail} problem${s.fail === 1 ? '' : 's'} to fix`, colour: 'var(--err-ink)', ico: 'x' }
+      : s.warn ? { text: `${s.warn} warning${s.warn === 1 ? '' : 's'}`, colour: 'var(--warn-ink)', ico: 'warn' }
+        : { text: 'All checks passed', colour: 'var(--ok-ink)', ico: 'check' }
 
     body.replaceChildren(
       h('div.page-head', {}, h('div', {},
@@ -135,7 +135,7 @@ registerView('deploy', async root => {
                   e.target.disabled = true
                   out.replaceChildren(h('div.spin'))
                   const r = await post(`/deploy/run/${p.id}`).catch(err => ({ ok: false, log: [String(err.message || err)] })).finally(() => (e.target.disabled = false))
-                  out.replaceChildren(h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: 'var(--s2) 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
+                  out.replaceChildren(h('pre.code-out', { style: { fontSize: 'var(--t-xs)', margin: 'var(--s2) 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err-ink)' : '' } }, (r.log || []).join('\n')))
                   toast(r.ok === false ? 'Deploy failed — see the log' : 'Deployed', r.ok === false ? 'err' : 'ok')
                 },
               }, iconEl('rocket', 12), isProd ? 'Deploy live' : 'Deploy staging')),
@@ -236,7 +236,7 @@ registerView('deploy', async root => {
           h('code', { style: { fontSize: 'var(--t-s)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.path),
           h('div', { style: { height: '7px', borderRadius: 'var(--r-pill)', background: 'var(--line-soft)', overflow: 'hidden' } },
             h('div', { style: { width: `${pct}%`, height: '100%', borderRadius: 'var(--r-pill)', background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
-          h('span.fnt', { style: { fontSize: 'var(--t-xs)', textAlign: 'right', color: p.over.length ? 'var(--warn)' : 'var(--mut)' } }, fmtKb(p.total)))
+          h('span.fnt', { style: { fontSize: 'var(--t-xs)', textAlign: 'right', color: p.over.length ? 'var(--warn-ink)' : 'var(--mut)' } }, fmtKb(p.total)))
       }
       holder.replaceChildren(
         h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s2)' } },

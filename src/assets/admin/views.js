@@ -1054,7 +1054,7 @@ function securitySection(s, save) {
           probeOut.hidden = false; probeOut.textContent = 'Probing…'
           const r = await post('/security/probe', {})
           probeOut.textContent = r.results.map(x => `${x.ok ? '✓' : '✗'} ${x.path} → ${x.status || x.error}`).join('\n') + `\n\n${r.advice}`
-          probeOut.style.color = r.ok ? '' : 'var(--err)'
+          probeOut.style.color = r.ok ? '' : 'var(--err-ink)'
         } }, iconEl('shield', 13), 'Probe my public URL for exposed files'),
         h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, 'Checks .blockhouse/, secure.db, site JSON, .git and .env from the outside.')),
       probeOut,
@@ -1462,7 +1462,7 @@ const CUSTOM_SECTIONS = {
           const failed = (run.steps || []).some(st => st.error)
           return h('details.card', { style: { padding: 'var(--s2) var(--s4)' } },
             h('summary', { style: { cursor: 'pointer', display: 'flex', gap: 'var(--s3)', alignItems: 'center', fontSize: 'var(--t-s)' } },
-              h('span', { style: { color: failed ? 'var(--err)' : 'var(--ok)', display: 'inline-flex' }, html: icon(failed ? 'x' : 'check', 13) }),
+              h('span', { style: { color: failed ? 'var(--err-ink)' : 'var(--ok-ink)', display: 'inline-flex' }, html: icon(failed ? 'x' : 'check', 13) }),
               h('strong', {}, run.label || run.recipe || 'run'),
               run.test ? h('span.mrow-tag', {}, 'test') : '',
               h('code.pill-perm', {}, run.event || ''),
@@ -1572,7 +1572,7 @@ const CUSTOM_SECTIONS = {
         const { run } = await post('/x/automations/testrun', { recipe: r, payload })
         const failed = (run.steps || []).some(st => st.error)
         testOut.replaceChildren(
-          h('p', { style: { fontSize: 'var(--t-m)', margin: 'var(--s2) 0 var(--s1)', fontWeight: 'var(--fw-semi)', color: failed ? 'var(--err)' : 'var(--ok)' } },
+          h('p', { style: { fontSize: 'var(--t-m)', margin: 'var(--s2) 0 var(--s1)', fontWeight: 'var(--fw-semi)', color: failed ? 'var(--err-ink)' : 'var(--ok-ink)' } },
             failed ? 'Ran with errors' : `Ran clean in ${run.ms}ms`),
           ...(run.steps || []).map(st => h('div', { style: { fontSize: 'var(--t-s)', display: 'flex', gap: 'var(--s2)' } },
             h('code.pill-perm', {}, st.type),
@@ -1807,7 +1807,7 @@ const CUSTOM_SECTIONS = {
                 out.replaceChildren(h('div.spin'))
                 const r = await post(`/x/integrations/connectors/${cn.id}/run`, { action: a.key.split('.').pop(), options: opts })
                 out.replaceChildren(
-                  h('p', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)', color: r.ok ? 'var(--ok)' : 'var(--err)', margin: 'var(--s2) 0 var(--s1)' } },
+                  h('p', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)', color: r.ok ? 'var(--ok-ink)' : 'var(--err-ink)', margin: 'var(--s2) 0 var(--s1)' } },
                     r.ok ? `✓ Succeeded in ${r.ms}ms` : `✗ ${r.error}`),
                   r.result !== undefined ? h('pre.code-out', { style: { fontSize: 'var(--t-xs)', maxHeight: '12rem', overflow: 'auto', whiteSpace: 'pre-wrap' } }, JSON.stringify(r.result, null, 1)) : '')
                 return false   // keep the dialog open to read the result
@@ -1862,7 +1862,7 @@ const CUSTOM_SECTIONS = {
               testOut.textContent = 'Testing…'
               const r = await post(`/x/integrations/connectors/${cn.id}/test`).catch(() => ({ ok: false, detail: 'request failed' }))
               testOut.textContent = (r.ok ? '✓ ' : '✗ ') + r.detail
-              testOut.style.color = r.ok ? 'var(--ok)' : 'var(--err)'
+              testOut.style.color = r.ok ? 'var(--ok-ink)' : 'var(--err-ink)'
             } }, 'Test')),
           testOut, actionsList)
       }))

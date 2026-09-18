@@ -48,7 +48,7 @@ export async function quickDesign(previewFrame) {
   }
 
   const slider = (label, min, max, step, key, fmt) => {
-    const out = h('output', { style: { font: '600 0.78rem var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(work[key]))
+    const out = h('output', { style: { font: 'var(--fw-semi) var(--t-s) var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(work[key]))
     const input = h('input', {
       type: 'range', min, max, step, value: work[key], 'aria-label': label,
       oninput: e => { work[key] = parseFloat(e.target.value); out.value = fmt(work[key]); mark() },

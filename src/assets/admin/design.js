@@ -181,7 +181,7 @@ registerView('design', async root => {
   const note = h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s2) 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
 
   const slider = (label, min, max, step, getV, setV, fmt) => {
-    const out = h('output', { style: { font: '600 0.78rem var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(getV()))
+    const out = h('output', { style: { font: 'var(--fw-semi) var(--t-s) var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(getV()))
     const input = h('input', {
       type: 'range', min, max, step, value: getV(),
       oninput: e => { setV(parseFloat(e.target.value)); out.value = fmt(getV()); markDirty() },
