@@ -97,6 +97,13 @@ export async function buildEnv(opts: BuildEnvOpts): Promise<BlockhouseEnv> {
       // engine drops its compiled-template cache along with it.
       env.liquid = createEngine(env)
       ;(env as any).assetVersion = Date.now().toString(36)
+      // A template brings its own block types. They were registered once at
+      // boot, so switching template on a running server left the new look
+      // without its blocks until someone restarted it.
+      const before = content.lastTemplate
+      void content.site().then(() => {
+        if (content.lastTemplate !== before) return registerTemplateBlocks(env)
+      }).catch(() => {})
     },
     reloadHooks: new Set(),
     menuDrafts: new Map(),

@@ -735,6 +735,13 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     await env.content.saveSite(body.patch || {})
     await audit(env, 'settings.saved', { ...actor(c), keys: Object.keys(body.patch || {}) })
     env.invalidate()
+    // Finish loading a newly chosen template's blocks BEFORE answering, so the
+    // preview the studio reloads next already has them.
+    if (body.patch && 'template' in body.patch) {
+      await env.content.site()
+      const { registerTemplateBlocks } = await import('../render/template-blocks.ts')
+      await registerTemplateBlocks(env).catch(() => {})
+    }
     notifyReload(env)
     return c.json({ settings: tryJson(await env.driver.readText('site/site.json'), {}) })
   })

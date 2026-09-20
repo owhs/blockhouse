@@ -139,27 +139,33 @@ registerView('design', async root => {
   const tplGrid = h('div.design-tpls')
   const paintTpls = () => {
     tplGrid.replaceChildren(...allTemplates.map(t => h('button.design-tpl', {
-      class: pendingTemplate === t.name ? 'active' : '',
+      class: settings.template === t.name ? 'active' : '',
       onclick: async () => {
-        if (t.name !== pendingTemplate &&
-          !(await confirmDialog(`Switch to ${t.title}?`,
-            'Your pages and content stay exactly as they are; only the look changes. It brings its own colour and corner settings, replacing the ones below.',
-            'Switch'))) return
+        if (t.name === settings.template) return
+        if (!(await confirmDialog(`Switch to ${t.title}?`,
+          'Your pages and content stay exactly as they are; only the look changes. The website switches straight away, and you can switch back the same way.',
+          'Switch now'))) return
+        // The confirm IS the decision. Marking a template "Current" while the
+        // site carried on with the old one, waiting for a Save button further
+        // up the page, read as a switch that silently did nothing.
         pendingTemplate = t.name
         work.hue = t.hue; work.chroma = t.chroma; work.radius = t.radius
-        paintTpls(); paintSliders()
-        markDirty()
-        // template change needs a real re-render — draft it via save-less reload:
-        // preview keeps current template until Save, so make that explicit
-        const cur = allTemplates.find(x => x.name === settings.template)
-        note.textContent = pendingTemplate === settings.template
-          ? 'Move the sliders above — the preview changes as you go.'
-          : `The preview still shows “${cur?.title || settings.template}” — press Save design to switch to ${t.title}.`
+        paintSliders()
+        try {
+          await saveDesign()
+          settings.template = t.name
+          toast(`Switched to ${t.title} — the website is using it now`, 'ok')
+        } catch (e) {
+          pendingTemplate = settings.template
+          toast(`Could not switch: ${e.message || e}`, 'err')
+        }
+        paintTpls()
+        note.textContent = 'Move the sliders above — the preview changes as you go.'
       },
     },
       h('div.design-tpl-head', {},
         h('strong', { style: { fontFamily: t.display } }, t.title),
-        pendingTemplate === t.name ? h('span.design-tpl-current', {}, iconEl('check', 13), 'Current') : ''),
+        settings.template === t.name ? h('span.design-tpl-current', {}, iconEl('check', 13), 'Current') : ''),
       h('div.design-tpl-dots', {}, swatch(t.hue), swatch((t.hue + 40) % 360), h('span.design-dot', { style: { background: 'light-dark(#1d1d1f, #eee)' } })),
       h('p', {}, t.blurb),
       h('span.design-tpl-meta', {},
