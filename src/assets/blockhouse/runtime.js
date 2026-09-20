@@ -62,9 +62,9 @@ for (const item of (headerNav || doc).querySelectorAll('.nav-item.has-mega, .nav
       btn.setAttribute('aria-expanded', 'true')
       item.querySelector('.drill-head')?.scrollIntoView({ block: 'nearest' })
     } else {
-      // showing already (clicked open, or hovered open)? then this click closes it
-      const showing = !item.classList.contains('nav-shut') &&
-        (item.classList.contains('open') || getComputedStyle(item.querySelector(':scope > .drop-panel, :scope > .mega-panel') || item).visibility === 'visible' && item.dataset.navSeen === '1')
+      // A click pins the panel open — it stays when the pointer wanders off —
+      // and the next click on the same link closes it.
+      const showing = item.classList.contains('open')
       if (showing) { shut(item); return }
       item.classList.remove('nav-shut')
       const open = item.classList.toggle('open', true)
@@ -74,8 +74,7 @@ for (const item of (headerNav || doc).querySelectorAll('.nav-item.has-mega, .nav
       }
     }
   })
-  item.addEventListener('pointerenter', () => { setTimeout(() => { item.dataset.navSeen = '1' }, 250) })
-  item.addEventListener('pointerleave', () => { item.classList.remove('nav-shut'); delete item.dataset.navSeen })
+  item.addEventListener('pointerleave', () => { item.classList.remove('nav-shut') })
   // drill back button
   item.querySelector('.drill-back')?.addEventListener('click', () => {
     item.classList.remove('drilled')
