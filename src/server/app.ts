@@ -2,6 +2,7 @@
 
 import { Hono } from '../vendor/http.ts'
 import type { BlockhouseEnv } from './env.ts'
+import { mcpHttpRoutes } from './mcp-http.ts'
 import { sessionMiddleware, csrfMiddleware, sameOriginOnly } from '../auth/session.ts'
 import { apiRoutes } from './api.ts'
 import { siteRoutes } from './site.ts'
@@ -120,6 +121,9 @@ export function buildApp(env: BlockhouseEnv): Hono {
   }
 
   // ---------- API ----------
+
+  // the AI assistant connection — token-only, never cookies (see mcp-http.ts)
+  app.route('/mcp', mcpHttpRoutes(env))
 
   const api = apiRoutes(env)
   app.use('/api/*', csrfMiddleware(env))

@@ -12,9 +12,9 @@ import type { BlockhouseEnv } from '../server/env.ts'
 import { validateSite } from './validate.ts'
 import { id as genId, now, slugify } from '../core/util.ts'
 
-interface RpcReq { jsonrpc: '2.0'; id?: number | string; method: string; params?: any }
+export interface RpcReq { jsonrpc: '2.0'; id?: number | string; method: string; params?: any }
 
-const TOOLS = [
+export const TOOLS = [
   { name: 'list_concepts', description: 'List content types (concepts) with their fields and URL patterns.', inputSchema: { type: 'object', properties: {} } },
   { name: 'list_docs', description: 'List documents, optionally filtered by concept.', inputSchema: { type: 'object', properties: { concept: { type: 'string' } } } },
   { name: 'get_doc', description: 'Get a full document (blocks, fields, seo) by id or by concept+slug.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, concept: { type: 'string' }, slug: { type: 'string' } } } },
@@ -27,8 +27,18 @@ const TOOLS = [
   { name: 'validate_site', description: 'Check the whole site for broken links, unknown blocks, duplicate paths.', inputSchema: { type: 'object', properties: {} } },
 ]
 
-async function call(env: BlockhouseEnv, name: string, args: any): Promise<any> {
+/** Who is on the other end. The stdio server (someone at the machine, with the
+ *  files) is trusted; the HTTP endpoint fills this in from a personal token. */
+export interface McpCaller { userId?: string; name?: string; canWrite: boolean; canPublish: boolean; ownOnly?: boolean; canData?: boolean }
+const LOCAL: McpCaller = { canWrite: true, canPublish: true, canData: true }
+const WRITES = new Set(['create_doc', 'update_doc', 'publish_doc'])
+
+export async function call(env: BlockhouseEnv, name: string, args: any, who: McpCaller = LOCAL): Promise<any> {
   const content = env.content
+  if (WRITES.has(name) && !who.canWrite) throw new Error('this account can only read the site, not change it')
+  // data tables hold what visitors typed into forms — names, emails, messages
+  if (name === 'data_query' && !who.canData) throw new Error('this account is not allowed to read the data tables of the site')
+  if (name === 'publish_doc' && !who.canPublish) throw new Error('this connection is not allowed to publish — ask the person who set it up to allow publishing, or publish it yourself in the studio')
   switch (name) {
     case 'list_concepts': return await content.concepts()
     case 'list_docs': {
@@ -44,12 +54,13 @@ async function call(env: BlockhouseEnv, name: string, args: any): Promise<any> {
     }
     case 'create_doc': {
       if (!(await content.concept(args.concept))) throw new Error(`unknown concept "${args.concept}"`)
-      const doc = await content.createDoc({ concept: args.concept, title: args.title, blocks: args.blocks || [], fields: args.fields || {}, seo: args.seo || {} })
+      const doc = await content.createDoc({ concept: args.concept, title: args.title, blocks: args.blocks || [], fields: args.fields || {}, seo: args.seo || {} }, who.userId)
       return { id: doc.id, path: await content.docPath(doc), status: doc.status }
     }
     case 'update_doc': {
       const doc = await content.getDoc(args.id)
       if (!doc) throw new Error('document not found')
+      if (who.ownOnly && (doc as any).author !== who.userId) throw new Error('this account can only change pages it wrote')
       if (args.title !== undefined) doc.title = args.title
       if (args.blocks !== undefined) doc.blocks = args.blocks
       if (args.fields !== undefined) doc.fields = args.fields
@@ -83,26 +94,27 @@ async function call(env: BlockhouseEnv, name: string, args: any): Promise<any> {
   }
 }
 
+/** One JSON-RPC request in, its result out. Shared by stdio and HTTP. */
+export async function handleRpc(env: BlockhouseEnv, req: RpcReq, who: McpCaller = LOCAL, onCall?: (tool: string, args: any, result: any) => void | Promise<void>) {
+  if (req.method === 'initialize') {
+    return { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'blockhouse', version: '0.3.0' } }
+  }
+  if (req.method === 'tools/list') {
+    return { tools: TOOLS.filter(t => (who.canWrite || !WRITES.has(t.name)) && (who.canPublish || t.name !== 'publish_doc') && (who.canData || t.name !== 'data_query')) }
+  }
+  if (req.method === 'tools/call') {
+    const result = await call(env, req.params.name, req.params.arguments || {}, who)
+    if (onCall) await onCall(req.params.name, req.params.arguments || {}, result)
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
+  }
+  if (req.method === 'ping') return {}
+  throw new Error(`method not found: ${req.method}`)
+}
+
 export async function runMcp(projectDir: string) {
   const env = await createNodeEnv(projectDir, {})
   const send = (obj: any) => process.stdout.write(JSON.stringify(obj) + '\n')
-
-  const handle = async (req: RpcReq) => {
-    try {
-      if (req.method === 'initialize') {
-        return { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'blockhouse', version: '0.2.0' } }
-      }
-      if (req.method === 'tools/list') return { tools: TOOLS }
-      if (req.method === 'tools/call') {
-        const result = await call(env, req.params.name, req.params.arguments || {})
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
-      }
-      if (req.method === 'ping') return {}
-      throw new Error(`method not found: ${req.method}`)
-    } catch (e: any) {
-      throw e
-    }
-  }
+  const handle = (req: RpcReq) => handleRpc(env, req)
 
   let buf = ''
   process.stdin.setEncoding('utf8')

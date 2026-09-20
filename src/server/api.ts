@@ -173,6 +173,42 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return c.redirect('/admin/', 302)
   })
 
+  // ---------- AI assistant connections (personal tokens for /mcp) ----------
+  // Each person manages their own. The token itself is shown once, at creation.
+
+  app.get('/me/ai-connections', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const { AI_TOKEN_KIND } = await import('./mcp-http.ts')
+    const rows = (await env.secure.listTokens(AI_TOKEN_KIND)).filter((t: any) => t.userId === u.id)
+    return c.json({
+      connections: rows.map((t: any) => ({ id: t.id, name: t.meta?.name || 'Unnamed', allowPublish: !!t.meta?.allowPublish, createdAt: t.createdAt, uses: t.uses || 0 })),
+      canPublish: can(u, 'content.publish'),
+      canWrite: can(u, 'content.write') || can(u, 'content.write.own'),
+    })
+  })
+  app.post('/me/ai-connections', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const body = await c.req.json().catch(() => ({}))
+    const name = String(body.name || '').trim().slice(0, 60) || 'My AI assistant'
+    const { AI_TOKEN_KIND, issueAiToken } = await import('./mcp-http.ts')
+    const mine = (await env.secure.listTokens(AI_TOKEN_KIND)).filter((t: any) => t.userId === u.id)
+    if (mine.length >= 10) return c.json({ error: 'You already have 10 connections. Remove one you no longer use first.' }, 400)
+    const allowPublish = !!body.allowPublish && can(u, 'content.publish')
+    const made = await issueAiToken(env, u.id, name, allowPublish)
+    await audit(env, 'ai.connection.created', { ...actor(c), name, allowPublish })
+    return c.json({ ok: true, id: made.id, token: made.token })
+  })
+  app.delete('/me/ai-connections/:id', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const { AI_TOKEN_KIND } = await import('./mcp-http.ts')
+    const row = (await env.secure.listTokens(AI_TOKEN_KIND)).find((t: any) => t.id === c.req.param('id'))
+    // owners may remove anyone's; everyone else only their own
+    if (!row || (row.userId !== u.id && !can(u, 'users.manage'))) return c.json({ error: 'not found' }, 404)
+    await env.secure.deleteToken(row.id)
+    await audit(env, 'ai.connection.removed', { ...actor(c), name: row.meta?.name })
+    return c.json({ ok: true })
+  })
+
   app.get('/auth/me', async c => {
     const u = user(c)
     return c.json({ user: u, needsBootstrap: (await env.secure.userCount()) === 0 })

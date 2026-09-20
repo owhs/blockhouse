@@ -2303,3 +2303,20 @@ h2.help-group { margin: 0; }
    tall row empty — a 154px canvas on a 1080px screen. Pin the rows. */
 .editor-mid > .canvas-overlay-note { grid-row: 1; }
 .editor-mid > .preview-wrap { grid-row: 2; min-height: 0; }
+
+/* ==== AI connections ==== */
+.ai-new, .ai-list, .ai-what { display: grid; gap: var(--s3); margin-top: var(--s4); }
+.ai-check { display: flex; gap: var(--s2); align-items: flex-start; cursor: pointer; }
+.ai-check input { margin-top: 0.25rem; }
+.ai-actions { display: flex; justify-content: flex-end; }
+.ai-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding-block: var(--s2); border-top: 1px solid var(--line); }
+.ai-row-main { display: grid; gap: 2px; min-width: 0; }
+.ai-what ul { margin: 0; padding-left: 1.2rem; display: grid; gap: var(--s1); }
+.ai-key { display: grid; gap: var(--s3); }
+.ai-key h4 { margin: var(--s2) 0 0; }
+.ai-warn { display: flex; gap: var(--s2); align-items: flex-start; margin: 0; padding: var(--s2) var(--s3); border: 1px solid var(--warn, #b7791f); border-radius: var(--r2, 6px); }
+.ai-copy { display: grid; gap: 4px; }
+.ai-copy-label { font-size: 0.8rem; opacity: 0.75; }
+.ai-copy-row { display: flex; gap: var(--s2); }
+.ai-copy-row .input { flex: 1; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 0.8rem; }
+.ai-json { margin: 0; padding: var(--s3); overflow: auto; max-height: 12rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r2, 6px); user-select: all; }

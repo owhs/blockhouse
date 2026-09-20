@@ -14,6 +14,7 @@ import './assets.js'
 import './seo.js'
 import './help.js'
 import './deploy.js'
+import './ai-connect.js'
 import './audit.js'
 import './concepts.js'
 import './settings.js'
@@ -531,6 +532,7 @@ function openUserMenu(x, y) {
     { icon: icon('palette', 14), label: 'Preferences…', onClick: preferences },
     { icon: icon('help', 14), label: 'Keyboard shortcuts', shortcut: '?', onClick: showShortcuts },
     { icon: icon('contrast', 14), label: dark ? 'Light studio' : 'Dark studio', hint: `Now ${dark ? 'dark' : 'light'}`, onClick: () => toggleTheme() },
+    { icon: icon('bolt', 14), label: 'Connect an AI assistant…', onClick: () => { location.hash = '#/ai' } },
     '-',
     { icon: icon('users', 14), label: `Signed in as ${state.user.email}`, disabled: true, onClick: () => {} },
     { icon: icon('power', 14), label: 'Sign out', onClick: signOut },
@@ -794,7 +796,7 @@ const ROUTES = {
   '': 'dashboard', c: 'contentList', e: 'editor', media: 'media', assets: 'media', menus: 'menus',
   seo: 'seo', users: 'users', settings: 'settings', plugins: 'plugins', p: 'pluginPanel',
   help: 'help', deploy: 'deploy', audit: 'audit', types: 'settingsTypes', design: 'design',
-  tpl: 'templates', chrome: 'chrome',
+  tpl: 'templates', chrome: 'chrome', ai: 'ai',
 }
 
 async function route(token) {
