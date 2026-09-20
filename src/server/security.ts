@@ -29,8 +29,8 @@ export function buildCsp(site: SiteConfig, opts: { nonce?: string; admin?: boole
     'style-src': "'self' 'unsafe-inline'",     // token/theme styles are generated inline
     'img-src': "'self' data: blob: https:",
     'font-src': "'self' data:",
-    'connect-src': "'self'",
-    'frame-src': "'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com https://open.spotify.com",
+    'connect-src': "'self' https://nominatim.openstreetmap.org",   // the map block looks its address up
+    'frame-src': "'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com https://open.spotify.com https://www.openstreetmap.org https://www.google.com/maps/",
     'frame-ancestors': opts.admin ? "'self'" : (sec.frameAncestors || "'none'"),
     'form-action': "'self'",
     'manifest-src': "'self'",

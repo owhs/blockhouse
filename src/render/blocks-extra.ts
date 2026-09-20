@@ -263,7 +263,8 @@ export function registerExtraBlocks(registry: Registry) {
       type: 'map', label: 'Map', group: 'Media', icon: 'location',
       description: 'A map of an address that only loads when someone clicks it.',
       fields: [
-        f('query', 'text', 'Place or address', { required: true }),
+        f('query', 'text', 'Place or address', { help: 'A postcode or a full address.' }),
+        f('embedUrl', 'text', 'Or a map link from Google', { help: 'In Google Maps choose Share, then Embed a map, and paste the web address that starts https://www.google.com/maps/embed' }),
         f('zoom', 'number', 'How close in', { default: 14, width: 'half', help: 'Higher means closer. 14 shows a town, 18 a street.' }),
         f('height', 'number', 'Height (pixels)', { default: 360, width: 'half' }),
       ],
@@ -271,9 +272,13 @@ export function registerExtraBlocks(registry: Registry) {
       enhance: 'embed',
       render: (_c, n) => {
         const q = encodeURIComponent(String(n.props.query || ''))
-        const src = `https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${q}`
-        return `<div class="wb-map" style="height:${Math.max(160, Number(n.props.height) || 360)}px" data-embed="${ea(src)}" data-title="Map of ${ea(n.props.query)}">` +
-          `<button class="embed-facade map-facade" aria-label="Load map for ${ea(n.props.query)}"><span class="map-pin">${siteIcon('location', 26)}</span><span class="map-label">${eh(n.props.query)}</span><span class="map-hint">Click to load the map</span></button></div>`
+        // A map pasted from Google's or OpenStreetMap's "embed" box is used as it
+        // is — it already points at the right place. Anything else is refused.
+        const pasted = String(n.props.embedUrl || '')
+        const ok = /^https:\/\/(www\.google\.com\/maps\/embed\?|www\.openstreetmap\.org\/export\/embed\.html\?)/.test(pasted)
+        const src = ok ? pasted : `https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${q}`
+        return `<div class="wb-map" style="height:${Math.max(160, Number(n.props.height) || 360)}px" data-embed="${ea(src)}" data-map-query="${ok ? '' : ea(n.props.query || '')}" data-map-zoom="${Number(n.props.zoom) || 14}" data-title="Map${n.props.query ? ' of ' + ea(n.props.query) : ''}">` +
+          `<button class="embed-facade map-facade" aria-label="Load the map"><span class="map-pin">${siteIcon('location', 26)}</span><span class="map-label">${eh(n.props.query || 'Map')}</span><span class="map-hint">Click to load the map</span></button></div>`
       },
     },
 
