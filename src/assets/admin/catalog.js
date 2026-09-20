@@ -5,81 +5,56 @@
 // and the topbar search read from this — so nobody has to know which screen
 // owns a control in order to reach it.
 //
-// RULE: add a setting in views.js, add its row here. `assertCatalogue()` runs in
-// dev and complains about rows pointing at settings groups that do not exist.
+// RULE: settings rows are derived from settings.js, never typed out here.
+// `assertCatalogue()` runs in dev and complains if one points at a settings
+// group that does not exist.
+
+import { settingsIndex } from './settings.js'
 
 const GROUP_LABELS = {
-  general: 'General', features: 'What the site does', brand: 'Brand', appearance: 'Appearance',
-  urls: 'URLs & addresses', images: 'Images', mail: 'Mail', code: 'Custom code',
-  system: 'System pages', pluginsx: 'App settings', build: 'Publishing & export',
-  interface: 'Studio interface', security: 'Security',
+  site: 'Site', content: 'Content', email: 'Email',
+  apps: 'Apps', advanced: 'Advanced', security: 'Security & access',
 }
 export function settingsGroupLabel(k) { return GROUP_LABELS[k] || k }
 
-// hash is #/settings/<group>?f=<fieldKey> — the settings view scrolls to and
-// flashes that field on arrival, so a search hit lands ON the control.
-const S = (group, key, label, keywords) => ({
-  kind: 'setting', group: 'Settings', label, sub: GROUP_LABELS[group] || group,
-  hash: `#/settings/${group}?f=${key}`, icon: 'gear', keywords, perm: 'settings',
+// hash is #/settings/<group>?f=<label> - the settings view scrolls to and
+// flashes the control whose label matches, so a search hit lands ON the
+// control rather than at the top of the page it lives on.
+//
+// The rows are BUILT from the settings page's own field definitions
+// (settings.js exports settingsIndex()). Nobody maintains a second list, so a
+// new setting is searchable the moment it exists.
+const toRow = f => ({
+  kind: 'setting', group: 'Settings', label: f.label, sub: settingsGroupLabel(f.group),
+  hash: `#/settings/${f.group}?f=${encodeURIComponent(f.label)}`, icon: 'gear',
+  keywords: [f.keywords, f.help].filter(Boolean).join(' ').toLowerCase(),
+  perm: 'settings',
 })
 
-export const SETTINGS_ROWS = [
-  S('general', 'name', 'Site name', 'title brand company business'),
-  S('general', 'url', 'Canonical URL', 'domain address https hostname'),
-  S('general', 'tagline', 'Tagline', 'strapline slogan subtitle'),
-  S('general', 'language', 'Language code', 'locale lang i18n translation'),
-  S('general', 'titlePattern', 'Page title pattern', 'seo browser tab suffix template'),
-  S('general', 'description', 'Default meta description', 'seo snippet search'),
-  S('general', 'twitter', 'X / Twitter handle', 'social account'),
-  S('general', 'image', 'Default share image', 'og opengraph social preview thumbnail card'),
+// Built on first use, not at import time: settings.js imports this module too,
+// and asking it for its fields while it is still being evaluated would read a
+// half-built module. Search only ever looks at these once somebody types.
+let built = null
+/**
+ * Developer-only settings stay out of search. On the Settings page they sit
+ * under "Technical security (for developers)" with that warning around them;
+ * a bare "Send HSTS" row in ⌘K has no such frame, so a site owner meets a
+ * header directive with no idea what it is. Every one of them is tagged
+ * `technical` in its own keyword list, which is where the flag comes from.
+ */
+const isDeveloperOnly = f => f.developer === true || /(^| )technical( |$)/.test(String(f.keywords || ''))
+const rows = () => (built ??= settingsIndex().filter(f => !isDeveloperOnly(f)).map(toRow))
 
-  S('features', 'prefetch', 'Speculative prefetch', 'speed performance preload faster'),
-  S('features', 'viewTransitions', 'View transitions', 'animation page transition morph fade'),
-  S('features', 'themeToggle', 'Visitor light/dark toggle', 'dark mode switch theme visitor'),
-  S('features', 'rss', 'RSS feeds', 'feed atom xml subscribe syndication'),
-  S('features', 'sitemap', 'sitemap.xml', 'seo google index crawl robots'),
-  S('features', 'analyticsBeacon', 'Analytics beacon', 'stats tracking hits visitors counter'),
-  S('features', 'searchOpenSearch', 'OpenSearch', 'browser search engine'),
-
-  S('appearance', 'colorScheme', 'Colour scheme (light / dark)', 'dark light auto mode'),
-  S('appearance', 'fonts', 'Fonts', 'typeface typography family webfont custom'),
-
-  S('brand', 'vars', 'Brand variables', 'var tokens phone email address reusable values'),
-
-  S('urls', 'style', 'URL style', 'trailing slash pretty extension html'),
-  S('urls', 'layout', 'URL layout', 'permalink pattern structure path'),
-  S('urls', 'redirects', 'Redirects', 'redirect 301 old url moved forward alias'),
-
-  S('images', 'provider', 'Image provider', 'sharp cloudflare resize cdn'),
-  S('images', 'quality', 'Image quality', 'compression jpeg size'),
-  S('images', 'sizes', 'Image sizes', 'responsive srcset widths variants breakpoints'),
-  S('images', 'stripExif', 'Strip EXIF metadata', 'exif privacy gps location camera'),
-  S('images', 'watermarkMedia', 'Watermark', 'logo overlay stamp'),
-
-  S('mail', 'driver', 'Mail provider', 'email smtp resend sendgrid postmark send'),
-  S('mail', 'from', 'From address', 'sender reply'),
-
-  S('code', 'css', 'Global custom CSS', 'stylesheet style override'),
-  S('code', 'js', 'Global custom JavaScript', 'script tracking snippet analytics tag'),
-  S('code', 'head', 'Head snippet', 'meta verification tag'),
-
-  S('system', 'notFound', '404 page', 'not found missing error'),
-  S('system', 'search', 'Search results page', 'results'),
-
-  S('build', 'export', 'Static export', 'dist build flat html deploy'),
-  S('build', 'budget', 'Page weight budget', 'weight size performance kb limit'),
-
-  S('interface', 'modules', 'Hide studio sections', 'hide module simplify roles show'),
-
-  S('security', 'studioPath', 'Studio URL path', 'admin url login address'),
-  S('security', 'csp', 'Content security policy', 'csp headers policy'),
-  S('security', 'pbkdf2Iterations', 'Password hashing strength', 'hash iterations pbkdf2'),
-  S('security', 'previewLink', 'Staging preview link', 'staging bypass password protect'),
-]
+export const SETTINGS_ROWS = new Proxy([], {
+  get: (_t, prop) => Reflect.get(rows(), prop),
+  has: (_t, prop) => Reflect.has(rows(), prop),
+  ownKeys: () => Reflect.ownKeys(rows()),
+  getOwnPropertyDescriptor: (_t, prop) => Reflect.getOwnPropertyDescriptor(rows(), prop),
+})
 
 // Things that happen, rather than places you go. `run` is resolved by main.js.
 export const ACTION_ROWS = [
-  { kind: 'action', run: 'export', label: 'Export static site', sub: 'Build a flat site into dist/', icon: 'rocket', keywords: 'build static dist publish flat', perm: 'settings' },
+  { kind: 'action', run: 'export', label: 'Export static site', sub: 'Save a plain copy of the whole website to a folder', icon: 'rocket', keywords: 'build static dist publish flat', perm: 'settings' },
   { kind: 'action', run: 'viewSite', label: 'View the live site', sub: 'Opens in a new tab', icon: 'external', keywords: 'visit open public preview' },
   { kind: 'action', run: 'switchSite', label: 'Switch site', sub: 'Other projects on this machine', icon: 'globe', keywords: 'project change another' },
   { kind: 'action', run: 'personalize', label: 'Personalise the studio', sub: 'Accent, layout, density', icon: 'palette', keywords: 'customise accent colour layout density theme' },

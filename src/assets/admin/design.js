@@ -9,10 +9,10 @@ import { helpButton } from './help.js'
 import { icon, iconEl } from './icons.js'
 
 const TEMPLATES = [
-  { name: 'aurora', title: 'Aurora', blurb: 'Luminous and rounded — product sites, studios, SaaS marketing.', hue: 275, chroma: 0.16, radius: 14, font: 'Sans', display: 'ui-sans-serif' },
-  { name: 'ledger', title: 'Ledger', blurb: 'Editorial serif — journals, essays, considered brands.', hue: 28, chroma: 0.11, radius: 3, font: 'Serif', display: 'Georgia, serif' },
-  { name: 'atelier', title: 'Atelier', blurb: 'Square, loud display type — portfolios and statement sites.', hue: 22, chroma: 0.19, radius: 0, font: 'Display', display: 'ui-sans-serif' },
-  { name: 'console', title: 'Console', blurb: 'Compact and cool — documentation, dashboards, dev tools.', hue: 215, chroma: 0.13, radius: 8, font: 'Sans', display: 'ui-sans-serif' },
+  { name: 'aurora', title: 'Aurora', blurb: 'Bright and rounded. A good all-rounder for a company website.', hue: 275, chroma: 0.16, radius: 14, font: 'Sans', display: 'ui-sans-serif' },
+  { name: 'ledger', title: 'Ledger', blurb: 'Traditional lettering with plenty of space. Suits long reading.', hue: 28, chroma: 0.11, radius: 3, font: 'Serif', display: 'Georgia, serif' },
+  { name: 'atelier', title: 'Atelier', blurb: 'Big bold headings and square corners. Makes a strong first impression.', hue: 22, chroma: 0.19, radius: 0, font: 'Display', display: 'ui-sans-serif' },
+  { name: 'console', title: 'Console', blurb: 'Tight and plain. Best where there is a lot of detail to show.', hue: 215, chroma: 0.13, radius: 8, font: 'Sans', display: 'ui-sans-serif' },
 ]
 
 registerView('design', async root => {
@@ -39,7 +39,7 @@ registerView('design', async root => {
   // ---------- live preview ----------
 
   let seq = 0
-  const iframe = h('iframe.design-frame', { title: 'Site preview', src: `/?__ts=${++seq}` })
+  const iframe = h('iframe.design-frame', { title: 'Site preview', src: `/?__blockhousepreview=1&__ts=${++seq}` })
   const pushTokens = debounce(() => {
     iframe.contentWindow?.postMessage({
       blockhouse: 'tokens',
@@ -74,7 +74,7 @@ registerView('design', async root => {
       dirty = false
       saveBtn.textContent = 'Saved ✓'
       setTimeout(() => (saveBtn.textContent = 'Save design'), 1400)
-      iframe.src = `/?__ts=${++seq}`
+      iframe.src = `/?__blockhousepreview=1&__ts=${++seq}`
     toast('Design saved — the live site now matches the preview', 'ok')
   }
   const saveBtn = h('button.btn.primary', { onclick: saveDesign }, 'Save design')
@@ -91,9 +91,12 @@ registerView('design', async root => {
         const known = allTemplates.find(x => x.name === t.name)
         known._pkg = t.pkg; known._source = t.source
       } else {
+        // Defensive: the list has served stray files (a LICENSE entry) before.
+        // Anything unknown must at least carry a title of its own to be shown.
+        if (!t.meta?.label) continue
         allTemplates.push({
-          name: t.name, title: t.meta?.label || t.name,
-          blurb: t.meta?.description || 'Installed theme package.',
+          name: t.name, title: t.meta.label,
+          blurb: t.meta?.description || 'A look installed from a theme file.',
           hue: 200, chroma: 0.1, radius: 8, font: 'Custom', display: 'inherit',
           _pkg: t.pkg, _source: t.source,
         })
@@ -107,12 +110,12 @@ registerView('design', async root => {
       const file = h('input', { type: 'file', accept: '.zip' })
       const lic = h('input.input', { placeholder: 'Licence key (optional)' })
       dialog({
-        title: 'Install a theme',
+        title: 'Install a theme file',
         width: 'min(30rem, 94vw)',
         body: h('div', {},
-          h('p.dlg-text', {}, 'A theme package is a zip with layout.liquid at its root and a blockhouse-package.json manifest. Checksums verify on install; signed themes verify against your trusted issuers.'),
-          h('div.field', {}, h('label', {}, 'Theme (.zip)'), file),
-          h('div.field', {}, h('label', {}, 'Licence key'), lic)),
+          h('p.dlg-text', {}, 'Only do this if a designer has given you a .zip theme file. Blockhouse checks the file is complete and unaltered before it installs. Your pages and content are not touched.'),
+          h('div.field', {}, h('label', {}, 'Theme file (.zip)'), file),
+          h('div.field', {}, h('label', {}, 'Licence key (only if the designer gave you one)'), lic)),
         actions: [{
           label: 'Install', kind: 'primary', onClick: async () => {
             if (!file.files[0]) { toast('Choose a theme zip', 'err'); return false }
@@ -123,52 +126,52 @@ registerView('design', async root => {
             toast(r.problems?.length ? `Installed with warnings: ${r.problems[0]}` : `Installed “${r.name}” — pick it below`, r.problems?.length ? 'err' : 'ok', 6000)
             const fresh = await get('/themes')
             allTemplates = allTemplates.filter(t => t._source !== 'installed')
-            for (const t of fresh.themes.filter(x => x.source === 'installed')) {
-              allTemplates.push({ name: t.name, title: t.meta?.label || t.name, blurb: t.meta?.description || 'Installed theme package.', hue: 200, chroma: 0.1, radius: 8, font: 'Custom', display: 'inherit', _pkg: t.pkg, _source: t.source })
+            for (const t of fresh.themes.filter(x => x.source === 'installed' && x.meta?.label)) {
+              allTemplates.push({ name: t.name, title: t.meta.label, blurb: t.meta?.description || 'A look installed from a theme file.', hue: 200, chroma: 0.1, radius: 8, font: 'Custom', display: 'inherit', _pkg: t.pkg, _source: t.source })
             }
             paintTpls(); return true
           },
         }],
       })
     },
-  }, iconEl('upload', 13), 'Install theme')
+  }, iconEl('upload', 13), 'Install a theme file')
 
   const tplGrid = h('div.design-tpls')
   const paintTpls = () => {
     tplGrid.replaceChildren(...allTemplates.map(t => h('button.design-tpl', {
       class: pendingTemplate === t.name ? 'active' : '',
       onclick: async () => {
-        const tuned = Object.keys(tokens).length > 0 || dirty
-        if (tuned && t.name !== pendingTemplate &&
-          !(await confirmDialog('Use this template’s palette?',
-            `“${t.title}” brings its own hue, intensity and corner radius. Applying it replaces the values you have dialled in.`,
-            'Use its palette'))) return
+        if (t.name !== pendingTemplate &&
+          !(await confirmDialog(`Switch to ${t.title}?`,
+            'Your pages and content stay exactly as they are; only the look changes. It brings its own colour and corner settings, replacing the ones below.',
+            'Switch'))) return
         pendingTemplate = t.name
         work.hue = t.hue; work.chroma = t.chroma; work.radius = t.radius
         paintTpls(); paintSliders()
         markDirty()
         // template change needs a real re-render — draft it via save-less reload:
         // preview keeps current template until Save, so make that explicit
+        const cur = allTemplates.find(x => x.name === settings.template)
         note.textContent = pendingTemplate === settings.template
-          ? 'Adjust the palette below — the preview updates instantly.'
-          : `Preview still shows “${settings.template}” — press Save design to apply ${t.title}.`
+          ? 'Move the sliders above — the preview changes as you go.'
+          : `The preview still shows “${cur?.title || settings.template}” — press Save design to switch to ${t.title}.`
       },
     },
       h('div.design-tpl-head', {},
         h('strong', { style: { fontFamily: t.display } }, t.title),
-        pendingTemplate === t.name ? iconEl('check', 14) : ''),
+        pendingTemplate === t.name ? h('span.design-tpl-current', {}, iconEl('check', 13), 'Current') : ''),
       h('div.design-tpl-dots', {}, swatch(t.hue), swatch((t.hue + 40) % 360), h('span.design-dot', { style: { background: 'light-dark(#1d1d1f, #eee)' } })),
       h('p', {}, t.blurb),
       h('span.design-tpl-meta', {},
         t._source === 'installed'
-          ? `installed${t._pkg ? ` · v${t._pkg.version}` : ''}${t._pkg?.verified === true ? ' · ✓ signed' : t._pkg?.verified === false ? ' · unsigned' : ''}`
-          : `${t.font} · radius ${t.radius}px`),
-      t._source === 'installed' ? h('span.mrow-tools', { style: { marginTop: 'var(--s1)', display: 'inline-flex', gap: 'var(--s1)' } },
+          ? `Installed theme${t._pkg ? ` · version ${t._pkg.version}` : ''}${t._pkg?.verified === true ? ' · signature checked' : t._pkg?.verified === false ? ' · no signature' : ''}`
+          : `${t.font} lettering · ${t.radius === 0 ? 'square corners' : `${t.radius}px rounded corners`}`),
+      t._source === 'installed' ? h('span.mrow-tools.mt-1.d-iflex.gap-1', {},
         h('button.btn.ghost.small', { onclick: async e => {
           e.stopPropagation()
           const r = await post(`/packages/template/${t.name}/verify`, {})
-          toast(r.ok ? `Verified — ${r.checked} files intact` : `Changed since install: ${r.problems[0]}`, r.ok ? 'ok' : 'err', 5000)
-        } }, 'Verify'),
+          toast(r.ok ? `All ${r.checked} files are exactly as the designer supplied them` : `Something has changed since install: ${r.problems[0]}`, r.ok ? 'ok' : 'err', 5000)
+        } }, 'Check files'),
         h('button.btn.ghost.small', { onclick: async e => {
           e.stopPropagation()
           if (!(await confirmDialog('Remove theme', `Delete the installed theme “${t.title}”?`, 'Remove'))) return
@@ -178,65 +181,85 @@ registerView('design', async root => {
         } }, 'Remove')) : '')))
   }
 
-  const note = h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 'var(--s2) 0 0' } }, 'Adjust the palette below — the preview updates instantly.')
+  const note = h('p.fnt.design-note.design-tpl-note', {}, 'Move the sliders above — the preview changes as you go.')
 
   const slider = (label, min, max, step, getV, setV, fmt) => {
-    const out = h('output', { style: { font: 'var(--fw-semi) var(--t-s) var(--mono)', minWidth: '3.4rem', textAlign: 'right' } }, fmt(getV()))
+    const out = h('output.range-out', {}, fmt(getV()))
     const input = h('input', {
+      // A screen reader read these out as "slider, 275" with no word for
+      // what was being moved: give each one its visible caption.
+      'aria-label': label,
       type: 'range', min, max, step, value: getV(),
       oninput: e => { setV(parseFloat(e.target.value)); out.value = fmt(getV()); markDirty() },
     })
     const row = h('div.design-slider', {},
       h('label', {}, label),
-      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center' } }, input, out))
+      h('div.d-flex.gap-3.items-center', {}, input, out))
     row.sync = () => { input.value = getV(); out.value = fmt(getV()) }
     return row
   }
 
-  const hueRow = slider('Accent hue', 0, 360, 1, () => work.hue, v => (work.hue = v), v => `${Math.round(v)}°`)
+  const hueRow = slider('Main colour', 0, 360, 1, () => work.hue, v => (work.hue = v), v => `${Math.round(v)}°`)
   hueRow.querySelector('input').classList.add('hue-track')
-  const chromaRow = slider('Colour intensity', 0.01, 0.2, 0.005, () => work.chroma, v => (work.chroma = v), v => v.toFixed(3))
-  const radiusRow = slider('Corner radius', 0, 24, 1, () => work.radius, v => (work.radius = v), v => `${Math.round(v)}px`)
+  const chromaRow = slider('How strong the colour is', 0.01, 0.2, 0.005, () => work.chroma, v => (work.chroma = v), v => v.toFixed(3))
+  const radiusRow = slider('Corner roundness', 0, 24, 1, () => work.radius, v => (work.radius = v), v => `${Math.round(v)}px`)
   const paintSliders = () => { hueRow.sync(); chromaRow.sync(); radiusRow.sync() }
 
+  const resetLink = h('button.design-reset', {
+    onclick: () => {
+      const d = tplDef()
+      work.hue = d.hue; work.chroma = d.chroma; work.radius = d.radius
+      paintSliders(); markDirty()
+    },
+  }, 'Reset to the template’s defaults')
+
+  // Light or dark — moved here from Settings so every look-and-feel choice
+  // sits on one screen.
   const schemeVal = { colorScheme: theme.colorScheme || 'auto', showToggle: theme.showToggle !== false }
-  const schemeSeg = h('div.seg', {}, ...[['auto', 'Auto'], ['light', 'Light only'], ['dark', 'Dark only']].map(([k, l]) =>
-    h('button', {
-      class: schemeVal.colorScheme === k ? 'active' : '',
-      onclick: e => {
-        schemeVal.colorScheme = k
-        schemeSeg.querySelectorAll('button').forEach(b => b.classList.remove('active'))
-        e.currentTarget.classList.add('active')
-        dirty = true; saveBtn.textContent = 'Save design •'
-      },
-    }, l)))
+  const toggleRow = h('label.field-check.design-toggle-row', {},
+    h('input', { type: 'checkbox', checked: schemeVal.showToggle, onchange: e => { schemeVal.showToggle = e.target.checked; dirty = true; saveBtn.textContent = 'Save design •' } }),
+    h('span', {}, 'Show a light/dark switch in the header'))
+  const syncToggleRow = () => { toggleRow.hidden = schemeVal.colorScheme !== 'auto' }
+  const schemeRadios = h('div.design-scheme', {}, ...[
+    ['auto', 'Match each visitor’s device'],
+    ['light', 'Always light'],
+    ['dark', 'Always dark'],
+  ].map(([k, l]) => h('label.field-check', {},
+    h('input', {
+      type: 'radio', name: 'design-scheme', value: k, checked: schemeVal.colorScheme === k,
+      onchange: () => { schemeVal.colorScheme = k; syncToggleRow(); dirty = true; saveBtn.textContent = 'Save design •' },
+    }),
+    h('span', {}, l))))
+  syncToggleRow()
 
   const controls = h('div.design-controls', {},
-    h('div.page-head', { style: { marginBottom: 'var(--s4)' } },
-      h('div', {}, h('h1', {}, 'Design'), h('p.sub', {}, 'Template, palette and scheme — previewed on the real site.')),
-      h('div', { style: { display: 'flex', gap: 'var(--s2)', alignItems: 'center' } }, helpButton('design', 'Design'), saveBtn)),
+    h('div.page-head.design-head', {},
+      h('div', {}, h('h1', {}, 'Design'),
+        h('p.sub', {}, 'Choose a look, then tune its colour and shape. The preview is your real site; nothing changes for visitors until you press Save.')),
+      h('div.design-head-acts', {}, helpButton('design', 'Design'), saveBtn)),
 
-    h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
-      h('h2.design-h', {}, 'Template'), installThemeBtn),
+    h('h2.design-h', {}, 'Colour & shape'),
+    h('div.card.design-card', {},
+      hueRow, chromaRow, radiusRow,
+      h('p.fnt.design-note', {}, 'Two sliders drive every colour on the site: hue turns them all together, intensity sets how strong the main colour is. Both work in light and dark.'),
+      resetLink),
+
+    h('h2.design-h', {}, 'Light or dark'),
+    h('div.card.design-card', {},
+      schemeRadios, toggleRow,
+      h('p.fnt.design-note', {}, 'Pick “Always light” or “Always dark” to show everyone the same thing.')),
+
+    h('h2.design-h', {}, 'Template'),
+    h('div.design-tpl-intro', {},
+      h('p.fnt.design-note', {}, 'The template sets the shape of the pages — headings, spacing and lettering.'),
+      installThemeBtn,
+      h('p.fnt.design-note', {}, 'Only if a designer gave you a .zip')),
     tplGrid, note,
 
-    h('h2.design-h', {}, 'Palette'),
-    h('div.card', { style: { padding: 'var(--s4) var(--s4)', display: 'grid', gap: 'var(--s4)' } },
-      hueRow, chromaRow, radiusRow,
-      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Two numbers drive the whole palette: hue rotates every colour together, intensity sets how vivid the accent is. Both work in light and dark automatically.')),
-
-    h('h2.design-h', {}, 'Colour scheme'),
-    h('div.card', { style: { padding: 'var(--s4) var(--s4)', display: 'grid', gap: 'var(--s3)' } },
-      schemeSeg,
-      h('label.field-check', {},
-        h('input', { type: 'checkbox', checked: schemeVal.showToggle, onchange: e => { schemeVal.showToggle = e.target.checked; dirty = true; saveBtn.textContent = 'Save design •' } }),
-        h('span', {}, 'Show the visitor theme toggle (auto mode)')),
-      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Locking to one scheme pins the public site and the editor preview to it.')),
-
-    h('h2.design-h', {}, 'More'),
-    h('div.card', { style: { padding: 'var(--s3) var(--s4)', display: 'grid', gap: 'var(--s1)' } },
-      h('a', { href: '#/settings', style: { fontSize: 'var(--t-m)', fontWeight: 'var(--fw-semi)' } }, 'Fonts, brand variables, custom CSS/JS →'),
-      h('p.fnt', { style: { fontSize: 'var(--t-xs)', margin: 0 } }, 'Custom fonts, {{var.…}} brand values and global code live under Settings.')))
+    h('h2.design-h', {}, 'Elsewhere'),
+    h('div.card.design-card', {},
+      h('a.design-more-link', { href: '#/settings' }, 'Fonts, brand values and custom code →'),
+      h('p.fnt.design-note', {}, 'Custom fonts, your own reusable brand values and site-wide code live under Settings.')))
 
   const frameHolder = h('div.design-frame-holder', {}, iframe)
   const unfit = fitPreviewFrame(frameHolder, iframe, 1280)
@@ -245,8 +268,8 @@ registerView('design', async root => {
     controls,
     h('div.design-preview', {},
       h('div.design-preview-bar', {},
-        h('span.fnt', { style: { fontSize: 'var(--t-s)', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center' } }, iconEl('eye', 13), 'Live preview'),
-        h('button.btn.ghost.small', { onclick: () => (iframe.src = `/?__ts=${++seq}`) }, iconEl('refresh', 13), 'Reload')),
+        h('span.fnt.text-s.d-iflex.gap-2.items-center', {}, iconEl('eye', 13), 'Live preview'),
+        h('button.btn.ghost.small', { onclick: () => (iframe.src = `/?__blockhousepreview=1&__ts=${++seq}`) }, iconEl('refresh', 13), 'Reload')),
       frameHolder)))
 
   paintTpls()

@@ -122,7 +122,7 @@ export function buildApp(env: BlockhouseEnv): Hono {
   // ---------- API ----------
 
   const api = apiRoutes(env)
-  app.use('/api/*', csrfMiddleware())
+  app.use('/api/*', csrfMiddleware(env))
   app.route('/api', api)
 
   // ---------- plugin public routes ----------

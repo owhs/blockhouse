@@ -10,6 +10,15 @@ import { icon, iconEl } from './icons.js'
 import { refreshMeta, conceptIcon } from './state.js'
 
 const TYPE_ICONS = ['page', 'pen', 'tag', 'folder', 'book', 'star', 'image', 'video', 'calendar', 'cart', 'building', 'globe', 'help', 'quote', 'mountain', 'form']
+// The raw glyph key ("pen", "chevD") is a developer's word. A picker button
+// has to say what the picture is, on screen readers as well as on hover.
+const ICON_NAMES = {
+  page: 'Page', pen: 'Pen', tag: 'Tag', folder: 'Folder', book: 'Book', star: 'Star',
+  image: 'Picture', video: 'Video', calendar: 'Calendar', cart: 'Shopping basket',
+  building: 'Building', globe: 'Globe', help: 'Question mark', quote: 'Quote marks',
+  mountain: 'Mountain', form: 'Form',
+}
+const iconName = k => ICON_NAMES[k] || k
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text — single line' },
@@ -60,7 +69,7 @@ registerView('concepts', async (root, [typeName]) => {
   let dirty = false
 
   const listEl = h('div.panel-body')
-  const mainEl = h('div.main-pad', { style: { maxWidth: '52rem' } })
+  const mainEl = h('div.main-pad.mw-52', {})
 
   const paintList = () => {
     listEl.replaceChildren(
@@ -70,8 +79,8 @@ registerView('concepts', async (root, [typeName]) => {
       },
         h('span.row-ico', { html: icon(conceptIcon(cc), 15) }),
         h('span.row-label', {}, cc.labelPlural || cc.label),
-        h('span.badge', {}, String(counts[cc.name] ?? 0)))),
-      h('button.tree-add', { style: { margin: 'var(--s2)' }, onclick: createWizard }, '＋ New content type'))
+        h('span.count.ml-auto', {}, String(counts[cc.name] ?? 0)))),
+      h('button.tree-add.m-2', { onclick: createWizard }, '＋ New content type'))
   }
 
   const guardDirty = async () => !dirty || await confirmDialog('Unsaved changes', 'This content type has changes you have not saved. Leave and discard them?', 'Discard')
@@ -105,11 +114,11 @@ registerView('concepts', async (root, [typeName]) => {
       },
     }, 'Save type')
 
-    const urlChip = h('code', { style: { fontSize: 'var(--t-s)' } }, urlPreview(cc))
+    const urlChip = h('code.text-s', {}, urlPreview(cc))
 
-    const iconPicker = h('div', { style: { display: 'flex', gap: 'var(--s1)', flexWrap: 'wrap' } },
+    const iconPicker = h('div.d-flex.gap-1.wrap', {},
       ...TYPE_ICONS.map(name => h('button.icon-btn', {
-        title: name,
+        title: iconName(name), 'aria-label': iconName(name),
         style: cc.icon === name ? { background: 'var(--acc-soft)', color: 'var(--acc-strong)' } : {},
         onclick: e => {
           cc.icon = name; markDirty()
@@ -136,15 +145,15 @@ registerView('concepts', async (root, [typeName]) => {
       get('/templates/pages').then(r => { window.__blockhousePageTpls = ['', ...r.pages]; paintMain() }).catch(() => {})
     }
     const tpl = renderFields([
-      { key: 'template', type: 'select', label: 'Page template', options: tplOptions, help: `Blank = "${cc.name}" if it exists, else "page". Add more under Site → Templates.`, width: 'half' },
-      { key: 'indexTemplate', type: 'text', label: 'Index template', help: 'Blank = "list"', width: 'half' },
+      { key: 'template', type: 'select', label: 'Page template', options: tplOptions, help: `Which page layout these use. Leave blank and it picks "${cc.name}" if your design has one, otherwise the plain page layout.`, width: 'half' },
+      { key: 'indexTemplate', type: 'text', label: 'Listing page layout', help: 'The layout for the page that lists them all. Leave blank for the standard list.', width: 'half' },
     ], cc, markDirty)
     const seo = renderFields([
       { key: 'titlePattern', type: 'text', label: 'Title pattern', help: '{title} — {site}. Overrides the site default for this type.' },
     ], cc.seo, markDirty)
 
     // ----- fields builder -----
-    const fieldsHolder = h('div', { style: { display: 'grid', gap: 'var(--s2)' } })
+    const fieldsHolder = h('div.stack-2', {})
     const paintFields = () => {
       fieldsHolder.replaceChildren(
         ...cc.fields.map((f, i) => fieldRow(f, i)),
@@ -154,17 +163,17 @@ registerView('concepts', async (root, [typeName]) => {
     }
     const fieldRow = (f, i) => {
       const open = h('details', { open: !f.key },
-        h('summary', { style: { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)' } },
+        h('summary.row.clickable.p-2-3', {},
           iconEl('grip', 13),
-          h('strong', { style: { fontSize: 'var(--t-m)' } }, f.label || f.key || 'New field'),
-          h('code.fnt', { style: { fontSize: 'var(--t-xs)' } }, f.key || ''),
-          h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, FIELD_TYPES.find(t => t.value === f.type)?.label.split(' — ')[0] || f.type),
-          f.required ? h('span.badge', {}, 'required') : '',
-          h('span', { style: { flex: 1 } }),
-          h('button.icon-btn', { title: 'Move up', onclick: e => { e.preventDefault(); if (i > 0) { cc.fields.splice(i - 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('back', 12, 'rot90') }),
-          h('button.icon-btn', { title: 'Move down', onclick: e => { e.preventDefault(); if (i < cc.fields.length - 1) { cc.fields.splice(i + 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('fwd', 12, 'rot90') }),
-          h('button.icon-btn', { title: 'Remove field', onclick: e => { e.preventDefault(); cc.fields.splice(i, 1); markDirty(); paintFields() }, html: icon('trash', 13) })),
-        h('div', { style: { padding: '0 var(--s3) var(--s3)' } },
+          h('strong.text-m', {}, f.label || f.key || 'New field'),
+          h('code.fnt.text-xs', {}, f.key || ''),
+          h('span.fnt.text-xs', {}, FIELD_TYPES.find(t => t.value === f.type)?.label.split(' — ')[0] || f.type),
+          f.required ? h('span.badge.badge-accent', {}, 'required') : '',
+          h('span.grow', {}),
+          h('button.icon-btn', { title: 'Move up', 'aria-label': `Move “${f.label || f.key || 'New field'}” up`, onclick: e => { e.preventDefault(); if (i > 0) { cc.fields.splice(i - 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('back', 12, 'rot90') }),
+          h('button.icon-btn', { title: 'Move down', 'aria-label': `Move “${f.label || f.key || 'New field'}” down`, onclick: e => { e.preventDefault(); if (i < cc.fields.length - 1) { cc.fields.splice(i + 1, 0, cc.fields.splice(i, 1)[0]); markDirty(); paintFields() } }, html: icon('fwd', 12, 'rot90') }),
+          h('button.icon-btn', { title: 'Remove field', 'aria-label': `Remove field “${f.label || f.key || 'New field'}”`, onclick: e => { e.preventDefault(); cc.fields.splice(i, 1); markDirty(); paintFields() }, html: icon('trash', 13) })),
+        h('div.p-0-3-3', {},
           renderFields([
             { key: 'label', type: 'text', label: 'Label', width: 'half' },
             { key: 'key', type: 'text', label: 'Key', width: 'half', help: 'Stable machine name — letters, numbers, dashes' },
@@ -182,15 +191,15 @@ registerView('concepts', async (root, [typeName]) => {
             markDirty()
             if (k === 'type') paintFields()
           })))
-      return h('div.card', { style: { padding: 0 } }, open)
+      return h('div.card.p-0', {}, open)
     }
     const fieldVals = f => ({ ...f, _options: (f.options || []).map(o => o.value ?? o).join('|') })
 
-    const danger = h('div.card', { style: { padding: 'var(--s4) var(--s4)', borderColor: 'color-mix(in oklch, var(--err) 35%, var(--line))' } },
-      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s4)' } },
+    const danger = h('div.card.p-4-4.card-danger', {},
+      h('div.d-flex.items-center.justify-between.gap-4', {},
         h('div', {},
-          h('strong', { style: { fontSize: 'var(--t-m)' } }, 'Delete this type'),
-          h('p.fnt', { style: { fontSize: 'var(--t-s)', margin: 0 } }, (counts[cc.name] ?? 0) > 0 ? `Blocked — ${counts[cc.name]} document(s) still use it.` : 'No documents use it, so this is safe.')),
+          h('strong.text-m', {}, 'Delete this type'),
+          h('p.fnt.text-s.m-0', {}, (counts[cc.name] ?? 0) > 0 ? `Blocked — ${counts[cc.name]} document(s) still use it.` : 'No documents use it, so this is safe.')),
         h('button.btn.ghost.small', {
           disabled: (counts[cc.name] ?? 0) > 0,
           onclick: async () => {
@@ -204,22 +213,22 @@ registerView('concepts', async (root, [typeName]) => {
           },
         }, iconEl('trash', 13), 'Delete')))
 
-    const section = (title, sub, body) => h('section', { style: { marginBottom: 'var(--s5)' } },
-      h('h2', { style: { fontSize: 'var(--t-l)', marginBottom: 'var(--s0)' } }, title),
-      sub ? h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s3)' } }, sub) : '',
-      h('div.card', { style: { padding: 'var(--s4) var(--s4)' } }, body))
+    const section = (title, sub, body) => h('section.mb-5', {},
+      h('h2.text-l.mb-0', {}, title),
+      sub ? h('p.fnt.text-s.mb-3', {}, sub) : '',
+      h('div.card.p-4-4', {}, body))
 
     mainEl.replaceChildren(
       h('div.page-head', {},
         h('div', {},
           h('h1', {}, cc.labelPlural || cc.label),
           h('p.sub', {}, 'Everything about this content type — its address, its fields, its templates.')),
-        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
+        h('div.d-flex.gap-2', {},
           h('a.btn.ghost', { href: `#/c/${cc.name}` }, 'Open list'),
           saveBtn)),
       section('Basics', null, h('div', {}, basics, h('div.field', {}, h('label', {}, h('span', {}, 'Icon')), iconPicker))),
       section('Addresses', null, h('div', {},
-        h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s3)' } }, 'Example URL: ', urlChip),
+        h('p.fnt.text-s.mb-3', {}, 'Example URL: ', urlChip),
         urls)),
       section('Fields', 'Structured data every document of this type carries — shown as a form in the editor’s Page tab, usable in templates as {{ fields.key }}.', fieldsHolder),
       section('Templates & SEO', null, h('div', {}, tpl, seo)),

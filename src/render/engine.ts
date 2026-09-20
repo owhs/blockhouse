@@ -9,7 +9,7 @@ import { LiquidLite } from '../vendor/liquid.ts'
 import type { BlockhouseEnv } from '../server/env.ts'
 import type { RenderCtx } from '../core/types.ts'
 import { mdToHtml, mdExcerpt } from '../core/markdown.ts'
-import { renderBlocks } from './blocks.ts'
+import { renderBlocks, renderBlock } from './blocks.ts'
 import { renderMenu } from './menus.ts'
 import { pictureHtml } from './imgtag.ts'
 import { escapeHtml, slugify } from '../core/util.ts'
@@ -37,7 +37,16 @@ export function createEngine(env: BlockhouseEnv): LiquidLite {
     const rctx: RenderCtx = scope.__ctx
     const blocks = rctx?.site.slots?.[String(name)]
     if (!blocks?.length) return ''
-    return renderBlocks({ ...rctx, annotate: false }, blocks)
+    const inner: RenderCtx = { ...rctx, annotate: false }
+    if (!rctx.annotate) return renderBlocks(inner, blocks)
+    // In the editor, a header/footer block is not part of this page's content —
+    // it is on every page. Mark each one so a click can open the header/footer
+    // panel at the right block instead of shrugging.
+    const parts: string[] = []
+    for (const b of blocks) {
+      parts.push(`<div data-wb-slot="${escapeHtml(String(name))}" data-wb-slot-block="${escapeHtml(String(b.id))}" style="display:contents">${await renderBlock(inner, b)}</div>`)
+    }
+    return parts.join('\n')
   })
 
   liquid.registerTag('menu', async (key, scope) => {
@@ -69,6 +78,41 @@ export function createEngine(env: BlockhouseEnv): LiquidLite {
   liquid.registerFilter('asset', v =>
     `/assets/site/${String(v ?? '').replace(/^\/+/, '')}?v=${(env as any).assetVersion || '1'}`)
   liquid.registerFilter('docpath', async v => (v ? env.content.docPath(v as any) : '#'))
+
+  // ---------- "edit this on the page" annotations ----------
+  // These emit nothing on the live site. In the editor preview they mark which
+  // bit of HTML came from which block prop / content field, so double-clicking
+  // the words on the page edits the real value.
+  //
+  //   <h2{{ 'heading' | wbe }}>            block prop `heading`, plain text
+  //   <div{{ 'body' | wbe: 'md' }}>        block prop `body`, markdown
+  //   <figure{{ 'image' | wbe: 'img' }}>   block prop `image`, a picture
+  //   <h3{{ 'tiles' | wbe_at: forloop.index0, 'title' }}>   tiles[0].title
+  //   <p{{ 'strapline' | wbf }}>           this page's `strapline` content field
+  //
+  // Documented in docs/blocks-and-templates.md.
+  const key = (v: unknown) => String(v ?? '').replace(/[^\w.\-]/g, '')
+  const annotating = (scope: any) => !!(scope?.__ctx as RenderCtx | undefined)?.annotate
+  const mark = (prop: string, mode?: unknown): string => {
+    if (!prop) return ''
+    const m = key(mode)
+    if (m === 'img') return ` data-wbe-img="${prop}"`
+    return ` data-wbe="${prop}"${m ? ` data-wbe-mode="${m}"` : ''}`
+  }
+
+  liquid.registerFilter('wbe', (v, [mode], _kw, scope) =>
+    annotating(scope) ? mark(key(v), mode) : '')
+  liquid.registerFilter('wbe_at', (v, [index, k, mode], _kw, scope) =>
+    annotating(scope) ? mark(`${key(v)}.${key(index)}.${key(k)}`, mode) : '')
+  liquid.registerFilter('wbimg', (v, _a, _kw, scope) =>
+    annotating(scope) ? mark(key(v), 'img') : '')
+  liquid.registerFilter('wbf', (v, [mode], _kw, scope) => {
+    if (!annotating(scope)) return ''
+    const k = key(v)
+    if (!k) return ''
+    const m = key(mode)
+    return ` data-wbf="${k}"${m ? ` data-wbf-mode="${m}"` : ''}`
+  })
 
   return liquid
 }

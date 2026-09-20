@@ -7,15 +7,24 @@
 // click and a palette entry are the same operation with the same undo entry.
 
 import { get, put, post, del } from './api.js'
-import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, fitPreviewFrame, makeTreeSortable, skeleton, sc } from './ui.js'
+import { h, debounce, dialog, confirmDialog, contextMenu, toast, undoToast, fmtDate, makeTreeSortable, skeleton, sc } from './ui.js'
 import { renderFields } from './fields.js'
-import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn, toggleWide } from './state.js'
+import { registerView, state, prefs, setPref, disclosure, setDisclosure, hooks, registerGuard, popReturn, peekReturn, wideMode, toggleWide } from './state.js'
 import { icon, iconEl } from './icons.js'
 import { registerCommands } from './search.js'
 import { helpButton } from './help.js'
 import { quickDesign, quickChrome, quickMenu } from './quick.js'
 import { sheetIsOpen } from './sheet.js'
 import { makeOps, findNode, flatten, labelOf, uid, reId, copyBlocks, readClipboard, seedProps } from './docops.js'
+
+// The last control a pointer actually pressed. Browsers do not always focus a
+// button on click, so this is the only reliable record of "what opened this"
+// for a panel that has to hand the keyboard back when it closes.
+let lastPointerControl = null
+addEventListener('pointerdown', e => {
+  const c = e.target?.closest?.('button, a[href], [tabindex]:not([tabindex="-1"])')
+  if (c) lastPointerControl = c
+}, true)
 
 registerView('editor', async (root, [docId, tabParam], query) => {
   const meta = state.meta
@@ -27,6 +36,10 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   const undoStack = [], redoStack = []
   const catalogue = meta.blocks
   const byType = Object.fromEntries(catalogue.map(b => [b.type, b]))
+
+  // R17-4 — "Restore points for this page" read wrong on a Lift or a System.
+  // Every "?" sheet in the studio is type-aware; so is this.
+  const typeName = (meta.concepts.find(c => c.name === doc.concept)?.label || 'page').toLowerCase()
 
   const canWrite = meta.perms.publish || meta.perms.settings || !!state.meta.perms.menus
     || ['owner', 'admin', 'editor', 'author'].includes(state.user.role)
@@ -88,30 +101,59 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       : ''
   }
 
-  async function save(explicit = false) {
+  // Take the server's version as our own baseline. Publish/unpublish write to
+  // the document too, so after either one the editor must be looking at the
+  // version they produced — otherwise the next save reads as a conflict.
+  async function adoptVersion(fresh) {
+    let v = fresh
+    if (!v || v.version == null) {
+      try { v = (await get(`/content/${doc.id}`)).doc } catch { return }
+    }
+    if (!v || v.version == null) return
+    doc.version = v.version
+    baseVersion = v.version
+    if (v.updatedAt) doc.updatedAt = v.updatedAt
+  }
+
+  // `publishing` marks the save the publish flow makes just before it
+  // publishes. The server skips that save's Activity row, so one publish
+  // reports one action instead of "Saved" and "Published" a second apart.
+  async function save(explicit = false, publishing = false) {
     if (readOnly) return
     paintSaveState('saving', 'Saving…')
     // Autosave writes a restore point whenever the structure changed, so a
     // deleted block always has a floor beneath it.
     const wantVersion = explicit || structuralSinceVersion
     try {
-      const r = await put(`/content/${doc.id}`, { doc, baseVersion, snapshot: wantVersion })
+      const r = await put(`/content/${doc.id}${publishing ? '?publishing=1' : ''}`, { doc, baseVersion, snapshot: wantVersion })
       doc.version = r.doc.version; doc.updatedAt = r.doc.updatedAt; doc.slug = r.doc.slug
       baseVersion = r.doc.version
       path = r.path; seo = r.seo; stale = r.stale
       dirty = false
       lastSaveAt = new Date()
+      // r.unchanged: the server found nothing different and left the document
+      // alone — no restore point was made, so do not claim one. (R15-1)
       if (wantVersion) structuralSinceVersion = false
-      if (wantVersion) lastVersionAt = lastSaveAt
+      // R21-2 — the text can match the last autosave and still be newer than
+      // the last restore point, and then the server keeps one (`r.snapshot`).
+      if (wantVersion && (!r.unchanged || r.snapshot)) lastVersionAt = lastSaveAt
+      // R20-3 — a Save the server answers with `unchanged: true` used to move
+      // nothing on screen, so the person pressed it again. Say so, briefly, and
+      // only for a save they asked for: autosave must stay silent.
+      if (explicit && !publishing && r.unchanged) {
+        toast(r.snapshot ? 'Saved — restore point kept' : 'Nothing to save — already up to date', 'info', 1200)
+      }
       paintSaveState('saved', 'Saved')
-      renderStatus()
+      // renderActions owns the Publish/Republish button: without it a save that
+      // makes the document stale leaves the button reading "Published".
+      renderStatus(); renderActions()
       if (inspTab === 'seo') renderInspector()
       // The preview renders from the server, so it can only be refreshed after
       // the write it is meant to show has landed.
       if (previewStale) { previewStale = false; iframe.contentWindow?.location.reload() }
     } catch (e) {
       if (e.status === 409) return onConflict(e)
-      paintSaveState('error', 'Not saved — retry', () => save(explicit))
+      paintSaveState('error', 'Not saved — retry', () => save(explicit, publishing))
     }
   }
 
@@ -125,7 +167,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       dismissable: false,   // a choice is required; dismissing used to leave the doc permanently un-saveable
       body: h('div', {},
         h('p.dlg-text', {}, who ? `${who} saved a newer version ${when}.` : `A newer version was saved ${when} — from another tab or another person.`),
-        h('p.dlg-text', { style: { marginTop: 'var(--s2)' } }, 'Nothing is thrown away either way: keeping yours stores theirs as a restore point first.')),
+        h('p.dlg-text.mt-2', {}, 'Nothing is thrown away either way: keeping yours stores theirs as a restore point first.')),
       actions: [
         {
           label: 'Take theirs', onClick: async () => {
@@ -135,7 +177,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
             path = fresh.path; seo = fresh.seo; stale = fresh.stale
             dirty = false
             titleInput.value = doc.title
-            renderTree(); renderInspector(); renderStatus(); refreshPreview()
+            renderTree(); renderInspector(); renderStatus(); renderActions(); refreshPreview()
             paintSaveState('saved', 'Loaded theirs')
             toast('Loaded the newer version — your copy is in the undo history', 'ok')
             undoStack.push({ json: JSON.stringify(mine), label: 'your version' })
@@ -162,8 +204,39 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   // wrapper — so patching does nothing visible and the change appears to have
   // been ignored until you reload. Anything that is not text re-renders.
   const TEXTISH = ['text', 'textarea', 'richtext', 'markdown']
+
+  // A prop may be a path into a list: `slides.0.heading` is the heading of the
+  // first slide. The page can now be edited directly, and the words in a list
+  // item have to be addressable to make that work.
+  const pathParts = k => String(k ?? '').split('.').filter(x => x !== '')
+  const getPath = (obj, k) => pathParts(k).reduce((o, part) => (o == null ? o : o[part]), obj)
+  const setPath = (obj, k, value) => {
+    const parts = pathParts(k)
+    if (!parts.length) return
+    let cur = obj
+    for (let i = 0; i < parts.length - 1; i++) {
+      const here = parts[i]
+      if (cur[here] == null || typeof cur[here] !== 'object') {
+        cur[here] = /^\d+$/.test(parts[i + 1]) ? [] : {}
+      }
+      cur = cur[here]
+    }
+    cur[parts[parts.length - 1]] = value
+  }
+  /** The field definition a (possibly dotted) key points at. */
+  const fieldDefAt = (fields, key) => {
+    let defs = fields || []
+    let fd = null
+    for (const part of pathParts(key)) {
+      if (/^\d+$/.test(part)) { defs = fd?.item || []; continue }
+      fd = (defs || []).find(x => x.key === part)
+      if (!fd) return null
+      defs = fd.item || []
+    }
+    return fd
+  }
   const dirtyFor = (fields, id, key, value) => {
-    const f = (fields || []).find(x => x.key === key)
+    const f = fieldDefAt(fields, key)
     return TEXTISH.includes(f?.type || 'text') ? { patch: { id, prop: key, value } } : {}
   }
 
@@ -184,38 +257,156 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   let focusedMode = !!prefs().focusedMode
   const previewSrc = () => `/preview/${doc.id}?editor=1${focusedMode ? '&bare=1' : ''}`
   const iframe = h('iframe', { src: previewSrc(), title: 'Page preview' })
-  const scaleBadge = h('button.preview-scale', {
-    title: 'Give the canvas more room', 'aria-label': 'Widen the canvas',
-    onclick: () => toggleWide(true),
+  const scaleBadge = h('button.preview-zoom', {
+    type: 'button',
+    // The label used to be a fixed aria-label, which overrode the text and hid
+    // the width and scale from a screen reader. The text IS the name now.
+    title: 'Hide a side panel so the page is shown at full size',
+    onclick: () => { toggleOutline(false); setInspHidden(true) },
+    hidden: true,
   })
-  const frameHolder = h('div.preview-frame-holder', {}, iframe)
-  const previewWrap = h('div.preview-wrap', { class: prefs().device ? `w-${prefs().device}` : '' }, frameHolder, scaleBadge)
-  let unfitPreview = null
-  const fitForDevice = k => {
-    unfitPreview?.(); unfitPreview = null
-    iframe.style.width = ''; iframe.style.height = ''; iframe.style.transform = ''
-    if (!k) unfitPreview = fitPreviewFrame(frameHolder, iframe, 1280, paintScale)
-    paintScale()
+  // With no panel open there is nothing to hide, so the same words became an
+  // instruction nobody could follow on a button that did nothing (R9-2a). Then
+  // the note is plain text, not a control.
+  const scaleNote = h('span.preview-zoom.preview-zoom-flat', { hidden: true })
+  const scaleHolder = h('span.preview-zoom-holder', {}, scaleBadge, scaleNote)
+  /** Is either side panel actually on screen right now? */
+  const anyPanelOpen = () => {
+    const app2 = document.querySelector('.app')
+    const out = document.querySelector('.editor > .outline')
+    const outOpen = matchMedia('(max-width: 1400px)').matches
+      ? !!out?.classList.contains('open')
+      : !!out && !out.classList.contains('closed')
+    const inspOpen = matchMedia('(max-width: 1100px)').matches
+      ? !!app2?.classList.contains('insp-open')
+      : !app2?.classList.contains('insp-hidden')
+    return outOpen || inspOpen
   }
-  function paintScale(pct) {
-    const s = pct != null ? String(pct) : frameHolder.dataset.scale
-    const tight = s && +s < 96
-    scaleBadge.textContent = tight ? `${s}% · widen` : ''
-    scaleBadge.hidden = !tight
-    scaleBadge.title = tight ? 'The preview is scaled down to fit. Collapse the side panels for a bigger canvas.' : ''
+  const canvasEmpty = h('div.canvas-empty', { hidden: true })
+  const frameHolder = h('div.preview-frame-holder', {}, iframe)
+  const previewWrap = h('div.preview-wrap', { class: prefs().device ? `w-${prefs().device}` : '' }, frameHolder, canvasEmpty)
+  // The preview used to be shrunk to 81% (65% with the outline open) because it
+  // was forced to render at 1280px in a 630px canvas: body text became
+  // unreadable. The canvas now shows the page at 100% and lets the SITE's own
+  // responsive rules do the work — which is exactly what a visitor with a
+  // window that wide sees — but only once the canvas really is desktop-wide.
+  // With the rail, outline and inspector open the canvas is ~630px, and a page
+  // rendered at 630px is the site's MOBILE layout: "Desktop" showed a hamburger
+  // menu. So Desktop renders at a real desktop width and scales down to fit,
+  // with the badge saying how to get it bigger.
+  // One sizing rule for every document, every panel toggle and every window
+  // size. Desktop means desktop: the page is always rendered 1280px wide — the
+  // width most visitors on a laptop actually get — and the whole frame is
+  // scaled down to fit the canvas when the canvas is narrower. It is never
+  // stretched to the canvas, because then the same button showed the same page
+  // at a different width on every screen and every panel arrangement.
+  const DESKTOP_W = 1280
+  // Tablet and phone are real device widths, not "whatever the canvas allows".
+  // Asked for 834 and 390 in CSS, both used to come out at the canvas width —
+  // so at 1440 with both panels open the two buttons produced the same 612px
+  // iframe. They now go through the same render-wide-then-scale path as
+  // Desktop, and the badge says which width you are looking at.
+  const DEVICE_W = { tablet: 834, mobile: 390 }
+  const DEVICE_LABEL = { tablet: 'Tablet', mobile: 'Phone' }
+  const FRAME_BORDER = 20     // the device frame's 10px border, both sides
+  const fitForDevice = () => paintScale()
+
+  /**
+   * The old code leaned on `requestAnimationFrame` inside `fitPreviewFrame` for
+   * the first measurement. A tab that is not painting (the studio opened in a
+   * background tab, or a document opened while another view is animating) never
+   * ran it, so those documents kept the iframe at the holder's own width with
+   * no frame width at all — a ~830px canvas showing the site's TABLET layout.
+   * Measuring straight away, and again from a ResizeObserver, removes the race.
+   */
+  function paintScale() {
+    const k = prefs().device || ''
+    iframe.style.transform = ''
+    iframe.style.transformOrigin = 'top left'
+    const availW = previewWrap.clientWidth
+    const availH = previewWrap.clientHeight
+    if (!availW || !availH) return
+    if (k) {
+      const dw = DEVICE_W[k] || DESKTOP_W
+      const s = Math.min(1, (availW - FRAME_BORDER) / dw)
+      frameHolder.style.width = Math.round(dw * s) + FRAME_BORDER + 'px'
+      iframe.style.width = dw + 'px'
+      iframe.style.height = Math.round((availH - FRAME_BORDER) / s) + 'px'
+      iframe.style.transform = s === 1 ? '' : `scale(${s})`
+      return setDeviceNote(DEVICE_LABEL[k] || 'Desktop', dw, Math.round(s * 100))
+    }
+    // The same rule for every document: 1280 wide, scaled to fit. But a page
+    // shrunk past 60% has 8px body copy — you can see the layout and read none
+    // of it, which is not a preview of anything. Below that floor the preview
+    // steps down to a narrower real width (1024, then tablet 834) rather than
+    // shrinking further, and says so.
+    const FLOOR = 0.6
+    let width = DESKTOP_W
+    let scale = availW / width
+    let narrowed = false
+    for (const w of [1024, 834]) {
+      if (scale >= FLOOR) break
+      width = w
+      scale = availW / width
+      narrowed = true
+    }
+    scale = Math.min(1, scale)
+    frameHolder.style.width = Math.round(width * scale) + 'px'
+    iframe.style.width = width + 'px'
+    iframe.style.height = Math.round(availH / scale) + 'px'
+    iframe.style.transform = scale === 1 ? '' : `scale(${scale})`
+    setZoomNote(Math.round(scale * 100), narrowed)
+  }
+  /** Device modes always say which width, and the scale when it is not 1:1. */
+  function setDeviceNote(label, width, pct) {
+    frameHolder.dataset.scale = pct === 100 ? '' : String(pct)
+    scaleBadge.textContent = pct === 100
+      ? `${label} width — ${width}px, shown full size`
+      : `${label} width — ${width}px, shown at ${pct}%`
+    scaleBadge.hidden = false
+    scaleNote.hidden = true
   }
 
-  /** One press reclaims every pixel the chrome was using. */
-  function widenCanvas() {
-    const appEl = document.querySelector('.app')
-    const anyOpen = outlineOpen || !appEl.classList.contains('insp-hidden')
-    outlineOpen = !anyOpen
-    setDisclosure('outline', outlineOpen)
-    outlineEl.classList.toggle('closed', !outlineOpen)
-    appEl.classList.toggle('insp-hidden', anyOpen)
-    setPref('inspHidden', anyOpen)
-    setTimeout(paintScale, 280)
+  /** The zoom level lives beside the device buttons, never over the page. */
+  function setZoomNote(pct, narrowed = false) {
+    frameHolder.dataset.scale = pct === 100 && !narrowed ? '' : String(pct)
+    const hide = pct === 100 && !narrowed
+    const open = anyPanelOpen()
+    const text = open
+      ? (narrowed
+        ? 'Shown narrower to keep text readable · hide a panel for desktop width'
+        : `${pct}% · hide a panel for full size`)
+      : (narrowed
+        ? 'Shown narrower to keep text readable — the page is wider than the window'
+        : `${pct}% — the page is wider than the window`)
+    scaleBadge.hidden = hide || !open
+    scaleNote.hidden = hide || open
+    if (open) scaleBadge.textContent = text
+    else scaleNote.textContent = text
   }
+  /** R21 — below 480px the zoom/scale note leaves the toolbar for room, so the
+      "⋯" menu carries the same sentence as a line you cannot click. */
+  function zoomNoteText() {
+    const el = !scaleNote.hidden ? scaleNote : (!scaleBadge.hidden ? scaleBadge : null)
+    return el ? String(el.textContent || '').trim() : ''
+  }
+
+  const previewRO = new ResizeObserver(() => paintScale())
+  previewRO.observe(previewWrap)
+
+  /** The canvas — not the inspector — is where an empty page asks to be started. */
+  function paintCanvasEmpty() {
+    const empty = !doc.blocks.length
+    canvasEmpty.hidden = !empty
+    if (!empty) return canvasEmpty.replaceChildren()
+    canvasEmpty.replaceChildren(h('div.canvas-empty-card', {},
+      h('h2', {}, 'This page is empty'),
+      h('p', {}, 'Start with a ready-made layout, or add one block at a time.'),
+      h('div.canvas-empty-starters', {},
+        ...STARTERS.map(s => h('button.btn.ghost.small', { onclick: () => applyStarter(s) }, s.label))),
+      h('button.btn.primary.small', { onclick: () => addBlock('', doc.blocks.length) }, 'Add a block')))
+  }
+
   const onResize = debounce(() => { paintScale(); renderActions() }, 200)
   addEventListener('resize', onResize)
 
@@ -249,6 +440,11 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     selectedId = id
     // A plain click always collapses the selection back to one block.
     if (!opts.keepMulti) { multi.clear(); if (id) multi.add(id) }
+    // Picking a block used to leave the inspector on whatever tab was open, so
+    // from the Page tab you clicked a block and still saw Slug and Publish at.
+    // Choosing a block means "show me this block". With nothing selected the
+    // Page tab is right and stays.
+    if (id && inspTab !== 'block' && !opts.keepTab) { inspTab = 'block'; syncTabHash() }
     renderTree()
     renderInspector()
     if (!opts.fromPreview) iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id }, '*')
@@ -383,7 +579,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         targets.push({ id: node.id, label: labelOf(node, byType[node.type]), depth: depth + 1 })
       }
     }
-    const body = h('div', { style: { display: 'grid', gap: 'var(--s0)' } },
+    const body = h('div.stack-0', {},
       ...targets.map(t => h('button.row-item', {
         style: { paddingLeft: `${0.65 + t.depth * 0.8}rem` },
         onclick: () => { ops.move(id, t.id, 0); selectBlock(id); dlg.closeWith() },
@@ -456,7 +652,20 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       else if (e.key === 'ArrowLeft') { e.preventDefault(); active = Math.max(active - 1, 0); paintActive() }
       else if (e.key === 'Enter' && flat[active]) { e.preventDefault(); make(flat[active]) }
     })
-    const dlg = dialog({ title: 'Add a block', width: 'min(44rem, 94vw)', body: [search, holder] })
+    // Whatever opened the picker gets the keyboard back when it closes. The
+    // dialog helper restores `document.activeElement`, which is <body> when the
+    // picker was opened from a context menu or a synthetic click — so the
+    // control is captured here instead, with the last-clicked control as the
+    // fallback, and the selected outline row as the last resort.
+    const opener = (document.activeElement && document.activeElement !== document.body)
+      ? document.activeElement : lastPointerControl
+    const dlg = dialog({
+      title: 'Add a block', width: 'min(44rem, 94vw)', body: [search, holder],
+      onClose: () => setTimeout(() => {
+        if (opener?.isConnected) opener.focus()
+        else outlineBody.querySelector('.tree-item.selected')?.focus()
+      }, 0),
+    })
     renderPicker()
     search.focus()
   }
@@ -473,7 +682,13 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   // ---------- the outline rail ----------
 
   const outlineBody = h('div.outline-body', {})
-  let outlineOpen = disclosure('outline', innerWidth >= 1600)
+  // Closed until the person opens it. The canvas is the point of the screen,
+  // and every panel taking a share of it is another 100px the page is shrunk
+  // by. Opening it is one click and the choice is remembered for ever after.
+  // Above 1400px there is room for the outline and the canvas both, so a
+  // first-time editor opens with the list of blocks in view; on narrower
+  // screens the canvas still wins. Either way the choice is remembered.
+  let outlineOpen = disclosure('outline', window.innerWidth > 1400)
 
   const folded = () => prefs().foldedBlocks || {}
   const toggleFold = id => {
@@ -502,6 +717,10 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     return f ? f.parents.map(p => p.id) : []
   }
 
+  /** Put keyboard focus on the row the outline now shows as selected. */
+  const focusSelectedRow = () =>
+    setTimeout(() => outlineBody.querySelector('.tree-item.selected')?.focus({ preventScroll: true }), 0)
+
   function renderTree() {
     const rows = visibleRows()
     const tree = h('div.tree', { role: 'tree', 'aria-label': 'Page outline' })
@@ -511,18 +730,25 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       const isFolded = !!folded()[node.id]
       const selected = node.id === selectedId
       const inMulti = multi.has(node.id) && multi.size > 1
-      const row = h('button.tree-item', {
+      // A row used to be a <button> with the actions <button> inside it —
+      // invalid nesting, which is why clicking a label sometimes did nothing.
+      // It is a div[role=treeitem] now, with one click handler, and the actions
+      // button sits beside the label rather than inside the clickable surface.
+      const row = h('div.tree-item', {
         class: [selected ? 'selected' : '', inMulti ? 'multi' : ''].filter(Boolean).join(' '),
         role: 'treeitem', 'aria-selected': String(selected || inMulti), 'aria-level': String(depth + 1),
         ...(isContainer ? { 'aria-expanded': String(!isFolded) } : {}),
         tabindex: selected ? '0' : '-1',
         draggable: 'true',
         dataset: { nodeId: node.id, parentId, index: String(index), container: isContainer ? '1' : '0' },
-        style: { paddingLeft: `${0.3 + depth * 0.7}rem` },
         onclick: e => {
           if (e.shiftKey) { e.preventDefault(); return selectRange(node.id) }
           if (e.metaKey || e.ctrlKey) { e.preventDefault(); return toggleInSelection(node.id) }
           selectBlock(node.id)
+          // renderTree() has just replaced this row, so focus the new one:
+          // a mouse click used to leave focus on <body> and the arrow keys
+          // did nothing until you Tabbed back into the outline.
+          focusSelectedRow()
         },
         oncontextmenu: e => blockMenu(e, node.id),
         onkeydown: e => treeKeys(e, node.id, rows),
@@ -535,12 +761,24 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           : h('span.t-fold'),
         h('span.t-grip', { html: icon('grip', 13) }),
         h('span.t-ico', { html: icon(def?.icon || 'layout', 14) }),
-        h('span.t-label', {}, labelOf(node, def), ' ', h('span.t-type', {}, def?.label || node.type)),
+        // Two lines: what the block says, then what kind of block it is. On one
+        // line the type was what the ellipsis ate, so eighteen rows all read
+        // "The Helmsdale …" with no way to tell a heading from a paragraph.
+        // When the label IS the type ("Section Section") one line is enough.
+        h('span.t-label', {},
+          h('span.t-name', {}, labelOf(node, def)),
+          (def?.label || node.type) === labelOf(node, def)
+            ? ''
+            : h('span.t-type', { 'aria-hidden': 'true' }, def?.label || node.type)),
         h('span.mrow-tools', {},
           h('button.icon-btn', {
             'aria-label': `Actions for ${labelOf(node, def)}`,
+            tabindex: '-1',
             onclick: e => { e.stopPropagation(); blockMenu(e, node.id) },
           }, iconEl('more', 13))))
+      // Indent is a custom property so the row itself never grows wider than
+      // the rail; past five levels it stops, rather than scrolling sideways.
+      row.style.setProperty('--depth', String(Math.min(depth, 5)))
       // Every row records its ancestors, so the drop logic can tell a
       // descendant from a cousin. Wrapping only the node's own row (as this
       // did) meant dragging onto your own child looked like a valid drop.
@@ -548,9 +786,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       tree.appendChild(row)
     }
     outlineBody.replaceChildren(
-      doc.blocks.length ? tree : h('div', { style: { padding: 'var(--s3) var(--s2)' } },
-        h('p.fnt', { style: { fontSize: 'var(--t-s)' } }, 'This page is empty.')),
+      doc.blocks.length ? tree : h('p.tree-empty', {}, 'This page is empty.'),
       h('button.tree-add', { onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 12), ' Add block'))
+    paintCanvasEmpty()
 
     makeTreeSortable(tree, {
       canDrop: (id, parentId) => !parentId || !!byType[ops.find(parentId)?.node.type]?.container,
@@ -584,13 +822,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       e.preventDefault()
       if (def?.container && !folded()[id]) toggleFold(id)
       else if (rows[i]?.parentId) selectBlock(rows[i].parentId)
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      // A row is a div now, so it has to re-create the button's activation keys.
+      e.preventDefault(); selectBlock(id)
     } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); multi.has(id) ? bulkRemove() : removeWithUndo(id) }
     else if (e.shiftKey && e.key === 'F10') { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); blockMenu({ preventDefault() {}, clientX: r.left + 20, clientY: r.bottom }, id) }
   }
 
   const outlineEl = h('aside.outline', { class: outlineOpen ? '' : 'closed' },
     h('div.outline-head', {},
-      h('span.panel-title', { style: { flex: 1 } }, 'Outline'),
+      h('span.panel-title.grow', {}, 'Outline'),
       h('button.icon-btn', { 'aria-label': 'Add block', title: 'Add block', onclick: () => addBlock('', doc.blocks.length) }, iconEl('plus', 14))),
     outlineBody)
 
@@ -599,13 +840,58 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   let inspTab = ['block', 'page', 'seo'].includes(tabParam) ? tabParam : 'block'
   const inspBody = h('div.insp-body', { id: 'insp-body', role: 'tabpanel' })
   const crumbs = h('div.insp-crumbs', { 'aria-label': 'Selected block path' })
-  const tabs = h('div.insp-tabs', { role: 'tablist', 'aria-label': 'Inspector' })
+  const tabs = h('div.insp-tabs', { role: 'tablist', 'aria-label': 'Settings panel' })
 
+  function syncTabHash() {
+    const base = `#/e/${doc.id}/${inspTab}`
+    if (location.hash.split('?')[0] !== base) history.replaceState(null, '', base)
+  }
   const setTab = k => {
     inspTab = k
-    const base = `#/e/${doc.id}/${k}`
-    if (location.hash.split('?')[0] !== base) history.replaceState(null, '', base)
+    syncTabHash()
     renderInspector()
+  }
+
+  /**
+   * Find the form control for a (possibly dotted) field key, opening any list
+   * rows on the way. `slides.0.heading` expands the first slide first.
+   */
+  function fieldElFor(key) {
+    const parts = pathParts(key)
+    let acc = ''
+    for (let i = 0; i < parts.length; i++) {
+      acc = acc ? `${acc}.${parts[i]}` : parts[i]
+      const next = parts[i + 1]
+      if (next != null && /^\d+$/.test(next)) {
+        const rows = inspBody.querySelector(`[data-list-key="${CSS.escape(acc)}"]`)
+        const row = rows?.querySelector(`.list-row[data-list-index="${CSS.escape(next)}"]`)
+        const body = row?.querySelector('.list-row-body')
+        if (body && body.style.display === 'none') row.querySelector('.list-row-head')?.click()
+        acc = `${acc}.${next}`
+        i++
+      }
+    }
+    return inspBody.querySelector(`[data-field-key="${CSS.escape(key)}"]`)
+      || inspBody.querySelector(`[data-field-key="${CSS.escape(acc)}"]`)
+  }
+
+  /** Show the inspector field behind something clicked on the page. */
+  function focusField(key, tab) {
+    if (tab && inspTab !== tab) { inspTab = tab; renderInspector() }
+    setInspHidden(false)
+    // A group (Publishing, "Product details") may be closed around the field.
+    const reveal = () => {
+      const el = fieldElFor(key)
+      if (!el) return false
+      for (let n = el; n; n = n.parentElement) if (n.tagName === 'DETAILS') n.open = true
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      el.classList.remove('field-flash'); void el.offsetWidth; el.classList.add('field-flash')
+      el.querySelector('input, textarea, select, [contenteditable]')?.focus?.({ preventScroll: true })
+      return true
+    }
+    if (!reveal()) requestAnimationFrame(() => { reveal() })
+    // Flash the same words on the page, so the two halves line up.
+    if (tab === 'page') iframe.contentWindow?.postMessage({ blockhouse: 'flashfield', key }, '*')
   }
 
   function renderInspector() {
@@ -629,6 +915,15 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     return renderSeoTab()
   }
 
+  // Mirrors isCanonicalWidthField in src/render/layout.ts: a `width` field that
+  // speaks the shared five-value vocabulary, not a block's own private sizes.
+  const CANON_WIDTHS = ['narrow', 'normal', 'wide', 'page', 'full', 'entry']
+  const isCanonicalWidth = fd =>
+    !!fd && fd.key === 'width' &&
+    (fd.canonicalWidth === true ||
+      (Array.isArray(fd.options) && fd.options.length &&
+        fd.options.every(o => CANON_WIDTHS.includes(typeof o === 'string' ? o : o?.value))))
+
   function renderBlockTab(found) {
     crumbs.style.display = ''
     crumbs.replaceChildren(
@@ -636,101 +931,155 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         onclick: () => { selectedId = null; renderTree(); renderInspector(); iframe.contentWindow?.postMessage({ blockhouse: 'clear' }, '*') },
       }, 'Page'),
       ...(found ? found.parents.flatMap(p => [h('span.sep', {}, '›'), h('button', { onclick: () => selectBlock(p.id) }, byType[p.type]?.label || p.type)]) : []),
-      ...(found ? [h('span.sep', {}, '›'), h('button', { 'aria-current': 'true', style: { color: 'var(--acc-strong)' } }, byType[found.node.type]?.label || found.node.type)] : []))
+      ...(found ? [h('span.sep', {}, '›'), h('button.txt-acc-strong', { 'aria-current': 'true' }, byType[found.node.type]?.label || found.node.type)] : []))
 
     if (!found) {
+      // An empty page asks to be started on the canvas, not in here.
       inspBody.replaceChildren(
-        h('div.empty', { style: { padding: 'var(--s7) var(--s4)' } },
+        h('div.empty.insp-empty', {},
           h('div.empty-ico', {}, iconEl('layout', 26)),
-          h('h3', {}, doc.blocks.length ? 'Nothing selected' : 'This page is empty'),
+          h('h3', {}, 'Nothing selected'),
           h('p', {}, doc.blocks.length
             ? 'Pick a block in the outline, or click one in the preview.'
-            : 'Start with a layout, or add a single block.'),
-          h('div', { style: { display: 'grid', gap: 'var(--s1)', marginTop: 'var(--s3)', width: '100%' } },
-            ...(doc.blocks.length ? [] : STARTERS.map(s => h('button.btn.ghost.small', { onclick: () => applyStarter(s) }, s.label))),
+            : 'Add a block from the canvas and its settings appear here.'),
+          h('div.insp-empty-acts', {},
             h('button.btn.primary.small', { onclick: () => addBlock('', doc.blocks.length) }, 'Add a block'))))
       return
     }
 
     const def = byType[found.node.type]
-    const propsForm = def?.fields?.length
-      ? renderFields(def.fields, found.node.props, (key, value) => {
-        snapshotOnce(`Edit ${labelOf(found.node, def)}`)
-        markDirty(dirtyFor(def.fields, found.node.id, key, value))
-      })
-      : h('div', { style: { padding: 'var(--s0) 0' } },
-        h('p.mut', { style: { fontSize: 'var(--t-m)' } }, 'This block’s text is edited straight on the page.'),
-        h('button.btn.ghost.small', {
-          style: { marginTop: 'var(--s2)' },
-          onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: found.node.id }, '*'),
-        }, 'Show it in the preview'))
 
-    // How wide a block runs is a property of the Section wrapping it, not of
-    // the block — so selecting a Rich text and looking for "width" found
-    // nothing, and the only route to it was knowing to climb to the Section
-    // first. Surface the enclosing Section's layout right here, clearly labelled
-    // as the Section's, so the control is where the question gets asked.
-    const container = [...(found.parents || [])].reverse()
-      .find(p => byType[p.type]?.fields?.some(f => f.key === 'width'))
+    // One width model: a block sitting straight on the page owns its own width;
+    // a block inside a Section takes the Section's. The inspector says which of
+    // the two you are looking at instead of hiding width behind a wrapper, and
+    // never shows two width controls at once.
+    const ownWidth = (def?.fields || []).find(isCanonicalWidth)
+    // A nested block must say where its width comes from even when the block
+    // it sits in has no width of its own — otherwise a level-2 block got no
+    // Layout group at all and the persona had to guess (R9-5 / category 5).
+    const ancestors = [...(found.parents || [])].reverse()
+    const container = ancestors.find(p => (byType[p.type]?.fields || []).some(isCanonicalWidth)) || ancestors[0]
     const containerDef = container && byType[container.type]
-    // A block sitting at page root has no Section, so there is nothing that owns
-    // its width. Rather than leave the inspector silent about layout, offer the
-    // one action that gives it a width: put a Section around it.
-    const wrapDef = !container && byType['section']
-    const wrapForm = wrapDef
-      ? [
+    const containerLabel = containerDef ? (containerDef.label || container.type) : ''
+    // The value, not just the sentence: "Width: set by the Section around it — Wide".
+    const containerWidthField = containerDef && (containerDef.fields || []).find(isCanonicalWidth)
+    const containerWidthValue = containerWidthField
+      ? (container.props?.width ?? containerWidthField.default ?? '')
+      : ''
+    const containerWidthLabel = containerWidthValue
+      ? ((meta.layoutWidths || []).find(w => w.value === containerWidthValue)?.label || containerWidthValue)
+      : ''
+
+    // Rendering the inspector must never touch the document. `node.props =
+    // node.props || {}` here wrote an empty object into the block that happens
+    // to be selected when the editor opens, so a page nobody had edited came
+    // back different from the stored one: Save flipped a published page to
+    // "Published · edited" and asked the owner to republish work that did not
+    // exist (R16-1). The form writes into a local holder and the node only
+    // gains it when a field actually changes.
+    const props = found.node.props || {}
+    const keepProps = () => { found.node.props = props }
+    const propFields = (def?.fields || []).filter(fd => fd !== ownWidth)
+    const propsForm = propFields.length
+      ? renderFields(propFields, props, (key, value) => {
+        keepProps()
+        snapshotOnce(`Edit ${labelOf(found.node, def)}`)
+        markDirty(dirtyFor(propFields, found.node.id, key, value))
+      })
+      : fieldlessForm(found.node, def)
+
+    // "Template default" is one of six options and always does the same as one
+    // of the other five, so it has to say which: "Template default (Normal)".
+    // Two identically-behaving choices with no way to tell them apart is a
+    // guessing game, not a setting.
+    // "Template default" leaves the block unstyled — the template decides. Once
+    // a width had been picked there was no way back to that, so a block could
+    // only ever be returned to "Normal".
+    const widthField = {
+      key: 'width', type: 'select', label: 'Width', default: '',
+      help: 'How wide this block runs across the page.',
+      options: [{ value: '', label: templateDefaultLabel(def) },
+        ...(meta.layoutWidths || []).map(w => ({ value: w.value, label: w.label }))],
+    }
+    // Width changes the markup around the block, so the preview has to reload —
+    // a text patch would leave the old layout on screen.
+    // `holder` is the local the form writes into; `keep` attaches it to the
+    // document, and only ever from a change handler.
+    const onWidth = (holder, keep) => (key, value) => {
+      // Choosing "Template default" has to remove the stored width, not store
+      // an empty one: an empty string is still a value the renderer sees.
+      if (!value) delete holder[key]
+      keep()
+      snapshotOnce(`Edit ${labelOf(found.node, def)}`)
+      markDirty({ structural: true })
+    }
+
+    let layoutForm
+    if (ownWidth) {
+      layoutForm = [
         h('div.insp-section-title', {}, 'Layout'),
-        h('p.mut', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
-          'Width, background and padding belong to a Section. This block is not in one yet.'),
-        h('button.btn.ghost.small', {
-          onclick: () => wrapInSection(found.node.id),
-        }, iconEl('layout', 14), 'Wrap in a Section'),
+        renderFields([widthField], props, onWidth(props, keepProps)),
       ]
-      : []
-
-    const containerForm = container
-      ? [
-        h('div.insp-section-title', {},
-          `${containerDef.label || container.type} layout`,
-          h('button.icon-btn', {
-            'aria-label': `Select the ${containerDef.label || container.type}`,
-            title: `Select the ${containerDef.label || container.type} itself`,
-            onclick: () => selectBlock(container.id),
-          }, iconEl('up', 14))),
-        h('p.mut', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
-          `Width, background and padding belong to the ${(containerDef.label || container.type).toLowerCase()} around this block.`),
-        renderFields(
-          containerDef.fields.filter(f => ['width', 'background', 'padding'].includes(f.key)),
-          container.props,
-          (key, value) => {
-            snapshotOnce(`Edit ${labelOf(container, containerDef)}`)
-            markDirty(dirtyFor(containerDef.fields, container.id, key, value))
-          }),
+    } else if (container) {
+      layoutForm = [
+        h('div.insp-section-title', {}, 'Layout'),
+        h('div.insp-layout-inherit', {},
+          h('p.insp-inherit-line', {},
+            `Width: set by the ${containerLabel} around it`,
+            containerWidthLabel ? h('strong.insp-inherit-val', {}, ` — ${containerWidthLabel}`) : ''),
+          h('button.btn.ghost.small', { onclick: () => selectBlock(container.id) },
+            iconEl('up', 14), `Select the ${containerLabel}`)),
       ]
-      : []
+    } else {
+      // The one that caused R16-1: this branch is what the default-selected
+      // first block of most published pages lands in.
+      const layout = { ...found.node.layout }
+      const keepLayout = () => {
+        if (Object.keys(layout).length) found.node.layout = layout
+        else delete found.node.layout
+      }
+      layoutForm = [
+        h('div.insp-section-title', {}, 'Layout'),
+        renderFields([widthField], layout, onWidth(layout, keepLayout)),
+      ]
+    }
 
-    inspBody.replaceChildren(
+    // Same single-column treatment as the Page tab: label above, input full
+    // width, help below. A sentence of help in the label cell beside a 9-char
+    // select was unreadable and left the control too narrow to use.
+    inspBody.replaceChildren(h('div.fields-stack', {},
       h('div.insp-section-title', {}, def?.label || found.node.type,
         h('button.icon-btn', {
           'aria-label': 'Block actions', title: 'Block actions',
           onclick: e => blockMenu(e, found.node.id),
         }, iconEl('more', 14))),
       propsForm,
-      ...containerForm,
-      ...wrapForm)
+      ...layoutForm))
   }
 
-  /** Put a Section around a root-level block, so it has something that owns its width. */
-  function wrapInSection(id) {
-    const def = byType['section']
-    if (!def) return
-    const site = ops.siteFor(id)
-    snapshotOnce('Wrap in a Section')
-    const sec = ops.insert({ id: uid(), type: 'section', props: seedProps(def), children: [] }, site.parentId, site.index)
-    if (!sec) return
-    ops.move(id, sec.id, 0)
-    selectBlock(id)
-    toast('Wrapped in a Section — its width is in the inspector', 'ok', 2600)
+  /**
+   * A block whose type declares no fields still usually holds one piece of
+   * text — the same prop `labelOf` names the row by. Telling people to "edit it
+   * straight on the page" left the inspector empty and the text unreachable
+   * from the keyboard; edit it here instead.
+   */
+  const TEXT_PROPS = ['title', 'text', 'question', 'label', 'md']
+  function fieldlessForm(node, def) {
+    const key = TEXT_PROPS.find(k => typeof node.props?.[k] === 'string')
+    if (!key) {
+      return h('p.mut.insp-note', {}, 'This block has no settings. Its content comes from the template.')
+    }
+    const field = key === 'md'
+      ? { key, type: 'richtext', label: 'Text' }
+      : { key, type: 'textarea', label: 'Text', rows: 3 }
+    return h('div', {},
+      renderFields([field], node.props, (k, value) => {
+        snapshotOnce(`Edit ${labelOf(node, def)}`)
+        markDirty(dirtyFor([field], node.id, k, value))
+      }),
+      h('button.btn.ghost.small', {
+        onclick: () => iframe.contentWindow?.postMessage({ blockhouse: 'highlight', id: node.id }, '*'),
+      }, 'Show it in the preview'))
   }
 
   // `inside` nests the rest within the first type. Pushing them flat, as this
@@ -764,20 +1113,49 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   /** Persisted disclosure group. Mara's screen stays clean; Priya's levers stay one click away. */
   function group(key, title, open, ...body) {
     const d = h('details.insp-group', { open: disclosure(`e.${key}`, open) },
-      h('summary', {}, title), h('div', { style: { paddingTop: 'var(--s1)' } }, ...body))
+      h('summary', {}, title), h('div.pt-1', {}, ...body))
     d.addEventListener('toggle', () => setDisclosure(`e.${key}`, d.open))
     return d
+  }
+
+  // The page-template list used to be raw file names — `404`, `faqs`, `range`.
+  // The stored value stays the file name; only what the owner reads changes.
+  const TPL_NAMES = {
+    home: 'Home page', product: 'Product page', '404': 'Not-found page',
+    list: 'List page', range: 'Range page', faqs: 'FAQs page',
+    page: 'Standard page', project: 'Project page',
+  }
+  function tplLabel(t) {
+    if (TPL_NAMES[t]) return TPL_NAMES[t]
+    const words = String(t).replace(/[-_]+/g, ' ').trim()
+    return words.charAt(0).toUpperCase() + words.slice(1) + ' page'
+  }
+  function defaultTplLabel(concept) {
+    const t = concept?.template || concept?.name || 'page'
+    const typeLabel = concept?.label || (concept?.name || 'page')
+    return `Default for ${typeLabel} (${tplLabel(t)})`
+  }
+
+  /** What "Template default" actually resolves to for this kind of block. */
+  function templateDefaultLabel(def) {
+    const v = def?.defaults?.width || 'normal'
+    const w = (meta.layoutWidths || []).find(x => x.value === v)
+    return w ? `Template default (${w.label})` : 'Template default'
   }
 
   function renderPageTab() {
     crumbs.style.display = 'none'
     const concept = meta.concepts.find(c => c.name === doc.concept)
     const pageVals = { slug: doc.slug, publishAt: doc.publishAt || '', template: doc.template || '' }
+    const custom = { ...doc.custom }
+    // Repeatable fields seed an empty list into whatever object they are given,
+    // so this one is a copy too — rendering must leave the page as it found it.
+    const fieldVals = { ...doc.fields }
     const tplSelect = h('div')
     const drawTpl = tpls => tplSelect.replaceChildren(renderFields([{
       key: 'template', type: 'select', label: 'Page template',
-      options: tpls.map(t => ({ value: t, label: t || `Default (${concept?.template || concept?.name || 'page'})` })),
-      help: 'Add pages/<name>.liquid under Templates and it appears here.',
+      options: tpls.map(t => ({ value: t, label: t ? tplLabel(t) : defaultTplLabel(concept) })),
+      help: 'Which page layout to use. Leave as Default unless a designer told you otherwise.',
     }], pageVals, (k, v) => { if (v) doc.template = v; else delete doc.template; snapshotOnce('Change template'); markDirty() }))
     drawTpl(window.__blockhousePageTpls || [''])
     if (!window.__blockhousePageTpls) {
@@ -787,10 +1165,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     }
 
     const pubHelp = h('span.help', {}, publishAtHelp())
-    inspBody.replaceChildren(
+    // Restore points used to sit at the very bottom, below custom code. They are
+    // the thing people reach for when something has gone wrong, so they come
+    // second — open already, unless there are none yet.
+    const versions = group('versions', 'Restore points', true,
+      h('p.fnt.insp-note', {}, sc('A restore point is kept every time you press Save (⌘S) or publish.')),
+      versionsPanel(n => { if (!n) versions.open = false }))
+    inspBody.replaceChildren(h('div.fields-stack', {},
       h('div.insp-section-title', {}, 'Publishing'),
       renderFields([
-        { key: 'slug', type: 'text', label: 'Slug', help: 'The last part of the address. Old slugs redirect automatically.' },
+        { key: 'slug', type: 'text', label: 'Page address', help: 'The last part of the web address. If you change it, the old address still works.' },
         { key: 'publishAt', type: 'date', label: 'Publish at' },
       ], pageVals, (k, v) => {
         snapshotOnce('Edit page settings')
@@ -804,22 +1188,39 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         if (k === 'publishAt') pubHelp.textContent = publishAtHelp()
       }),
       pubHelp,
+      versions,
       ...(concept?.fields?.length ? [
-        h('div.insp-section-title', {}, `${concept.label} fields`),
-        renderFields(concept.fields, doc.fields, () => { snapshotOnce('Edit fields'); markDirty() }),
+        h('div.insp-section-title', {}, `${concept.label} details`),
+        renderFields(concept.fields, fieldVals, (k, v) => {
+          // Merge, not replace: editing straight on the preview writes into
+          // `doc.fields` too, and must not be thrown away by a later edit here.
+          doc.fields = Object.assign(doc.fields || {}, fieldVals)
+          snapshotOnce('Edit fields')
+          const fd = fieldDefAt(concept.fields, k)
+          if (TEXTISH.includes(fd?.type || '')) {
+            // Patch the words in place. Reloading the page under the cursor is
+            // what made typing into these fields feel like a fight.
+            refreshPreviewSoon.cancel()
+            dirty = true
+            paintSaveState('', 'Unsaved…')
+            scheduleSave()
+            iframe.contentWindow?.postMessage({ blockhouse: 'patchfield', key: k, value: v }, '*')
+          } else markDirty()
+        }),
       ] : []),
       h('div.insp-section-title', {}, 'Appearance'),
       tplSelect,
-      group('addresses', 'Addresses & redirects', false, routingPanel()),
+      group('addresses', 'Web address', false, routingPanel()),
       group('access', 'Who can see this page', false, accessPanel()),
       group('code', 'Custom code for this page only', false,
-        h('p.fnt', { style: { fontSize: 'var(--t-xs)', marginBottom: 'var(--s2)' } },
+        h('p.fnt.text-xs.mb-2', {},
           'Runs on this page for every visitor. Site-wide code lives in Settings → Custom code.'),
         renderFields([
           { key: 'css', type: 'code', lang: 'css', label: 'CSS', rows: 4 },
           ...(meta.perms.html ? [{ key: 'js', type: 'code', lang: 'js', label: 'JavaScript', rows: 4 }] : []),
-        ], (doc.custom ??= {}), () => { snapshotOnce('Edit custom code'); markDirty() })),
-      group('versions', 'Restore points', false, versionsPanel()))
+        // Same rule as the block inspector: rendering the tab must not add an
+        // empty `custom` to the page (R16-1).
+        ], custom, () => { doc.custom = custom; snapshotOnce('Edit custom code'); markDirty() }))))
   }
 
   function publishAtHelp() {
@@ -830,27 +1231,30 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   function renderSeoTab() {
     crumbs.style.display = 'none'
-    doc.seo ??= {}
+    // A local holder: opening the SEO tab must not add an empty `seo` to the
+    // page (R16-1). It joins the document when a field actually changes.
+    const seoVals = { ...doc.seo }
+    const keepSeo = () => { doc.seo = seoVals }
     const site = meta.site
-    const title = doc.seo.title || doc.title
+    const title = seoVals.title || doc.title
     inspBody.replaceChildren(
       h('div.serp', {},
         h('div.serp-url', {}, (site.url || '') + path),
         h('div.serp-title', {}, title.length > 60 ? title.slice(0, 57) + '…' : title),
-        h('div.serp-desc', {}, (doc.seo.description || 'No meta description set — search engines will improvise one.').slice(0, 160))),
+        h('div.serp-desc', {}, (seoVals.description || 'No meta description set — search engines will improvise one.').slice(0, 160))),
       (() => {
-        const ogImg = h('div.og-img', {}, doc.seo.image ? '' : 'no share image set')
-        if (doc.seo.image) {
+        const ogImg = h('div.og-img', {}, seoVals.image ? '' : 'no share image set')
+        if (seoVals.image) {
           get('/media').then(r => {
-            const mm = r.media.find(x => x.id === doc.seo.image)
+            const mm = r.media.find(x => x.id === seoVals.image)
             if (mm) ogImg.style.backgroundImage = `url(/media/${mm.file})`
           }).catch(() => {})
         }
         return h('div.og-card', {}, ogImg,
           h('div.og-body', {},
             h('div.og-domain', {}, (site.url || '').replace(/^https?:\/\//, '')),
-            h('div.og-title', {}, doc.seo.title || doc.title),
-            h('div.og-desc', {}, doc.seo.description || '')))
+            h('div.og-title', {}, seoVals.title || doc.title),
+            h('div.og-desc', {}, seoVals.description || '')))
       })(),
       renderFields([
         { key: 'title', type: 'text', label: 'SEO title', help: 'Defaults to the document title' },
@@ -859,18 +1263,19 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         { key: 'image', type: 'image', label: 'Social share image' },
         { key: 'canonical', type: 'text', label: 'Canonical URL override' },
         { key: 'noindex', type: 'boolean', label: 'Hide from search engines (noindex)' },
-      ], doc.seo, k => { snapshotOnce('Edit SEO'); markDirty(); if (k === 'keyword' || k === 'image') scheduleSave.now?.() }),
+      ], seoVals, k => { keepSeo(); snapshotOnce('Edit SEO'); markDirty(); if (k === 'keyword' || k === 'image') scheduleSave.now?.() }),
       h('button.btn.ghost.small', {
         onclick: async e => {
           const b = e.currentTarget; b.disabled = true; b.classList.add('busy')
           try {
             const text = JSON.stringify(doc.blocks).slice(0, 8000)
             const r = await post('/x/ai/assist', { task: 'meta', text: `Title: ${doc.title}\n${text}` })
-            doc.seo.description = r.result.slice(0, 160)
+            seoVals.description = r.result.slice(0, 160)
+            keepSeo()
             snapshotOnce('AI description'); markDirty(); renderInspector()
           } catch (err) {
             toast(err?.status === 404
-              ? 'The AI assist plugin is not installed on this site'
+              ? 'The AI assist app is not switched on for this site'
               : `Could not draft a description: ${err.message || err}`, 'err')
           }
           b.disabled = false; b.classList.remove('busy')
@@ -883,62 +1288,73 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   }
 
   function routingPanel() {
-    const row = (label, value, hint) => h('div', { style: { display: 'grid', gap: 'var(--s0)', marginBottom: 'var(--s2)' } },
-      h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, label),
-      h('code', { style: { fontSize: 'var(--t-s)', wordBreak: 'break-all' } }, value),
-      hint ? h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, hint) : '')
+    const row = (label, value, hint) => h('div.stack-0.mb-2', {},
+      h('span.fnt.text-xs', {}, label),
+      h('code.text-s.break-all', {}, value),
+      hint ? h('span.fnt.text-xs', {}, hint) : '')
 
-    const aliases = h('div', { style: { display: 'grid', gap: 'var(--s1)' } })
+    const aliases = h('div.stack-1', {})
     const drawAliases = () => {
       const list = doc.aliases || []
       aliases.replaceChildren(
-        ...list.map((a, i) => h('div', { style: { display: 'flex', gap: 'var(--s1)' } },
-          h('input.input', {
-            value: a, style: { flex: '1' }, placeholder: '/old-url', 'aria-label': `Extra address ${i + 1}`,
-            onchange: e => {
+        ...list.map((a, i) => h('div.d-flex.gap-1', {},
+          h('input.input.grow', { value: a, placeholder: '/old-url', 'aria-label': `Old address ${i + 1}`, onchange: e => {
               const v = e.target.value.trim()
               snapshotOnce('Edit addresses')
               if (!v) list.splice(i, 1)
               else list[i] = v.startsWith('/') ? v : '/' + v
               doc.aliases = list.filter(Boolean)
               markDirty(); drawAliases()
-            },
-          }),
+            } }),
           h('button.icon-btn', {
-            title: 'Remove address', 'aria-label': `Remove address ${a || i + 1}`,
+            title: 'Remove this old address', 'aria-label': `Remove old address ${a || i + 1}`,
             onclick: () => { snapshotOnce('Remove address'); list.splice(i, 1); doc.aliases = list; markDirty(); drawAliases() },
           }, iconEl('trash', 13)))),
         h('button.btn.ghost.small', {
           onclick: () => { doc.aliases = [...(doc.aliases || []), '']; markDirty(); drawAliases() },
-        }, iconEl('plus', 12), 'Add address'),
-        list.length ? h('label.field-check', { style: { marginTop: 'var(--s1)' } },
+        }, iconEl('plus', 12), 'Add an old address'),
+        list.length ? h('label.field-check.mt-1', {},
           h('input', {
             type: 'checkbox', checked: !!doc.mirror,
             onchange: e => { doc.mirror = e.target.checked; if (!doc.mirror) delete doc.mirror; markDirty() },
           }),
-          h('span', {}, 'Mirror instead of redirect')) : '',
-        list.length ? h('span.fnt', { style: { fontSize: 'var(--t-xs)' } },
+          h('span', {}, 'Show this page at the old address too (instead of sending visitors to the new one)')) : '',
+        list.length ? h('span.fnt.text-xs', {},
           doc.mirror
-            ? 'Each address renders this page in place (canonical tag still points here).'
-            : 'Each address 301-redirects to the canonical URL.') : '')
+            ? 'The page appears at both addresses. Search engines are told this one is the real one.'
+            : 'Anyone who uses an old address is sent to the address above.') : '')
     }
     drawAliases()
 
+    // Plain English first. Everything a developer might want (the file that
+    // gets written, the address style) is true but not what the owner came
+    // here for, so it sits folded away at the bottom.
     return h('div', {},
-      row('Canonical URL', (meta.site.url || '') + (href || path), 'Changing the slug adds an automatic redirect from the old one.'),
-      row('Static file', exportFile || 'index.html', `URL style: ${meta.urls?.style || 'directory'} · layout: ${meta.urls?.layout || 'pattern'}`),
-      h('a.btn.ghost.small', { href: '#/settings/urls', style: { marginBottom: 'var(--s2)' } }, 'Change URL style →'),
-      shortlink ? row('Shortlink', (meta.site.url || '') + shortlink, 'Stable even if the slug changes.') : '',
-      h('span.fnt', { style: { fontSize: 'var(--t-xs)', display: 'block', margin: 'var(--s3) 0 var(--s1)' } }, 'Extra addresses'),
-      aliases)
+      row('Address', (meta.site.url || '') + (href || path), 'The full link to this page.'),
+      shortlink ? row('Short link', (meta.site.url || '') + shortlink, 'Always works, even if you rename the page.') : '',
+      h('span.fnt.text-xs.d-block.m-3-0-1', {}, 'Old addresses'),
+      h('p.fnt.text-xs.mb-2', {}, 'If you change the address, the old one keeps working automatically. You can add more here.'),
+      aliases,
+      h('details.insp-group.mt-2', {},
+        h('summary', {}, 'Technical details'),
+        h('div.pt-1', {},
+          row('File written when you export the site', exportFile || 'index.html'),
+          row('Address style', `${meta.urls?.style || 'directory'} · ${meta.urls?.layout || 'pattern'}`),
+          h('a.btn.ghost.small', { href: '#/settings/urls' }, 'Change the address style →'))))
   }
 
   function accessPanel() {
     const hasMembers = (meta.panels || []).some(p => p.plugin === 'members')
-    doc.access ??= {}
+    // Local holder again (R16-1): showing "Who can see this page" must not add
+    // an empty `access` to the document.
+    const access = { ...doc.access }
+    const keepAccess = () => {
+      if (Object.keys(access).length) doc.access = access
+      else delete doc.access
+    }
     const wrap = h('div', {})
     const draw = () => {
-      const mode = doc.access.mode || 'public'
+      const mode = access.mode || 'public'
       const groups = meta.memberGroups || []
       const modeSelect = h('div')
       modeSelect.append(renderFields([{
@@ -948,87 +1364,204 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           { value: 'members', label: 'Signed-in members' },
           { value: 'groups', label: 'Specific member groups' },
         ],
-        help: hasMembers ? '' : 'Install the Members plugin to use member-only pages.',
+        help: hasMembers ? '' : 'Switch on the Members app to use member-only pages.',
       }], { mode }, (k, v) => {
         snapshotOnce('Change access')
-        if (v === 'public') doc.access = {}
-        else doc.access.mode = v
+        if (v === 'public') for (const key of Object.keys(access)) delete access[key]
+        else access.mode = v
+        keepAccess()
         markDirty(); draw()
       }))
       wrap.replaceChildren(
         modeSelect,
         mode === 'groups'
           ? (groups.length
-            ? h('div', { style: { display: 'grid', gap: 'var(--s1)', margin: 'var(--s0) 0 var(--s3)' } },
+            ? h('div.stack-1.m-0-0-3', {},
               ...groups.map(g => h('label.field-check', {},
                 h('input', {
-                  type: 'checkbox', checked: (doc.access.groups || []).includes(g.id),
+                  type: 'checkbox', checked: (access.groups || []).includes(g.id),
                   onchange: e => {
-                    const set = new Set(doc.access.groups || [])
+                    const set = new Set(access.groups || [])
                     e.target.checked ? set.add(g.id) : set.delete(g.id)
-                    doc.access.groups = [...set]
+                    access.groups = [...set]
+                    keepAccess()
                     markDirty()
                   },
                 }),
                 h('span', {}, g.label))))
-            : h('p.mut', { style: { fontSize: 'var(--t-s)' } }, 'No member groups yet — add them under Members → Groups.'))
+            : h('p.mut.text-s', {}, 'No member groups yet — add them under Members → Groups.'))
           : '',
         mode !== 'public'
-          ? renderFields([{ key: 'redirect', type: 'text', label: 'Send visitors to', help: 'Blank uses the Members login page.' }], doc.access, (k, v) => {
-            if (v) doc.access.redirect = v; else delete doc.access.redirect
+          ? renderFields([{ key: 'redirect', type: 'text', label: 'Send visitors to', help: 'Blank uses the Members login page.' }], access, (k, v) => {
+            if (v) access.redirect = v; else delete access.redirect
+            keepAccess()
             markDirty()
           })
           : '',
         mode !== 'public'
-          ? h('p.mut', { style: { fontSize: 'var(--t-s)' } }, 'Gated pages are served with no-store and are skipped by static exports and sitemaps.')
+          ? h('p.mut.text-s', {}, 'Gated pages are served with no-store and are skipped by static exports and sitemaps.')
           : '')
     }
     draw()
     return wrap
   }
 
-  function versionsPanel() {
+  /**
+   * "Saved at 14:12", with the day when it is not today. The clock time is what
+   * the person remembers about the change they want back.
+   */
+  function savedWhen(ts) {
+    const d = new Date(ts)
+    if (isNaN(d.getTime())) return fmtDate(ts)
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const now = new Date()
+    if (d.toDateString() === now.toDateString()) return `at ${time}`
+    const yest = new Date(now)
+    yest.setDate(now.getDate() - 1)
+    if (d.toDateString() === yest.toDateString()) return `yesterday at ${time}`
+    return `on ${d.toLocaleDateString([], { day: 'numeric', month: 'short' })} at ${time}`
+  }
+
+  function versionsPanel(onCount) {
     const holder = h('div', {}, skeleton('rows', 3))
     get(`/content/${doc.id}/versions`).then(({ versions }) => {
-      holder.replaceChildren(...(versions.length ? versions.slice(0, 10).map(v =>
-        h('div', { style: { display: 'flex', gap: 'var(--s1)', alignItems: 'center' } },
-          h('button.row-item', {
-            style: { flex: 1 },
-            onclick: () => window.open(`/preview/${doc.id}?version=${encodeURIComponent(v.key)}`, '_blank', 'noopener'),
+      onCount?.(versions.length)
+      // Ten rows reading "Nth restore point · Saved · Tower Parking System /
+      // Saved at 03:28" gave the owner nothing to choose between (R16-2,
+      // R17-3). Two things fix that. Every run of saves made inside the same
+      // minute is now folded into one expandable row — "6 saves at 03:28" —
+      // whether or not the saves were identical, so the list reads as the
+      // handful of moments the owner remembers rather than as autosave noise.
+      // And the ordinals are gone: "1st restore point" headed the NEWEST row,
+      // which reads backwards. The newest is simply "Latest"; the rest are
+      // named by their clock time, which is what people remember anyway.
+      const CAUSE = { save: 'Saved', publish: 'Published', restore: 'Restored' }
+      const CAUSES = { save: 'saves', publish: 'publishes', restore: 'restores' }
+      const minuteOf = v => String(v.savedAt || '').slice(0, 16)
+
+      // Mark a point that looks exactly like the one before it, so nobody
+      // hunts through identical copies.
+      versions = versions.map((v, i) => ({
+        ...v,
+        same: !!(versions[i + 1]?.fingerprint && versions[i + 1].fingerprint === v.fingerprint),
+      }))
+
+      // Group consecutive entries from the same minute (newest first).
+      const groups = []
+      for (const v of versions) {
+        const g = groups[groups.length - 1]
+        if (g && minuteOf(g.items[0]) === minuteOf(v)) g.items.push(v)
+        else groups.push({ items: [v] })
+      }
+
+      const nameOf = v => `${CAUSE[v.action] || 'Saved'}${v.title ? ` · ${v.title}` : ''}`
+
+      // R19 — a note only ever appeared when a version's fingerprint matched
+      // the one before it. Older restore points were written before the studio
+      // recorded a fingerprint at all, so six rows in a row came out reading
+      // exactly the same and there was nothing to choose between them. Say
+      // whatever the saved version does tell us, and when it tells us nothing,
+      // say that plainly rather than leaving the row bare.
+      const noteOf = v => {
+        if (v.same) return 'no visible change'
+        if (v.fingerprint) return ''
+        const n = Number(v.blocks)
+        if (Number.isFinite(n) && n > 0) return `${n} ${n === 1 ? 'block' : 'blocks'} on the page`
+        return 'older save'
+      }
+
+      // Within one minute the clock time is the same on every row, so two rows
+      // can still read identically. Fall back to the seconds, which always
+      // differ, for any time that more than one visible row shares.
+      const clash = {}
+      for (const v of versions) clash[String(v.savedAt || '').slice(0, 16)] = (clash[String(v.savedAt || '').slice(0, 16)] || 0) + 1
+      const whenOf = v => {
+        const base = savedWhen(v.savedAt)
+        if (clash[String(v.savedAt || '').slice(0, 16)] < 2) return base
+        const d = new Date(v.savedAt)
+        const secs = isNaN(d.getTime()) ? '' : String(d.getSeconds()).padStart(2, '0')
+        return secs ? `${base}:${secs}` : base
+      }
+
+      /** One restore point: preview on the left, Restore on the right. */
+      function pointRow(v, lead) {
+        const note = noteOf(v)
+        const label = `${lead ? `${lead} · ` : ''}${nameOf(v)} ${whenOf(v)}${note ? ` · ${note}` : ''}`
+        return h('div.d-flex.gap-1.items-center', {},
+          h('button.row-item.grow', {
+            'aria-label': `Preview the restore point ${label}`,
             title: 'Preview this version in a new tab',
+            onclick: () => window.open(`/preview/${doc.id}?version=${encodeURIComponent(v.key)}`, '_blank', 'noopener'),
           }, h('span.row-ico', { html: icon('clock', 14) }),
-            h('span.row-label', {}, `v${v.version}`, h('div.row-sub', {}, `${fmtDate(v.savedAt)}${v.author ? ` · ${v.author}` : ''}`))),
+            h('span.row-label', {}, `${lead ? `${lead} · ` : ''}${nameOf(v)}`,
+              h('div.row-sub', {}, `${CAUSE[v.action] || 'Saved'} ${whenOf(v)}`,
+                note ? h('span.rp-note', {}, ` · ${note}`) : ''))),
           h('button.btn.ghost.small', {
+            'aria-label': `Restore the restore point ${label}`,
             onclick: async () => {
               if (!(await confirmDialog('Restore this version',
-                `Restore v${v.version} from ${fmtDate(v.savedAt)}? Your current version is saved as a restore point first, and you can undo this.`, 'Restore'))) return
-              snapshot(`Restore v${v.version}`)
+                `Restore the version saved ${savedWhen(v.savedAt)}? Your current version is saved as a restore point first, and you can undo this.`, 'Restore'))) return
+              snapshot('Restore a saved version')
               await post(`/content/${doc.id}/restore`, { key: v.key })
               const fresh = await get(`/content/${doc.id}`)
               Object.assign(doc, fresh.doc)
               baseVersion = fresh.doc.version
               titleInput.value = doc.title
               renderTree(); renderInspector(); renderStatus(); refreshPreview()
-              undoToast(`Restored v${v.version}`, doUndo)
+              undoToast(`Restored the version saved ${savedWhen(v.savedAt)}`, doUndo)
             },
           }, 'Restore'))
-      ) : [h('p.mut', {}, 'No restore points yet — they are written when you press Save and whenever the page structure changes.')]))
+      }
+
+      holder.replaceChildren(...(groups.length ? groups.slice(0, 10).map((g, gi) => {
+        const lead = gi === 0 ? 'Latest' : ''
+        if (g.items.length === 1) return pointRow(g.items[0], lead)
+        // A run inside one minute: one row that opens on the individual saves.
+        const kinds = new Set(g.items.map(v => v.action))
+        const word = kinds.size === 1 ? (CAUSES[[...kinds][0]] || 'saves') : 'changes'
+        const head = `${g.items.length} ${word} ${savedWhen(g.items[0].savedAt)}`
+        return h('details.rp-group', {},
+          h('summary.rp-summary', {}, lead ? `${lead} · ${head}` : head,
+            h('span.rp-note', {}, ' · newest first')),
+          h('div.rp-group-body', {}, ...g.items.map(v => pointRow(v, ''))))
+      }) : [h('p.mut', {}, 'No restore points yet — they are written when you press Save and whenever the page structure changes.')]))
     }).catch(() => holder.replaceChildren(h('p.mut', {}, 'Could not load restore points.')))
     return holder
   }
 
   // ---------- topbar ----------
 
+  // The editor is the screen the reader spends the day in and it was the one
+  // screen with no "?" of its own (R8-6). It now sits in the toolbar beside the
+  // width buttons AND stays in the "⋯" menu, which is where people had learned
+  // to look for it.
+  const helpBtn = helpButton('editor', 'the editor')
+
   const titleInput = h('input.doc-title-input', { value: doc.title, 'aria-label': 'Document title', readonly: readOnly })
   titleInput.addEventListener('input', () => { doc.title = titleInput.value; snapshotOnce('Rename'); markDirty() })
 
-  const statusHolder = h('span')
+  // R11 — a class, so the toolbar's flex rules can reach the chip: below
+  // 1100px it yields its width to the title and hides (the ⋯ menu carries the
+  // same words at that width).
+  const statusHolder = h('span.doc-status')
+  let statusLabel = '', statusTip = ''
   function renderStatus() {
+    // ONE chip, in the same words the lists use. Two lower-case chips
+    // ("published" + "unpublished edits") were a third vocabulary for a state
+    // the dashboard and the page list already had names for.
     const scheduled = doc.publishAt && new Date(doc.publishAt) > new Date()
-    statusHolder.replaceChildren(
-      h('span.chip', { class: scheduled ? 'review' : doc.status },
-        scheduled ? `Scheduled · ${new Date(doc.publishAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : doc.status),
-      stale ? h('span.chip.stale', { title: 'The published version is older than this draft' }, 'unpublished edits') : '')
+    const when = scheduled
+      ? new Date(doc.publishAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+      : ''
+    const [cls, text, tip] =
+      scheduled ? ['sched', `Scheduled · ${when}`, `Goes live on ${when}`]
+      : stale ? ['stale', 'Published · edited', 'Published, with changes not on the website yet']
+      : doc.status === 'published' ? ['published', 'Published', 'Live on the website']
+      : doc.status === 'review' ? ['review', 'In review', 'Waiting to be checked']
+      : ['draft', 'Draft', 'Not on the website yet']
+    statusLabel = text
+    statusTip = tip
+    statusHolder.replaceChildren(h('span.chip', { class: cls, title: tip }, text))
   }
 
   function setDevice(k) {
@@ -1061,18 +1594,34 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         },
       }, iconEl(icoName, 14))))
 
+  // R19 — the primary button used to read "Published" on a live page with
+  // nothing pending: a state, not an action, and the dialog behind it then
+  // claimed changes that did not exist. Three honest cases instead.
+  function publishWord() {
+    if (doc.status !== 'published') return 'Publish…'
+    return stale ? 'Republish' : 'Publish again'
+  }
+  function publishTip() {
+    if (doc.status !== 'published') return 'Put this page on the website'
+    return stale ? 'Put your latest changes on the website' : 'Already live — publishes the same content again'
+  }
+
   async function publishFlow() {
     const errors = seo.filter(s => s.level === 'error')
+    const again = doc.status === 'published' && !stale
     dialog({
-      title: doc.status === 'published' ? 'Republish changes' : 'Publish',
+      title: doc.status === 'published' ? (stale ? 'Republish changes' : 'Publish again') : 'Publish',
       body: h('div', {},
-        h('p.dlg-text', {}, `“${doc.title}” will go live at `, h('code', {}, path), '.'),
+        again
+          ? h('p.dlg-text', {}, `This page is already live at `, h('code', {}, path),
+            ' with these exact contents. Publishing again changes nothing for visitors.')
+          : h('p.dlg-text', {}, `“${doc.title}” will go live at `, h('code', {}, path), '.'),
         doc.publishAt && new Date(doc.publishAt) > new Date()
-          ? h('p.dlg-text', { style: { marginTop: 'var(--s2)' } }, `Scheduled for ${new Date(doc.publishAt).toLocaleString()} — it stays hidden until then.`)
+          ? h('p.dlg-text.mt-2', {}, `Scheduled for ${new Date(doc.publishAt).toLocaleString()} — it stays hidden until then.`)
           : '',
-        errors.length ? h('div', { style: { marginTop: 'var(--s3)' } },
+        errors.length ? h('div.mt-3', {},
           h('div.insp-section-title', {}, 'SEO issues'),
-          h('p.fnt', { style: { fontSize: 'var(--t-s)', marginBottom: 'var(--s1)' } }, 'Publishing is not blocked — click one to go and fix it.'),
+          h('p.fnt.text-s.mb-1', {}, 'Publishing is not blocked — click one to go and fix it.'),
           ...errors.map(chk => h('button.row-item', {
             onclick: () => { document.querySelector('dialog.dlg[open]')?.closeWith?.(); setTab('seo') },
           }, h('span.row-ico', { html: icon('warn', 14) }), h('span.row-label', {}, chk.label)))) : '',
@@ -1080,10 +1629,13 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       actions: [
         { label: 'Cancel', onClick: () => true },
         {
-          label: 'Publish now', kind: 'primary', onClick: async () => {
-            await save(true)
+          label: again ? 'Publish again' : 'Publish now', kind: 'primary', onClick: async () => {
+            await save(true, true)
             const r = await post(`/content/${doc.id}/publish`)
             doc.status = r.doc.status; stale = false
+            // Publishing bumps the stored version. Without taking it back the
+            // very next save looks like someone else's write and 409s.
+            await adoptVersion(r.doc)
             renderStatus(); renderActions()
             hooks.refreshCounts?.()
             toast('Published — it is live now', 'ok')
@@ -1094,33 +1646,60 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     })
   }
 
-  const actionsHolder = h('span', { style: { display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center' } })
+  const actionsHolder = h('span.editor-top-group')
   function renderActions() {
     if (readOnly) {
       actionsHolder.replaceChildren(h('span.chip', { title: 'Your account can read this but not change it' }, 'Read only'))
       return
     }
-    // Below 860px the toolbar sheds the device segment, the status chip and the
-    // Save button to fit. They reappear here, so nothing is ever simply gone.
-    const narrow = () => innerWidth <= 860
+    // Below 1100px the toolbar sheds the status chip and the device segment so
+    // the page title keeps its width; below 860px the Save button goes too.
+    // They reappear here, so nothing is ever simply gone.
+    // At 620px and below the toolbar wraps on to a second row and Save is back
+    // on it, so the menu only carries Save in the band where it is hidden.
+    const narrow = () => innerWidth <= 860 && innerWidth > 620
+    // R21 — at 480px and below the zoom/scale note is hidden in the toolbar.
+    const tiny = () => innerWidth <= 480
+    // R11 — the status chip leaves the toolbar below 1100px (it was stealing
+    // the title's width), so from that width down its words live here.
+    const statusHidden = () => innerWidth < 1100
     const more = e => contextMenu(e.clientX, e.clientY, [
-      ...(narrow() ? [
-        { icon: icon(doc.status === 'published' ? 'check' : 'pen', 14), label: `Status: ${doc.status}${stale ? ' · unpublished edits' : ''}`, disabled: true, onClick: () => {} },
-        { icon: icon('save', 14), label: 'Save', shortcut: sc('⌘S'), onClick: () => save(true) },
+      ...(tiny() && zoomNoteText() ? [
+        { icon: icon('desktop', 14), label: zoomNoteText(), disabled: true, onClick: () => {} },
+        '-',
+      ] : []),
+      ...(statusHidden() ? [
+        { icon: icon(doc.status === 'published' ? 'check' : 'pen', 14), label: `${statusLabel} — ${statusTip}`, disabled: true, onClick: () => {} },
         { icon: icon('desktop', 14), label: 'Preview at desktop width', onClick: () => setDevice('') },
         { icon: icon('tablet', 14), label: 'Preview at tablet width', onClick: () => setDevice('tablet') },
         { icon: icon('phone', 14), label: 'Preview at phone width', onClick: () => setDevice('mobile') },
         '-',
       ] : []),
+      ...(narrow() ? [
+        { icon: icon('save', 14), label: 'Save', shortcut: sc('⌘S'), onClick: () => save(true) },
+        '-',
+      ] : []),
       { icon: icon('undo', 14), label: 'Undo', shortcut: sc('⌘Z'), disabled: !undoStack.length, onClick: doUndo },
       { icon: icon('redo', 14), label: 'Redo', shortcut: sc('⇧⌘Z'), disabled: !redoStack.length, onClick: doRedo },
       '-',
+      // The toolbar used to carry a wand button whose only job was this list.
+      { icon: icon('palette', 14), label: 'Quick edit: colour & shape', onClick: () => quickDesign(iframe) },
+      ...(meta.perms.menus ? (meta.menus || []).map(mu => ({
+        icon: icon('menu', 14), label: `Quick edit: links in ${mu.label || mu.key}`, onClick: () => quickMenu(mu.key, () => refreshPreview()),
+      })) : []),
+      { icon: icon('layout', 14), label: 'Quick edit: announcement bar', onClick: () => quickChrome('header.announce', () => refreshPreview()) },
+      { icon: icon('layout', 14), label: 'Quick edit: footer links & social', onClick: () => quickChrome('footer.social', () => refreshPreview()) },
+      '-',
       { icon: icon(focusedMode ? 'eye' : 'eyeOff', 14), label: focusedMode ? 'Show header & footer' : 'Hide header & footer', onClick: toggleFocused },
+      // The biggest preview available is one keystroke away, and nothing said
+      // so: the way to a full-size page has to be visible, not folklore.
+      { icon: icon(wideMode() ? 'panel-open' : 'panel-close', 14), label: 'Focus on the page (hide panels)', shortcut: sc('⌘.'), onClick: () => toggleWide() },
       { icon: icon('external', 14), label: 'Open preview in a new tab', onClick: () => window.open(`/preview/${doc.id}`, '_blank', 'noopener') },
-      { icon: icon('swap', 14), label: 'Swap inspector side', onClick: () => { const on = document.querySelector('.app').classList.toggle('insp-left'); setPref('inspLeft', on) } },
+      { icon: icon('swap', 14), label: 'Swap the settings panel to the other side', onClick: () => { const on = document.querySelector('.app').classList.toggle('insp-left'); setPref('inspLeft', on) } },
+      { icon: icon('book', 14), label: 'Help with the editor', onClick: () => helpBtn.click() },
       '-',
       ...(doc.status === 'published' && meta.perms.publish
-        ? [{ icon: icon('clock', 14), label: 'Unpublish', onClick: async () => { await post(`/content/${doc.id}/unpublish`); doc.status = 'draft'; renderStatus(); renderActions(); toast('Unpublished — the page now 404s for visitors', 'ok') } }]
+        ? [{ icon: icon('clock', 14), label: 'Unpublish', onClick: async () => { const r = await post(`/content/${doc.id}/unpublish`); doc.status = 'draft'; await adoptVersion(r?.doc); renderStatus(); renderActions(); toast('Unpublished — visitors will see a page-not-found message instead', 'ok', 5000) } }]
         : []),
       { icon: icon('home', 14), label: 'Make this the homepage', onClick: makeHome },
       ...(meta.perms.delete ? [{ icon: icon('trash', 14), label: 'Delete document', danger: true, onClick: deleteDoc }] : []),
@@ -1128,7 +1707,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     actionsHolder.replaceChildren(
       h('button.btn.ghost.small', { onclick: () => save(true), title: sc('Save and create a restore point  ⌘S') }, 'Save'),
       meta.perms.publish
-        ? h('button.btn.primary.small', { onclick: publishFlow }, doc.status === 'published' ? (stale ? 'Republish' : 'Published') : 'Publish…')
+        ? h('button.btn.primary.small', { onclick: publishFlow, title: publishTip() }, publishWord())
         : h('button.btn.soft.small', {
           onclick: async () => { await save(true); await post(`/content/${doc.id}/submit`); doc.status = 'review'; renderStatus(); toast('Submitted for review', 'ok') },
         }, 'Submit for review'),
@@ -1162,9 +1741,9 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   // ---------- layout ----------
 
-  const inspector = h('aside.inspector', { 'aria-label': 'Inspector' },
+  const inspector = h('aside.inspector', { 'aria-label': 'Settings panel' },
     h('div.insp-resize', {
-      role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize inspector', tabindex: '0',
+      role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize the settings panel', tabindex: '0',
       onkeydown: e => {
         const step = e.shiftKey ? 64 : 16
         const cur = parseInt(getComputedStyle(inspector).width, 10)
@@ -1200,7 +1779,7 @@ registerView('editor', async (root, [docId, tabParam], query) => {
 
   // Below 1400px the outline is an overlay drawer; above it, a column that can
   // collapse. Same button, same mental model, different mechanism.
-  let outlineBtn = null
+  let outlineBtn = null, inspBtn = null
   const outlineIsDrawer = () => matchMedia('(max-width: 1400px)').matches
   function toggleOutline(force) {
     const drawer = outlineIsDrawer()
@@ -1212,99 +1791,169 @@ registerView('editor', async (root, [docId, tabParam], query) => {
       setDisclosure('outline', on)
       outlineEl.classList.toggle('closed', !on)
     }
-    outlineBtn?.setAttribute('aria-expanded', String(on))
+    outlineBtn?.setAttribute('aria-pressed', String(on))
     outlineBtn?.classList.toggle('on', on)
+    paintOverlayNote()
     setTimeout(paintScale, 260)
+  }
+  /**
+   * The inspector's one toggle. There used to be three ways to hide it. Below
+   * 1100px the inspector is an overlay driven by `insp-open`, so the same
+   * button has to speak that mechanism too.
+   */
+  const inspIsOverlay = () => matchMedia('(max-width: 1100px)').matches
+  const inspShowing = () => {
+    const app2 = document.querySelector('.app')
+    return inspIsOverlay() ? !!app2?.classList.contains('insp-open') : !app2?.classList.contains('insp-hidden')
+  }
+  function setInspHidden(hidden) {
+    const app2 = document.querySelector('.app')
+    if (!app2) return
+    if (inspIsOverlay()) {
+      app2.classList.remove('insp-hidden')
+      app2.classList.toggle('insp-open', !hidden)
+    } else {
+      app2.classList.toggle('insp-hidden', hidden)
+      app2.classList.remove('insp-open')
+      setPref('inspHidden', hidden)
+    }
+    paintInspBtn()
+    setTimeout(paintScale, 260)
+  }
+  function paintInspBtn() {
+    const on = inspShowing()
+    inspBtn?.setAttribute('aria-pressed', String(on))
+    inspBtn?.classList.toggle('on', on)
+    paintOverlayNote()
+  }
+
+  // On a narrow window the two panels are fixed overlays sitting ON the page
+  // rather than beside it, and nothing on screen said so — a 1280px page in a
+  // 168px strip (R9-2b). A thin caption at the top of the canvas says it, and
+  // closes the panel.
+  const overlayNoteText = h('span', {})
+  const overlayNote = h('div.canvas-overlay-note', { hidden: true, role: 'status' },
+    overlayNoteText,
+    h('button.linkish.canvas-overlay-close', {
+      onclick: () => { toggleOutline(false); setInspHidden(true) },
+    }, 'Close'))
+
+  function paintOverlayNote() {
+    if (!matchMedia('(max-width: 1100px)').matches) { overlayNote.hidden = true; return }
+    const outOpen = outlineEl.classList.contains('open')
+    const inspOpen = inspShowing()
+    const names = [outOpen ? 'Outline' : '', inspOpen ? 'Settings panel' : ''].filter(Boolean)
+    if (!names.length) { overlayNote.hidden = true; return }
+    overlayNote.hidden = false
+    overlayNoteText.textContent = names.length === 2
+      ? 'The Outline and the Settings panel are floating over the page — close them to see the whole page.'
+      : `The ${names[0]} is floating over the page — close it to see the whole page.`
   }
   // Crossing the breakpoint must not strand the panel in the other mode's state.
   const onOutlineBp = () => {
     if (outlineIsDrawer()) { outlineEl.classList.remove('closed') }
     else { outlineEl.classList.remove('open'); outlineEl.classList.toggle('closed', !outlineOpen) }
-    outlineBtn?.setAttribute('aria-expanded', String(outlineIsDrawer() ? outlineEl.classList.contains('open') : outlineOpen))
+    const on = outlineIsDrawer() ? outlineEl.classList.contains('open') : outlineOpen
+    outlineBtn?.setAttribute('aria-pressed', String(on))
+    outlineBtn?.classList.toggle('on', on)
+    paintOverlayNote()
   }
   addEventListener('resize', onOutlineBp)
+  addEventListener('resize', paintInspBtn)
   // The button's initial state must describe the mode it is actually in: in
   // drawer mode the outline starts closed whatever the wide-mode pref says.
   queueMicrotask(onOutlineBp)
+  queueMicrotask(paintInspBtn)
+
+  // The save state now says where a saved copy went: a clock beside "Saved"
+  // opens the list of restore points, which used to be buried under the Page tab.
+  const restoreBtn = h('button.icon-btn.restore-btn', {
+    title: `Restore points for this ${typeName}`, 'aria-label': `Restore points for this ${typeName}`,
+    onclick: () => dialog({
+      title: `Restore points for this ${typeName}`,
+      width: 'min(32rem, 94vw)',
+      body: h('div', {},
+        h('p.dlg-text', {}, sc('A restore point is kept every time you press Save (⌘S) or publish.')),
+        versionsPanel()),
+      actions: [{ label: 'Close', onClick: () => true }],
+    }),
+  }, iconEl('clock', 13))
 
   const backTo = peekReturn()
+  // The toolbar spans the whole editor — outline, canvas and inspector — rather
+  // than sitting in the canvas column. Squeezed between two panels it had about
+  // 14 characters for the title ("Car Parking & …"); across the window it has
+  // the room the title needs.
   const editorEl = h('div.editor', {},
-    outlineEl,
-    h('div.editor-mid', {},
       h('div.editor-top', {},
         h('span.editor-top-group', {},
           h('button.icon-btn', {
             title: backTo ? `Back to ${backTo.label}` : 'Back', 'aria-label': backTo ? `Back to ${backTo.label}` : 'Back',
             onclick: () => { const r = popReturn(); location.hash = r ? r.hash : `#/c/${doc.concept}` },
-          }, iconEl('back', 16)),
-          // One control, not two. There used to be a drawer toggle (.open) and a
-          // collapse toggle (.closed) side by side doing the same job badly:
-          // below 1400px the outline is a drawer that only .open reveals, so
-          // the collapse button left it visible, at translate 0, with
-          // pointer-events: none — a panel you could see and could not click,
-          // with clicks falling through to the preview iframe behind it.
-          outlineBtn = h('button.icon-btn.outline-btn', {
-            title: 'Page outline', 'aria-label': 'Page outline',
-            'aria-expanded': String(outlineOpen),
+          }, iconEl('back', 16))),
+        h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState, restoreBtn),
+        h('span.editor-top-group', {},
+          h('span.top-sep', { 'aria-hidden': 'true' }),
+          deviceSeg,
+          scaleHolder,
+          helpBtn,
+          // Two panel toggles, each saying what it controls. There used to be
+          // three overlapping ways to hide a panel plus a drawer button.
+          outlineBtn = h('button.icon-btn.panel-btn', {
+            title: 'Outline', 'aria-label': 'Outline',
+            'aria-pressed': String(outlineOpen),
+            class: outlineOpen ? 'on' : '',
             onclick: () => toggleOutline(),
-          }, iconEl('list', 15))),
-        h('span.editor-top-group.grow', {}, titleInput, statusHolder, saveState),
-        h('span.editor-top-group', {}, deviceSeg,
-          h('button.icon-btn', {
-            title: 'Quick edits — colour, menu, header & footer',
-            'aria-label': 'Quick edits to the site around this page',
-            onclick: e => contextMenu(e.clientX, e.clientY, [
-              { icon: icon('palette', 14), label: 'Colour & shape', onClick: () => quickDesign(iframe) },
-              ...(meta.perms.menus ? (meta.menus || []).map(mu => ({
-                icon: icon('menu', 14), label: `Links in ${mu.label || mu.key}`, onClick: () => quickMenu(mu.key, () => refreshPreview()),
-              })) : []),
-              { icon: icon('layout', 14), label: 'Announcement bar', onClick: () => quickChrome('header.announce', () => refreshPreview()) },
-              { icon: icon('layout', 14), label: 'Footer links & social', onClick: () => quickChrome('footer.social', () => refreshPreview()) },
-            ]),
-          }, iconEl('wand', 15)),
-          helpButton('editor', 'the editor'),
-          h('button.icon-btn', {
-            title: 'Show or hide the inspector', 'aria-label': 'Toggle inspector',
-            class: prefs().inspHidden ? 'on' : '',
-            onclick: e => {
-              const app2 = document.querySelector('.app')
-              const hidden = app2.classList.toggle('insp-hidden')
-              app2.classList.toggle('insp-open', false)
-              setPref('inspHidden', hidden)
-              e.currentTarget.classList.toggle('on', hidden)
-              setTimeout(paintScale, 260)
-            },
-          }, iconEl('columns', 15)),
-          // One labelled control that clears every panel at once. The two
-          // individual toggles remain for fine control, but they are icons in
-          // a crowded bar — at 1440px the canvas was 826px (57%) and nothing
-          // told you it could be otherwise.
-          h('button.btn.ghost.small.wide-btn', {
-            title: sc('Give the page the whole window  ⌘.'),
-            'aria-pressed': String(!!prefs().wideMode),
-            onclick: () => toggleWide(),
-          }, iconEl('panel-close', 14), h('span.wide-label', {}, 'Wide')),
-          h('button.icon-btn.insp-toggle', {
-            title: 'Inspector', 'aria-label': 'Open inspector',
-            onclick: () => document.querySelector('.app').classList.toggle('insp-open'),
-          }, iconEl('pen', 15)),
+          }, iconEl('list', 15), h('span.panel-btn-label', {}, 'Outline')),
+          inspBtn = h('button.icon-btn.panel-btn', {
+            title: 'Settings panel', 'aria-label': 'Settings panel',
+            'aria-pressed': String(!prefs().inspHidden),
+            class: prefs().inspHidden ? '' : 'on',
+            onclick: () => setInspHidden(inspShowing()),
+          }, iconEl('columns', 15), h('span.panel-btn-label', {}, 'Settings panel')),
+          h('span.top-sep', { 'aria-hidden': 'true' }),
           actionsHolder)),
-      previewWrap),
+    outlineEl,
+    h('div.editor-mid', {}, overlayNote, previewWrap),
     inspector)
 
   if (prefs().inspW) root.style.setProperty('--insp-w', prefs().inspW)
   const appEl = document.querySelector('.app')
   appEl?.classList.toggle('insp-left', !!prefs().inspLeft)
   appEl?.classList.toggle('insp-hidden', !!prefs().inspHidden)
-  // While you are editing one document the site-wide rail is not the job —
-  // collapse it to icons and give the pixels to the page you are looking at.
+  // Below 1100px both panels are overlays over the page, so the editor opens
+  // with both closed: the page is what the screen is for (R9-2b). A remembered
+  // choice still applies at the widths where the panels are real columns.
+  if (matchMedia('(max-width: 1100px)').matches) {
+    appEl?.classList.remove('insp-open')
+    outlineEl.classList.remove('open')
+  }
+  queueMicrotask(paintOverlayNote)
+  // While you are editing one document the site-wide rail is not the job — it
+  // goes to icons (so you keep your bearings) and the pixels go to the page.
+  // A full rail cost the canvas ~190px, which showed the page at 49%.
   const railWasOpen = !appEl?.classList.contains('side-collapsed')
   appEl?.classList.add('side-collapsed')
+  hooks.paintNav?.()   // so the rail's own control reads "Expand", not "Collapse"
+  // Watching your navigation shrink with no explanation is unsettling. Say it
+  // once, on this device, and say how to undo it.
+  if (railWasOpen) {
+    let told = false
+    try { told = localStorage.getItem('blockhouse-rail-shrink-told') === '1' } catch {}
+    if (!told) {
+      toast(sc('The sidebar is shrunk while you edit so the page gets more room. Press ⌘B or the arrow at the bottom to bring it back.'), 'info', 5000)
+      try { localStorage.setItem('blockhouse-rail-shrink-told', '1') } catch {}
+    }
+  }
   root.replaceChildren(editorEl)
   // fit only once the holder is actually in the document — measuring a
   // detached element gives 0 and the preview never gets scaled at all
   fitForDevice(prefs().device || '')
   paintSaveState('saved', readOnly ? 'Read only' : 'Saved')
+  // Opening a document used to select nothing, so the inspector said "Nothing
+  // selected" on a page full of blocks. Start on the first top-level block.
+  if (!selectedId && doc.blocks[0]) selectedId = doc.blocks[0].id, multi.add(selectedId)
+  if (!doc.blocks.length && !tabParam) inspTab = 'page'
   renderStatus(); renderActions(); renderTree(); renderInspector()
 
   // ---------- preview bridge ----------
@@ -1317,22 +1966,86 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     if (m.blockhouse === 'needsreload') refreshPreviewSoon()
     if (m.blockhouse === 'provenance') onProvenance(m)
 
-    if (m.blockhouse === 'editstart') { snapshotOnce('Edit text'); suppressPreview = true }
+    if (m.blockhouse === 'editstart') {
+      snapshotOnce(m.field ? 'Edit fields' : 'Edit text')
+      suppressPreview = true
+    }
     if (m.blockhouse === 'edit' && m.id && m.prop) {
       const found = ops.find(m.id)
       if (found) {
-        found.node.props[m.prop] = m.value
+        // `prop` may be a path — `tiles.2.title` is the third tile's title.
+        setPath(found.node.props, m.prop, m.value)
         dirty = true
         paintSaveState('', 'Unsaved…')
         scheduleSave()
       }
     }
+    // Words the template printed from this page's own details, typed straight
+    // on the page. Same save and undo path as a block edit.
+    if (m.blockhouse === 'fieldedit' && m.key) {
+      if (readOnly) return
+      if (m.key === 'doc.title') {
+        doc.title = m.value
+        titleInput.value = m.value
+        dirty = true
+        paintSaveState('', 'Unsaved…')
+        scheduleSave()
+        return
+      }
+      doc.fields ??= {}
+      setPath(doc.fields, m.key, m.value)
+      dirty = true
+      paintSaveState('', 'Unsaved…')
+      scheduleSave()
+    }
     if (m.blockhouse === 'editend') {
       suppressPreview = false
-      if (inspTab === 'block') renderInspector()
+      renderInspector()
       renderTree()
     }
 
+    // Single click on a content field printed by the template: open the Page
+    // tab with that field found and flashing.
+    if (m.blockhouse === 'field' && m.key) {
+      // The page's name lives in the toolbar, not in the inspector.
+      if (m.key === 'doc.title') {
+        titleInput.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        titleInput.classList.remove('field-flash'); void titleInput.offsetWidth
+        titleInput.classList.add('field-flash')
+        titleInput.focus({ preventScroll: true })
+      } else focusField(m.key, 'page')
+    }
+
+    // Click on a picture: the block is already selected, now show the field
+    // that chooses the picture.
+    if (m.blockhouse === 'focusprop' && m.prop) {
+      if (m.id && selectedId !== m.id) selectBlock(m.id, { fromPreview: true })
+      focusField(m.prop, 'block')
+    }
+
+    // A header or footer block — on every page, not this one.
+    if (m.blockhouse === 'slotblock' && m.slot) {
+      if (meta.perms.settings) quickChrome(m.slot, () => refreshPreview(), m.blockId || '')
+      else toast('The header and footer are managed in Settings', 'err')
+    }
+
+    // The bridge says WHERE relative to a block; the tree lives here, so this
+    // is where "before/after/inside" becomes a parent and an index. ops.move
+    // already refuses a move into the dragged block's own descendants.
+    if (m.blockhouse === 'blockdrop' && m.id && m.target) {
+      const tgt = ops.find(m.target)
+      if (!tgt) return
+      if (m.where === 'inside') {
+        if (ops.move(m.id, m.target, 0)) selectBlock(m.id)
+        return
+      }
+      // NOT ops.siteFor — that means "insert after this" and redirects into an
+      // empty container. A drop needs the target's own slot among its siblings.
+      const parentId = tgt.parents.length ? tgt.parents[tgt.parents.length - 1].id : ''
+      const at = tgt.siblings.indexOf(tgt.node) + (m.where === 'after' ? 1 : 0)
+      if (ops.move(m.id, parentId, at)) selectBlock(m.id)
+      return
+    }
     if (m.blockhouse === 'blockaction' && m.id) {
       const act = blockActions(m.id).find(a => a !== '-' && (
         (m.action === 'delete' && a.key === 'delete') ||
@@ -1345,10 +2058,30 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     }
   }
 
-  function onProvenance(m) {
+  async function onProvenance(m) {
     const opts = []
     const seen = new Set()
     const add = (label2, icon2, go, hint) => { if (!seen.has(label2)) { seen.add(label2); opts.push({ label: label2, icon: icon2, go, hint }) } }
+
+    // Every route offered below has to land on a real screen with the promised
+    // thing on it. Which header/footer areas exist depends on the template, and
+    // so does whether it has its own header file to edit, so both are looked up
+    // rather than guessed. An option that cannot land is not offered.
+    const wantsChrome = (m.options || []).some(o => o.kind === 'header' || o.kind === 'footer')
+    let chrome = null
+    let tplFiles = []
+    if (wantsChrome && meta.perms.settings) {
+      chrome = await get('/chrome').catch(() => null)
+      tplFiles = await get('/templates/tree').then(r => r.files || []).catch(() => [])
+    }
+    /** The area of the header/footer worth opening: the one with content in it. */
+    const slotFor = kind => {
+      const keys = (chrome?.discovered || []).map(d => d.key).filter(k => k.startsWith(kind + '.'))
+      if (!keys.length) return null
+      return keys.slice().sort((a, b) =>
+        ((chrome.slots?.[b] || []).length) - ((chrome.slots?.[a] || []).length))[0]
+    }
+
     for (const o of m.options || []) {
       if (o.kind === 'menu' && meta.perms.menus) {
         const mm = meta.menus.find(x => x.key === o.key)
@@ -1356,10 +2089,15 @@ registerView('editor', async (root, [docId, tabParam], query) => {
         add('Open the menu studio', 'external', () => goTo(`#/menus/${o.key}`), 'Structure, mega panels and live preview')
       }
       if ((o.kind === 'header' || o.kind === 'footer') && meta.perms.settings) {
-        const slot = o.kind === 'header' ? 'header.announce' : 'footer.social'
-        add(`Edit the ${o.kind} text`, 'layout', () => quickChrome(slot, () => refreshPreview()), 'Here, without leaving this page')
-        add(`Open the full ${o.kind} editor`, 'external', () => goTo(`#/chrome/${slot}`), 'Add, remove and reorder blocks')
-        add(`Edit the ${o.kind} template`, 'code', () => goTo(`#/tpl/${encodeURIComponent('partials/' + o.kind + '.liquid')}`), 'The structure — a safe override, the built-in file is untouched')
+        const slot = slotFor(o.kind)
+        if (slot) {
+          add(`Edit the ${o.kind} text`, 'layout', () => quickChrome(slot, () => refreshPreview()), 'Here, without leaving this page')
+          add(`Open the full ${o.kind} editor`, 'external', () => goTo(`#/chrome/${encodeURIComponent(slot)}`), 'Add, remove and reorder blocks')
+        }
+        const rel = `partials/${o.kind}.liquid`
+        if (tplFiles.some(f => f.rel === rel)) {
+          add(`Edit the ${o.kind} template`, 'code', () => goTo(`#/tpl/${encodeURIComponent(rel)}`), 'The structure — a safe override, the built-in file is untouched')
+        }
       }
       if (o.kind === 'design' && meta.perms.settings) {
         add('Change the colour & shape', 'palette', () => quickDesign(iframe), 'Here, beside the page — the preview updates as you drag')
@@ -1383,18 +2121,42 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     const dlg = dialog({
       title: m.text ? `“${m.text}”` : 'This part of the page',
       body: h('div', {},
-        h('p.dlg-text', { style: { marginBottom: 'var(--s3)' } }, opts.length > 1 ? 'This is controlled in more than one place — pick where to edit:' : 'Edit it here:'),
-        h('div', { style: { display: 'grid', gap: 'var(--s1)' } },
-          ...(opts.length ? opts : [{ label: 'This comes from the template', icon: 'info', go: null, hint: 'It is not page content — template files or Design control it.' }])
-            .map(o => h('button.row-item', {
-              style: { border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: 'var(--s3) var(--s3)' },
-              onclick: () => { if (o.go) { dlg.closeWith(); o.go() } },
-            },
+        h('p.dlg-text.mb-3', {}, opts.length > 1 ? 'This is controlled in more than one place — pick where to edit:'
+          : opts.length ? 'Edit it here:'
+          : 'These words are part of the page design, not something stored as content — so there is nothing here to type into. You can:'),
+        h('div.stack-1', {},
+          ...(opts.length ? opts : fallbackOptions())
+            .map(o => h('button.row-item.bd-line.rad-s.p-3-3', { onclick: () => { if (o.go) { dlg.closeWith(); o.go() } } },
               h('span.row-ico', { html: icon(o.icon, 16) }),
-              h('div', { style: { textAlign: 'left' } },
-                h('div', { style: { fontWeight: 'var(--fw-semi)', fontSize: 'var(--t-m)' } }, o.label),
-                o.hint ? h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, o.hint) : ''))))),
+              h('div.ta-l', {},
+                h('div.fw-semi.text-m', {}, o.label),
+                o.hint ? h('div.fnt.text-xs', {}, o.hint) : ''))))),
     })
+  }
+
+  /**
+   * Nothing on this page controls what was clicked: it is part of the template's
+   * own markup. Say so in words, and still offer somewhere to go — a dead end
+   * with no way out was the thing people complained about most.
+   */
+  function fallbackOptions() {
+    const out = []
+    if (meta.perms.settings) {
+      out.push({
+        label: 'Edit the template code (for developers)', icon: 'code',
+        hint: 'This wording is written into the page design, not stored as content. Editing it needs HTML.',
+        go: () => goTo('#/tpl'),
+      })
+    }
+    out.push({
+      label: 'Ask about this in Help', icon: 'help',
+      hint: 'What comes from content and what comes from the design, in plain English.',
+      go: () => goTo('#/help/content'),
+    })
+    if (!out.length) {
+      out.push({ label: 'This is part of the page design', icon: 'info', go: null, hint: 'It is not content you can change here. Ask an administrator.' })
+    }
+    return out
   }
 
   const goTo = hash => { hooks.pushReturn?.(doc.title, `#/e/${doc.id}/${inspTab}`); location.hash = hash }
@@ -1410,6 +2172,17 @@ registerView('editor', async (root, [docId, tabParam], query) => {
     // A side sheet lives outside .app, so `inert` does not stop this listener.
     // Everything typed into a sheet belongs to the sheet.
     if (sheetIsOpen()) return
+    // Escape dismisses the topmost floating layer first. Below 1100px the
+    // settings panel and the outline sit ON the page — the canvas caption
+    // calls them floating — and Escape closes a floating layer everywhere
+    // else in the studio. A dialog, sheet or the palette above them keeps
+    // Escape for itself; with nothing floating, Escape falls through to
+    // selecting the parent block (and to the shell's wide-mode exit).
+    if (e.key === 'Escape' && !document.querySelector('dialog[open], .sheet.open')) {
+      if (inspIsOverlay() && inspShowing()) { e.preventDefault(); return setInspHidden(true) }
+      if (outlineIsDrawer() && matchMedia('(max-width: 1100px)').matches
+        && outlineEl.classList.contains('open')) { e.preventDefault(); return toggleOutline(false) }
+    }
     const mod = e.metaKey || e.ctrlKey
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); return save(true) }
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { e.preventDefault(); return doUndo() }
@@ -1484,15 +2257,16 @@ registerView('editor', async (root, [docId, tabParam], query) => {
   addEventListener('beforeunload', beforeUnload)
 
   return () => {
-    if (railWasOpen) appEl?.classList.remove('side-collapsed')
+    if (railWasOpen) { appEl?.classList.remove('side-collapsed'); hooks.paintNav?.() }
     appEl?.classList.remove('insp-hidden')
     removeEventListener('bh:wide', onWide)
     removeEventListener('resize', onOutlineBp)
+    removeEventListener('resize', paintInspBtn)
     removeEventListener('message', onBridgeMsg)
     removeEventListener('keydown', onKey)
     removeEventListener('resize', onResize)
     removeEventListener('beforeunload', beforeUnload)
-    unfitPreview?.()
+    previewRO.disconnect()
     disposeCommands()
     disposeGuard()
     hooks.addBlockByType = null

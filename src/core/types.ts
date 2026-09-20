@@ -9,6 +9,8 @@ export interface BlockNode {
   type: string
   props: Record<string, any>
   children?: BlockNode[]
+  /** How wide this block runs when it sits directly on the page. See src/render/layout.ts. */
+  layout?: { width?: string }
 }
 
 export type DocStatus = 'draft' | 'review' | 'published'
@@ -392,6 +394,7 @@ export interface RenderCtx {
   canonicalPath?: string     // set when serving a mirrored alias — canonical points here
   menuDraft?: string         // menu key rendered from the studio's draft buffer
   bare?: boolean             // hide site chrome (editor focused mode)
+  studioPreview?: boolean    // framed by the studio — suppress banners/popups, force panels shut
   baseUrl: string            // '' live, absolute for export? kept '' — canonical handled in seo
   env: any                   // BlockhouseEnv (typed loosely to avoid cycles)
 }

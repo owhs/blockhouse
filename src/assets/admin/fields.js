@@ -23,6 +23,19 @@ const FORMATS = {
     ? null : 'Use lowercase letters, numbers and hyphens only',
 }
 
+/**
+ * Last-resort text for a select option whose manifest forgot a `label`.
+ * A raw stored key ("subtle", "bottom-left") is not English; this at least
+ * reads as a word — "Subtle", "Bottom left" — so a future omission in a
+ * block manifest degrades to something a site owner can parse.
+ */
+export function optionLabel(value) {
+  const v = String(value ?? '').trim()
+  if (!v) return '—'
+  const words = v.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export function fieldError(def, value) {
   const v = value == null ? '' : String(value)
   if (def.required && !v.trim()) return `${def.label || def.key} is required`
@@ -47,12 +60,55 @@ export function renderFields(defs, values, onChange, opts = {}) {
   return grid
 }
 
+/**
+ * The address of a field inside a form. Plain for a top-level field (`title`);
+ * dotted for one inside a repeatable list (`slides.0.heading`). Clicking the
+ * words on the page sends this key, and the studio uses it to find the box.
+ */
+const fieldKey = (def, opts) => `${opts?.keyPrefix || ''}${def.key}`
+
 function labelRow(def) {
   return h('label', {}, h('span', {}, def.label || def.key), def.help ? h('span.help', {}, def.help) : '')
 }
 
+let fieldIdSeq = 0
+/**
+ * Tie the field's words to the field's box.
+ *
+ * Every row here is `<label><span>Name</span></label><input>` — the label is a
+ * SIBLING of the control, so a screen reader announced ten unnamed edit boxes
+ * on the Page tab. One `for`/`id` pair, applied once for every field type,
+ * fixes the lot; the checkbox row already wraps its input and is left alone.
+ */
+function bindLabel(wrap) {
+  const label = [...wrap.children].find(el => el.tagName === 'LABEL' && !el.classList.contains('field-check'))
+  if (!label || label.htmlFor) return
+  // a control that arrived late replaces the group fallback set on first pass
+  wrap.removeAttribute('role'); wrap.removeAttribute('aria-labelledby')
+  const ctrl = wrap.querySelector('input:not([type=hidden]), select, textarea')
+  if (!ctrl || ctrl.closest('label')) {
+    // Code editors, rich text and list editors mount their controls later (or
+    // have no single control at all). The words still have to name the group.
+    if (!label.id) label.id = `fldl-${++fieldIdSeq}`
+    wrap.setAttribute('role', 'group')
+    wrap.setAttribute('aria-labelledby', label.id)
+    return
+  }
+  if (!ctrl.id) ctrl.id = `fld-${++fieldIdSeq}`
+  label.htmlFor = ctrl.id
+}
+
 export function renderField(def, values, onChange, opts = {}) {
-  const wrap = h('div.field', { class: def.width === 'half' ? 'half' : '' })
+  const wrap = renderFieldControl(def, values, onChange, opts)
+  bindLabel(wrap)
+  return wrap
+}
+
+function renderFieldControl(def, values, onChange, opts = {}) {
+  const wrap = h('div.field', {
+    class: def.width === 'half' ? 'half' : '',
+    'data-field-key': fieldKey(def, opts),
+  })
   const val = values[def.key] ?? def.default ?? ''
   const set = v => { values[def.key] = v; onChange(def.key, v) }
   const deb = debounce(set, 350)
@@ -73,9 +129,12 @@ export function renderField(def, values, onChange, opts = {}) {
           : String(options || '').split('|').map(s => s.trim()).filter(Boolean).map(v => ({ value: v }))
         sel.replaceChildren(
           // A field with a default has no meaningful empty state — offering "—"
-          // let you select nothing and land the block on an invalid value.
-          ...(def.required || def.default !== undefined ? [] : [h('option', { value: '' }, '—')]),
-          ...opts.map(o => h('option', { value: o.value, selected: String(o.value) === String(val) }, o.label || o.value)))
+          // let you select nothing and land the block on an invalid value. Nor
+          // does a list that already carries its own empty entry need a second
+          // one: two options both meaning "leave it alone", one of them a dash.
+          ...(def.required || def.default !== undefined || opts.some(o => String(o.value) === '')
+            ? [] : [h('option', { value: '' }, 'Use the default')]),
+          ...opts.map(o => h('option', { value: o.value, selected: String(o.value) === String(val) }, o.label || optionLabel(o.value))))
       }
       fill(def.options || [])
       if (def.optionsSource?.startsWith('res:')) {
@@ -103,10 +162,12 @@ export function renderField(def, values, onChange, opts = {}) {
         import('./ide.js').then(({ codeEditor }) => {
           const ed = codeEditor({ rel: `x.${def.lang}`, value: String(val ?? ''), onChange: v => deb(v), rows: def.rows || 8 })
           holder.replaceChildren(ed.el || ed)
+          bindLabel(wrap)   // the editor's box only exists now — name it
         }).catch(() => {
           const ta2 = h('textarea.mono', { rows: def.rows || 8, spellcheck: 'false' }, String(val ?? ''))
           ta2.addEventListener('input', () => deb(ta2.value))
           holder.replaceChildren(ta2)
+          bindLabel(wrap)
         })
         return wrap
       }
@@ -140,7 +201,7 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'color': {
-      const input = h('input', { type: 'color', value: val || '#888888', style: { height: '2.1rem', padding: 'var(--s0)' } })
+      const input = h('input.field-color', { type: 'color', value: val || '#888888' })
       input.addEventListener('input', () => deb(input.value))
       wrap.append(labelRow(def), input)
       return wrap
@@ -162,7 +223,7 @@ export function renderField(def, values, onChange, opts = {}) {
     case 'json': {
       const ta = h('textarea.mono', { rows: def.rows || 3, spellcheck: 'false' },
         typeof val === 'string' ? val : (val && Object.keys(val).length ? JSON.stringify(val, null, 2) : ''))
-      const jsonErr = h('span.help', { role: 'status', style: { color: 'var(--err-ink)' } })
+      const jsonErr = h('span.help.txt-err', { role: 'status' })
       ta.addEventListener('input', () => {
         const raw = ta.value.trim()
         if (!raw) { jsonErr.textContent = ''; ta.style.borderColor = ''; deb(null); return }
@@ -181,7 +242,7 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'image': {
-      const preview = h('div.media-thumb', { style: { aspectRatio: '16/7', borderRadius: 'var(--r-s)', border: '1px solid var(--line)', cursor: 'pointer', overflow: 'hidden' } })
+      const preview = h('div.media-thumb.field-img-preview', {})
       const refresh = async () => {
         preview.replaceChildren()
         preview.style.backgroundImage = ''
@@ -201,7 +262,7 @@ export function renderField(def, values, onChange, opts = {}) {
       return wrap
     }
     case 'link': {
-      const display = h('input', { readonly: true, value: linkLabel(val), style: { cursor: 'pointer' } })
+      const display = h('input.clickable', { readonly: true, value: linkLabel(val) })
       display.addEventListener('click', async () => {
         const link = await pickLink(values[def.key])
         if (link !== undefined) { set(link); display.value = linkLabel(link) }
@@ -273,33 +334,54 @@ function linkLabel(v) {
 
 function listEditor(def, values, onChange, opts) {
   const rows = Array.isArray(values[def.key]) ? values[def.key] : (values[def.key] = [])
-  const holder = h('div.list-rows')
+  const base = fieldKey(def, opts)
+  const holder = h('div.list-rows', { 'data-list-key': base })
   const commit = () => onChange(def.key, rows)
+  // Row numbers move when a row is dragged or deleted, so they are stamped on
+  // from the live array rather than captured when the row was built.
+  const renumber = () => {
+    [...holder.children].forEach((el, i) => el.setAttribute('data-list-index', String(i)))
+  }
 
   const rowEl = item => {
     const body = h('div.list-row-body', { style: { display: 'none' } })
-    const label = h('span.lr-label', {}, itemLabel(def, item))
-    const head = h('div.list-row-head', {},
-      h('span.t-grip', { html: iconGrip(), 'aria-hidden': 'true' }), label,
+    const label = h('span.lr-label', {}, itemLabel(def, item, rows))
+    const relabel = () => { label.textContent = itemLabel(def, item, rows) }
+    const head = h('div.list-row-head', { role: 'button', tabindex: '0', 'aria-expanded': 'false', title: 'Open to edit this item' },
+      h('span.t-grip', { html: iconGrip(), 'aria-hidden': 'true' }),
+      h('span.lr-chev', { 'aria-hidden': 'true' }, '›'), label,
+      h('span.lr-edit', {}, 'Edit'),
       h('button.icon-btn', {
-        onclick: e => { e.stopPropagation(); rows.splice(rows.indexOf(item), 1); el.remove(); commit() },
-        title: 'Remove', 'aria-label': `Remove ${itemLabel(def, item)}`,
+        onclick: e => { e.stopPropagation(); rows.splice(rows.indexOf(item), 1); el.remove(); renumber(); commit() },
+        title: 'Remove', 'aria-label': `Remove ${itemLabel(def, item, rows)}`,
       }, '✕'))
-    head.addEventListener('click', () => {
+    const toggle = () => {
       const open = body.style.display === 'none'
       body.style.display = open ? '' : 'none'
+      el.classList.toggle('open', open)
+      head.setAttribute('aria-expanded', String(open))
       if (open && !body.childElementCount) {
-        body.appendChild(renderFields(def.item || [], item, () => { label.textContent = itemLabel(def, item); commit() }, opts))
+        // Fields inside a row are addressed as `<list>.<row>.<field>` so a
+        // click on that row's words out on the page lands in the right box.
+        const prefix = `${base}.${rows.indexOf(item)}.`
+        body.appendChild(renderFields(def.item || [], item, () => { relabel(); commit() }, { ...opts, keyPrefix: prefix }))
       }
-    })
+    }
+    head.addEventListener('click', toggle)
+    head.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } })
     const el = h('div.list-row', { draggable: 'true' }, head, body)
+    // Short lists open every row straight away: three tiles or six slides
+    // should be editable the moment the block is selected, not after a hunt
+    // for an unmarked row that happens to expand.
+    if (rows.length <= 4) queueMicrotask(toggle)
     return el
   }
 
   for (const item of rows) holder.appendChild(rowEl(item))
+  renumber()
   makeSortable(holder, {
     handle: '.t-grip',
-    onMove: (from, to) => { const [m] = rows.splice(from, 1); rows.splice(to, 0, m); commit() },
+    onMove: (from, to) => { const [m] = rows.splice(from, 1); rows.splice(to, 0, m); renumber(); commit() },
   })
 
   const add = h('button.tree-add', {
@@ -309,6 +391,7 @@ function listEditor(def, values, onChange, opts) {
       rows.push(item)
       const el = rowEl(item)
       holder.appendChild(el)
+      renumber()
       el.querySelector('.list-row-head').click()
       commit()
     },
@@ -316,9 +399,44 @@ function listEditor(def, values, onChange, opts) {
   return h('div', {}, holder, add)
 }
 
-function itemLabel(def, item) {
-  const first = (def.item || []).find(f => f.type === 'text' || f.type === 'select')
-  return String(item[first?.key] || item.label || item.title || item.name || 'Item')
+/**
+ * A row's name in the list. Six slides all reading "We help maximise space"
+ * (the first text field, empty or not, falling back to a shared word) told you
+ * nothing about which was which: take the first field that actually HAS words,
+ * and when a row has none, number it — "Slide 4".
+ */
+/**
+ * A row's name is read, not rendered, so the markdown that makes it a link or
+ * bold in the page is just noise here — "Shown with our [Bannockburn](/b/) L…"
+ * is the wrong 60 characters. Keep the words, drop the punctuation.
+ */
+function plain(s) {
+  return String(s)
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')    // [text](url) and images
+    .replace(/!?\[([^\]]*)\]\[[^\]]*\]/g, '$1')   // [text][ref]
+    .replace(/`([^`]*)`/g, '$1')                  // `code`
+    .replace(/(\*\*\*|___|\*\*|__|\*|_)/g, '')    // bold / italic markers
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')           // headings
+    .replace(/^\s{0,3}>\s?/gm, '')                // block quotes
+    .replace(/<[^>]+>/g, '')                      // stray inline html
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+}
+
+function itemLabel(def, item, rows) {
+  const TEXTY = ['text', 'textarea', 'select', 'markdown', 'richtext']
+  for (const f of def.item || []) {
+    if (!TEXTY.includes(f.type || 'text')) continue
+    const v = item[f.key]
+    if (typeof v === 'string' && v.trim()) { const t = plain(v); if (t) return t }
+  }
+  for (const k of ['label', 'title', 'name', 'heading']) {
+    if (typeof item[k] === 'string' && item[k].trim()) { const t = plain(item[k]); if (t) return t }
+  }
+  const one = String(def.label || 'Item').replace(/ies$/i, 'y').replace(/s$/i, '')
+  const i = Array.isArray(rows) ? rows.indexOf(item) : -1
+  return i >= 0 ? `${one} ${i + 1}` : one
 }
 
 // ---------- table editor ----------
@@ -376,7 +494,7 @@ export function pickMedia() {
     const dlg = dialog({
       title: 'Choose an image',
       width: 'min(46rem, 94vw)',
-      body: [h('div', { style: { marginBottom: 'var(--s4)' } }, h('button.btn.ghost.small', { onclick: () => file.click() }, '⇧ Upload new'), file), grid],
+      body: [h('div.mb-4', {}, h('button.btn.ghost.small', { onclick: () => file.click() }, '⇧ Upload new'), file), grid],
       onClose: () => done(undefined),
     })
     load()
@@ -391,7 +509,7 @@ export function pickLink(current) {
     const done = v => { if (!resolved) { resolved = true; resolve(v) } }
     const url = h('input', { placeholder: 'https://… or /path or #anchor', value: typeof current === 'object' ? (current?.href || '') : (current || '') })
     const search = h('input', { placeholder: 'Search documents…' })
-    const list = h('div', { style: { display: 'grid', gap: '1px', maxHeight: '13rem', overflowY: 'auto' } })
+    const list = h('div.d-grid.gap-px.mh-13.ovy-a', {})
     let docs = []
     get('/content').then(r => { docs = r.docs; renderList() })
     const renderList = () => {

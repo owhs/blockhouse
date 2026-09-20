@@ -220,3 +220,63 @@ test('deploy: each target writes files interpolated from the site config', () =>
   expect(again.every(w => w.skipped)).toBe(true)
   rmSync(dir, { recursive: true, force: true })
 })
+
+// ---------- content store: a save that changes nothing (R15-1) ----------
+
+test('content: saving an identical document is a no-op', async () => {
+  const d = new MemoryDriver()
+  await d.write('site/site.json', JSON.stringify({ name: 'T', url: 'https://t.example' }))
+  await d.write('site/concepts/page.json', JSON.stringify(page))
+  const cs = new ContentStore(d)
+
+  const first = await cs.saveDoc(doc({ id: 'd1', slug: 'about', blocks: [{ id: 'b1', type: 'text', props: { html: 'hi' } } as any] }))
+  await cs.saveDoc({ ...first, title: 'About us' })          // a real edit: version 2, one restore point
+  const edited = (await cs.getDoc('d1'))!
+  expect(edited.version).toBe(2)
+  expect((await cs.versions('d1')).length).toBe(1)
+
+  // Same content, different key order and a fresh object — the document itself
+  // is left alone. (An explicit save may still keep a restore point; that is
+  // the next test.)
+  const again = await cs.saveDoc(JSON.parse(JSON.stringify({ ...edited, updatedAt: '1999-01-01T00:00:00.000Z' })), { snapshot: false })
+  expect(again.version).toBe(2)
+  expect(again.updatedAt).toBe(edited.updatedAt)
+  expect((await cs.versions('d1')).length).toBe(1)           // no extra restore point
+  expect(JSON.parse((await d.readText('site/content/page/about.json'))!).version).toBe(2)
+
+  // A genuine change still bumps the version.
+  const changed = await cs.saveDoc({ ...edited, blocks: [{ id: 'b1', type: 'text', props: { html: 'bye' } } as any] })
+  expect(changed.version).toBe(3)
+})
+
+// R21-2: edit, let the autosave land, then press Save. The text now matches the
+// autosaved document but not the last restore point, and Save promises one.
+test('content: an explicit save after an autosave still keeps a restore point', async () => {
+  const d = new MemoryDriver()
+  await d.write('site/site.json', JSON.stringify({ name: 'T', url: 'https://t.example' }))
+  await d.write('site/concepts/page.json', JSON.stringify(page))
+  const cs = new ContentStore(d)
+
+  const first = await cs.saveDoc(doc({ id: 'd1', slug: 'about' }))
+  const before = (await cs.versions('d1')).length
+
+  // autosave: the edit reaches the server, no restore point
+  await cs.saveDoc({ ...first, title: 'About us' }, { snapshot: false })
+  expect((await cs.versions('d1')).length).toBe(before)
+  const autosaved = (await cs.getDoc('d1'))!
+
+  // explicit Save of the very same text: one restore point, document untouched
+  const r = await cs.saveDocResult({ ...autosaved }, { snapshot: true })
+  expect(r.unchanged).toBe(true)
+  expect(r.snapshot).toBe(true)
+  expect(r.doc.version).toBe(autosaved.version)
+  const after = await cs.versions('d1')
+  expect(after.length).toBe(before + 1)
+  expect(after[0]!.title).toBe('About us')
+
+  // pressing Save again adds nothing: the restore point already matches
+  const r2 = await cs.saveDocResult({ ...autosaved }, { snapshot: true })
+  expect(r2.unchanged).toBe(true)
+  expect(r2.snapshot).toBe(false)
+  expect((await cs.versions('d1')).length).toBe(after.length)
+})

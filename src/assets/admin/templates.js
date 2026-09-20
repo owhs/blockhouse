@@ -7,6 +7,7 @@
 import { get, put, del, post } from './api.js'
 import { h, debounce, confirmDialog, toast, emptyState, fitPreviewFrame, sc } from './ui.js'
 import { registerView, state } from './state.js'
+import { helpButton } from './help.js'
 import { icon, iconEl } from './icons.js'
 import { codeEditor, LIQUID } from './ide.js'
 
@@ -62,10 +63,12 @@ registerView('templates', async (root, [relParam]) => {
     onChange: () => { dirty = true; saveBtn.textContent = 'Save •'; pushDraft() },
     onSave: () => doSave(),
   })
+  // The code box is the only control on this page with no name of its own.
+  editor.el.querySelector('.ide-ta')?.setAttribute('aria-label', 'Template code')
 
   // ---------- preview pane ----------
   let previewOn = false
-  const pvFrame = h('iframe', { title: 'Draft preview', style: { pointerEvents: 'none' } })
+  const pvFrame = h('iframe.no-pointer', { title: 'Draft preview' })
   const pvHolder = h('div.preview-frame-holder', {}, pvFrame)
   const pvWrap = h('div.preview-wrap.tpl-preview', { hidden: true }, pvHolder)
   let unfit = null
@@ -80,10 +83,7 @@ registerView('templates', async (root, [relParam]) => {
       if (previewOn) { unfit ??= fitPreviewFrame(pvHolder, pvFrame, 1280); pushDraft.now?.(); reloadPreview() }
     },
   }, iconEl('eye', 13), 'Preview')
-  const pvPathSel = h('select.input', {
-    style: { width: 'auto', padding: 'var(--s0) var(--s6) var(--s0) var(--s2)', fontSize: 'var(--t-s)' },
-    onchange: e => { pvPath = e.target.value; if (previewOn) reloadPreview() },
-  }, h('option', { value: '/' }, 'Home'))
+  const pvPathSel = h('select.input.w-auto.p-0-6-0-2.text-s', { onchange: e => { pvPath = e.target.value; if (previewOn) reloadPreview() } }, h('option', { value: '/' }, 'Home'))
   get('/content').then(({ docs }) => {
     for (const d of docs.filter(d2 => d2.status === 'published' && d2.path && d2.path !== '/').slice(0, 20))
       pvPathSel.appendChild(h('option', { value: d.path }, d.path))
@@ -99,23 +99,23 @@ registerView('templates', async (root, [relParam]) => {
     if (refPanel.hidden) return
     const info = refs?.files?.[current?.rel]
     const list = (title, items, fmt) => items?.length
-      ? h('div', { style: { marginBottom: 'var(--s3)' } }, h('div.insp-section-title', {}, title),
+      ? h('div.mb-3', {}, h('div.insp-section-title', {}, title),
         ...items.map(x => fmt(x)))
       : ''
-    const link = rel2 => h('button.row-item', { onclick: () => openFile(rel2), style: { padding: 'var(--s1) var(--s2)' } },
-      h('span.row-ico', { html: icon('page', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, rel2))
+    const link = rel2 => h('button.row-item.p-1-2', { onclick: () => openFile(rel2) },
+      h('span.row-ico', { html: icon('page', 12) }), h('span.row-label.text-s', {}, rel2))
     refPanel.replaceChildren(
       h('div.insp-section-title', {}, 'This file'),
-      info ? h('div', { style: { marginBottom: 'var(--s3)' } },
+      info ? h('div.mb-3', {},
         list('Includes', info.includes, link),
         list('Included by', info.includedBy, link),
-        list('Slots it renders', info.slots, s => h('button.row-item', { style: { padding: 'var(--s1) var(--s2)' }, onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${s} → edit content`))),
-        list('Menus it renders', info.menus, m => h('button.row-item', { style: { padding: 'var(--s1) var(--s2)' }, onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label', { style: { fontSize: 'var(--t-s)' } }, `${m} → edit menu`))),
-        list('Regions', info.regions, r => h('span.pill-perm', { style: { marginRight: 'var(--s1)' } }, r)),
+        list('Slots it renders', info.slots, s => h('button.row-item.p-1-2', { onclick: () => (location.hash = `#/chrome/${encodeURIComponent(s)}`) }, h('span.row-ico', { html: icon('layout', 12) }), h('span.row-label.text-s', {}, `${s} → edit content`))),
+        list('Menus it renders', info.menus, m => h('button.row-item.p-1-2', { onclick: () => (location.hash = `#/menus/${m}`) }, h('span.row-ico', { html: icon('menu', 12) }), h('span.row-label.text-s', {}, `${m} → edit menu`))),
+        list('Regions', info.regions, r => h('span.pill-perm.mr-1', {}, r)),
       ) : h('p.mut', {}, 'No cross-reference data for this file.'),
       h('div.insp-section-title', {}, 'Variables'),
       ...LIQUID.variables.map(([v, d]) => h('div.tpl-refrow', {}, h('code.pill-perm', {}, v), h('span', {}, d))),
-      h('div.insp-section-title', { style: { marginTop: 'var(--s3)' } }, 'Filters'),
+      h('div.insp-section-title.mt-3', {}, 'Filters'),
       ...LIQUID.filters.slice(0, 18).map(([f, d]) => h('div.tpl-refrow', {}, h('code.pill-perm', {}, `| ${f}`), h('span', {}, d))),
     )
   }
@@ -123,10 +123,10 @@ registerView('templates', async (root, [relParam]) => {
   // ---------- snippets ----------
   const snipBtn = h('button.btn.ghost.small', {
     onclick: e => {
-      const menu = h('div.mbar-drop', { style: { display: 'block', position: 'fixed', zIndex: 200 } },
+      const menu = h('div.mbar-drop.d-block.pos-fixed.z-200', {},
         ...SNIPPETS.map(([label, code, hint]) => h('button.mbar-item', {
           onclick: () => { editor.insert(code); menu.remove() },
-        }, h('div', {}, h('div', { style: { fontWeight: 'var(--fw-semi)' } }, label), hint ? h('div.fnt', { style: { fontSize: 'var(--t-xs)' } }, hint) : ''))))
+        }, h('div', {}, h('div.fw-semi', {}, label), hint ? h('div.fnt.text-xs', {}, hint) : ''))))
       const r = e.currentTarget.getBoundingClientRect()
       menu.style.left = `${Math.max(8, r.right - 280)}px`; menu.style.top = `${r.bottom + 4}px`; menu.style.minWidth = '17rem'
       document.body.appendChild(menu)
@@ -139,12 +139,12 @@ registerView('templates', async (root, [relParam]) => {
   const saveBtn = h('button.btn.primary.small', { onclick: () => doSave() }, 'Save')
   const revertBtn = h('button.btn.ghost.small', {
     onclick: async () => {
-      if (!(await confirmDialog('Revert to the original?', 'Your override is deleted; the built-in file takes over again.', 'Revert'))) return
+      if (!(await confirmDialog('Revert to the original?', 'This site’s copy of the file is deleted and the original takes over again. Your pages and content are not affected.', 'Revert'))) return
       await del(`/templates/file?rel=${encodeURIComponent(current.rel)}`)
-      toast('Reverted — the built-in file is live again', 'ok')
+      toast('Reverted — the original file is live again', 'ok')
       await reload(); openFile(current.rel)
     },
-  }, iconEl('undo', 13), 'Revert')
+  }, iconEl('undo', 13), 'Revert to original')
   const fmtBtn = h('button.btn.ghost.small', { title: sc('Beautify (⇧⌥F)'), onclick: () => editor.beautify() }, iconEl('wand', 13), 'Format')
 
   async function doSave() {
@@ -161,7 +161,7 @@ registerView('templates', async (root, [relParam]) => {
   async function reload() { ;({ template, files } = await get('/templates/tree')) }
 
   const paintStatus = () => {
-    statusChip.textContent = current?.overridden ? 'overridden' : 'built-in'
+    statusChip.textContent = current?.overridden ? 'Edited for this site' : 'Original'
     statusChip.style.background = current?.overridden ? 'color-mix(in oklch, var(--warn) 20%, transparent)' : ''
     revertBtn.style.display = current?.overridden ? '' : 'none'
   }
@@ -184,7 +184,7 @@ registerView('templates', async (root, [relParam]) => {
     if (previewOn) { pushDraft.now?.(); reloadPreview() }
   }
 
-  const crumbs = h('code', { style: { fontSize: 'var(--t-s)' } })
+  const crumbs = h('code.text-s', {})
 
   const treeEl = h('div.panel-body')
   function paintTree() {
@@ -203,14 +203,14 @@ registerView('templates', async (root, [relParam]) => {
       },
         h('span.row-ico', { html: icon(f.rel.endsWith('.css') ? 'palette' : f.rel.endsWith('.js') ? 'code' : 'page', 14) }),
         h('span.row-label', {}, f.rel.split('/').pop()),
-        f.overridden ? h('span.mrow-tag', { title: 'Edited — your override is live' }, '✎') : '')),
+        f.overridden ? h('span.mrow-tag', { title: 'Edited for this site' }, '✎') : '')),
     ]))
   }
 
   const shell = h('div.tpl-shell', {},
     h('div.tpl-bar', {},
       crumbs, statusChip,
-      h('span', { style: { flex: 1 } }),
+      h('span.grow', {}),
       pvPathSel, pvToggle, refBtn, snipBtn, fmtBtn,
       revertBtn, saveBtn),
     h('div.tpl-main', {},
@@ -221,9 +221,14 @@ registerView('templates', async (root, [relParam]) => {
   root.replaceChildren(h('div.split', {},
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, 'Template files'),
-        h('span.fnt', { style: { fontSize: 'var(--t-xs)' } }, template)),
+        h('span.fnt.text-xs', {}, template)),
       treeEl),
-    h('div.main', {}, shell)))
+    h('div.main.tpl-page', {},
+      h('div.page-head.tpl-head', {},
+        h('div', {}, h('h1', {}, 'Template code'),
+          h('p.sub', {}, 'For developers. These files control how pages are built. Editing one makes a copy for this site; the original is kept and you can revert at any time.')),
+        helpButton('templates', 'Template code')),
+      shell)))
 
   paintTree()
   if (activeRel) openFile(activeRel)

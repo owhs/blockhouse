@@ -4,6 +4,16 @@
 
 const doc = document
 
+// The studio frames real pages in its Design, Header & footer, Menus and page
+// previews. Those frames are a picture of the site, not a visit to it: nothing
+// that greets a first-time visitor (consent banner, theme-toggle nudge, any
+// timed pop-up) belongs in them, and nothing may drift open on its own.
+// The server sets data-bh-preview on <html> — see src/render/page.ts.
+// The Navigation page's preview is the exception: it is meant to show the
+// panel being edited, already open, so it only gets the banner suppression.
+const PREVIEW = doc.documentElement.getAttribute('data-bh-preview')
+const PREVIEW_MENU = PREVIEW === 'menu'
+
 // ---------- theme ----------
 for (const btn of doc.querySelectorAll('[data-blockhouse="theme"]')) {
   btn.addEventListener('click', () => {
@@ -147,6 +157,39 @@ for (const cat of doc.querySelectorAll('.mega-catalogue')) {
   if (mobileNav()) {
     tabPanes.forEach((p, i) => (p.hidden = i !== 0))
   }
+}
+
+// ---------- preview: no greetings, nothing hanging open ----------
+if (PREVIEW) {
+  if (!PREVIEW_MENU) {
+    closeAllPanels()
+    doc.body.classList.remove('nav-open', 'mega-open')
+    doc.documentElement.classList.remove('mega-open')
+  }
+  // belt and braces: a banner that slipped through (a cached page, a plugin
+  // that injects its own) is removed rather than left floating over the design
+  for (const el of doc.querySelectorAll('#blockhouse-consent, .blockhouse-consent, [data-bh-popup]')) el.remove()
+}
+
+// The Navigation page's preview is a picture of the draft menu, not a visit to
+// the site: following a link threw the draft away and left the owner on the
+// real page with no way back. Every link and form in that frame is dead; a
+// click on a menu entry instead tells the studio to select that entry, so the
+// preview behaves like part of the editor.
+if (PREVIEW_MENU) {
+  const tellParent = id => {
+    try { parent.postMessage({ blockhouse: 'menuselect', id }, '*') } catch {}
+  }
+  doc.addEventListener('click', e => {
+    const a = e.target.closest?.('a[href]')
+    if (!a) return
+    e.preventDefault()
+    e.stopPropagation()
+    const navId = a.closest('[data-nav-id]')?.getAttribute('data-nav-id')
+    if (navId) tellParent(navId)
+  }, true)
+  doc.addEventListener('submit', e => { e.preventDefault(); e.stopPropagation() }, true)
+  doc.addEventListener('auxclick', e => { if (e.target.closest?.('a[href]')) e.preventDefault() }, true)
 }
 
 // ---------- studio preview hooks (only when framed by the editor) ----------
@@ -379,11 +422,16 @@ if (wants.has('share')) doc.addEventListener('click', async e => {
 })
 
 // reveal on view
-if (wants.has('reveal')) {
+// In the studio preview the frame is scaled and scrolled independently, so an
+// on-scroll reveal left blocks permanently faded out. Show them all at once
+// there; on the real site nothing changes.
+if (wants.has('reveal') && !doc.documentElement.hasAttribute('data-bh-preview')) {
   const io = new IntersectionObserver(entries => {
     for (const en of entries) if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target) }
   }, { threshold: 0.2 })
   for (const el of doc.querySelectorAll('.reveal')) io.observe(el)
+} else if (wants.has('reveal')) {
+  for (const el of doc.querySelectorAll('.reveal')) el.classList.add('in')
 }
 
 // ---------- drive (client document portal) ----------

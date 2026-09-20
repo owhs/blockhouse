@@ -10,6 +10,10 @@ export interface AdminPanel {
   icon?: string
   kind: 'resources' | 'custom'
   resources?: ResourceDef[]
+  /** Which rail section the panel belongs in ('content' | 'site' | 'manage'). */
+  section?: string
+  /** True when the panel is only settings: it lives under Settings -> Apps, not the rail. */
+  settingsOnly?: boolean
 }
 
 export interface SettingsSection {
@@ -28,6 +32,10 @@ export class Registry {
   plugins = new Map<string, PluginManifest>()
   /** pluginId -> why it failed to register, so the studio can show it. */
   pluginErrors = new Map<string, string>()
+  /** Plugins actually registered in this process at boot. Switching one on or
+   *  off changes the saved setting immediately, but not this — so the studio
+   *  compares against it to know whether a restart is really pending. */
+  pluginsRunning = new Set<string>()
   adminPanels: AdminPanel[] = []
   resources = new Map<string, { plugin: string; def: ResourceDef }>()
 

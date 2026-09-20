@@ -11,7 +11,14 @@ export function h(tag, attrs = {}, ...children) {
     if (v == null || v === false) continue
     if (k === 'class') el.className += (el.className ? ' ' : '') + v
     else if (k === 'dataset') Object.assign(el.dataset, v)
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v)
+    // Object.assign ignores custom properties (`--x`), so a data-driven colour
+    // handed in as a variable silently did nothing. Set those the long way.
+    else if (k === 'style' && typeof v === 'object') {
+      for (const [sk, sv] of Object.entries(v)) {
+        if (sk.startsWith('--')) el.style.setProperty(sk, sv)
+        else el.style[sk] = sv
+      }
+    }
     else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v)
     else if (k === 'html') el.innerHTML = v
     else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'selected' || k === 'open') el[k] = v
@@ -167,7 +174,7 @@ export function unsavedDialog({ title, body, saveLabel, onSave, stayLabel = 'Kee
   })
 }
 
-export function dialog({ title, body, actions = [], width, onClose, headerExtra, dismissable = true }) {
+export function dialog({ title, body, actions = [], width, onClose, headerExtra, dismissable = true, guard = false }) {
   const opener = document.activeElement
   const dlg = h('dialog.dlg', { style: width ? { width } : {} })
   if (title) dlg.setAttribute('aria-label', title)
@@ -188,7 +195,10 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
   // Dismissing a dialog you have typed into used to throw the input away with
   // no warning: the X, the backdrop and Escape all went straight to close().
   // A dialog now knows whether it holds work, and asks before discarding it.
-  const fieldsOf = () => [...dlg.querySelectorAll('input:not([type=hidden]), textarea, select')]
+  // A search box is not work: typing "hero" into the block picker's filter used
+  // to make the dialog think it held unsaved input, so Escape asked "Discard
+  // what you typed?" instead of closing. Filters opt out with .pal-input.
+  const fieldsOf = () => [...dlg.querySelectorAll('input:not([type=hidden]):not(.pal-input), textarea, select')]
   let openSnapshot = null
   const snapshotFields = () => fieldsOf().map(f => (f.type === 'checkbox' || f.type === 'radio') ? String(f.checked) : f.value).join(String.fromCharCode(31))
   const hasWork = () => openSnapshot !== null && snapshotFields() !== openSnapshot
@@ -200,6 +210,13 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
     if (discard) close(undefined)
   }
   dlg.addEventListener('cancel', e => { e.preventDefault(); tryDismiss() })
+  // Escape has to reach the dialog even from inside a field whose own keydown
+  // handler runs first (the block picker's filter, the palette's input).
+  dlg.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !dismissable) return
+    e.preventDefault(); e.stopPropagation()
+    tryDismiss()
+  })
   dlg.addEventListener('mousedown', e => { if (e.target === dlg) tryDismiss() })
 
   // focus trap — Tab must not escape into the page behind the modal
@@ -232,17 +249,38 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
       },
     }, a.label))
 
+  const dlgBody = h('div.dlg-body', {}, body)
   dlg.append(
     title || headerExtra || dismissable
       ? h('header.dlg-head', {}, h('h2', {}, title || ''), headerExtra || '',
         dismissable ? h('button.icon-btn', { onclick: () => tryDismiss(), 'aria-label': 'Close', html: icon('x', 14) }) : '')
       : '',
-    h('div.dlg-body', {}, body),
+    dlgBody,
     actions.length ? h('footer.dlg-foot', {}, ...actionBtns) : '',
   )
   document.body.appendChild(dlg)
+  // A dialog that is part of deciding whether a navigation happens at all (the
+  // "you have unsaved work" question, the conflict warning) must survive the
+  // route change it is asking about. Everything else belongs to the screen it
+  // was opened from and is closed when you leave that screen — see
+  // closeOpenDialogs().
+  if (!dismissable || guard) dlg.dataset.guard = '1'
   dlgStack.push(dlg)
   dlg.showModal()
+  // showModal() lands on the first focusable element, which is the header's
+  // Close (×) — so every dialog opened on "close this". Focus the first thing
+  // in the body you can actually use, else the primary action, never Close.
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  const firstInBody = dlgBody.querySelector(FOCUSABLE)
+  // A question about losing work must not land on the answer that loses it:
+  // Enter on a guard dialog has to mean "keep my work", so focus the first
+  // action that is not the destructive one (Cancel / Keep editing).
+  const safeBtn = actionBtns.find((_, i) => (actions[i].kind || '') !== 'danger')
+  const primaryBtn = actionBtns.find((_, i) => (actions[i].kind || '') === 'primary' || (actions[i].kind || '') === 'danger')
+    || actionBtns[actionBtns.length - 1]
+  const landing = guard ? (safeBtn || primaryBtn) : (firstInBody || primaryBtn)
+  if (landing) landing.focus({ preventScroll: true })
+  else { dlg.tabIndex = -1; dlg.focus({ preventScroll: true }) }
   openSnapshot = snapshotFields()
   void dlg.offsetWidth   // see sheet.js: rAF does not run in a background tab
   dlg.classList.add('in')
@@ -250,10 +288,24 @@ export function dialog({ title, body, actions = [], width, onClose, headerExtra,
   return dlg
 }
 
-export function confirmDialog(title, message, confirmLabel = 'Delete') {
+/**
+ * Shut every dialog that belongs to the screen you are leaving.
+ *
+ * A modal left open across a route change sits over an unrelated screen with a
+ * Save button for a person you are no longer looking at. Called by the router
+ * on every hash change, before it paints the new view.
+ */
+export function closeOpenDialogs() {
+  for (const dlg of [...dlgStack]) {
+    if (dlg.dataset.guard === '1') continue
+    try { dlg.closeWith?.(undefined) } catch {}
+  }
+}
+
+export function confirmDialog(title, message, confirmLabel = 'Delete', { guard = false } = {}) {
   return new Promise(resolve => {
     dialog({
-      title, body: typeof message === 'string' ? h('p.dlg-text', {}, message) : message,
+      title, guard, body: typeof message === 'string' ? h('p.dlg-text', {}, message) : message,
       actions: [
         // Returning true closes the dialog; the old code returned false, which
         // told dialog() to stay open, so Cancel did nothing at all.
@@ -301,7 +353,7 @@ export function contextMenu(x, y, items) {
         onclick: () => { menu.remove(); it.onClick() },
       },
         it.icon ? h('span.ctx-ico', { html: it.icon }) : h('span.ctx-ico'),
-        h('span', { style: { flex: 1 } }, it.label),
+        h('span.grow', {}, it.label),
         it.shortcut ? h('span.kbd', {}, it.shortcut) : '')))
   document.body.appendChild(menu)
   const r = menu.getBoundingClientRect()
@@ -435,7 +487,7 @@ export function makeTreeSortable(root, { onMove, canDrop = () => true } = {}) {
 export function emptyState(iconOrHtml, title, text, action) {
   const ico = String(iconOrHtml).startsWith('<')
     ? h('div.empty-ico', { html: iconOrHtml })
-    : h('div.empty-ico', { style: { fontSize: 'var(--t-3xl)' } }, iconOrHtml)
+    : h('div.empty-ico.text-3xl', {}, iconOrHtml)
   return h('div.empty', {}, ico, h('h3', {}, title), text ? h('p', {}, text) : '', action || '')
 }
 

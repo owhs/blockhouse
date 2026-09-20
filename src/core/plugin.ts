@@ -52,7 +52,7 @@ export interface PluginContext {
   mail: { send: (msg: { to: string; subject: string; text?: string; html?: string }) => Promise<void> }
   fetch: typeof fetch
   resources: { register: (def: ResourceDef) => void }
-  adminPanel: (opts: { label: string; icon?: string }) => void
+  adminPanel: (opts: { label: string; icon?: string; section?: string; settingsOnly?: boolean }) => void
   util: { id: typeof id; now: typeof now }
   env: any
 }
@@ -70,6 +70,7 @@ export async function loadPlugins(env: any, modules: Record<string, PluginModule
     if (!enabled) continue
     try {
       await mod.register(makeContext(env, mod.manifest, approved))
+      env.registry.pluginsRunning?.add(pid)
     } catch (e) {
       // A missing grant is a configuration problem with a one-line fix, so say
       // what to do instead of dumping a stack trace over the startup banner.

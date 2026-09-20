@@ -85,3 +85,11 @@ export function setWide(on) {
   dispatchEvent(new CustomEvent('bh:wide', { detail: { on } }))
 }
 export const toggleWide = force => setWide(force ?? !document.querySelector('.app')?.classList.contains('wide'))
+
+// The address of the view that is actually on screen. Lives here, not in
+// main.js, so a view module can update it WITHOUT importing main.js — a bare
+// `import './main.js'` from a view loads a second copy of the shell (the entry
+// script carries a ?v= query, so the two URLs are two module instances), which
+// boots twice and paints into an orphaned view element.
+export const nav = { current: location.hash }
+export function noteHash(hash = location.hash) { nav.current = hash }

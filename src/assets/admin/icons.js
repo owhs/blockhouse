@@ -102,6 +102,12 @@ const P = {
   unpin: 'M9.5 3h5l-.7 5.5 3.2 3v1.5H7v-1.5l3.2-3zM12 13v8M4 4l16 16',
   eyeOff: 'M4 4l16 16M10 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.4 3.4M6.4 7.6A11.4 11.4 0 0 0 3 12c0 2.5 4 7 9 7a9.4 9.4 0 0 0 3.3-.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
   sidebar: 'M4 4.5h16v15H4zM9.5 4.5v15',
+  // concept icons the sites actually ask for (Lifts, Lift ranges, Systems…)
+  layers: 'M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5',
+  grid: 'M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z',
+  // The Map block asks for 'location' and printed the stub "lo" in the picker.
+  location: 'M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 14.9 12 21 12 21zM12 10.5h.01',
+  map: 'M9 4.5L3.5 6.8v12.7L9 17.2l6 2.3 5.5-2.3V4.5L15 6.8zM9 4.5v12.7M15 6.8v12.7',
 }
 
 // Icons the studio asks for by name. In dev, a missing one is a bug worth

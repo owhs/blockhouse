@@ -170,6 +170,9 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
   app.get('/*', async c => {
     const user = c.get('user' as never) as any
     const site = await env.site()
+    // The studio's Design and "Header & footer" pages frame the real site.
+    // Signed-in only, so a visitor can't ask for the banner-free version.
+    const studioPreview = !!user && c.req.query('__blockhousepreview') === '1'
     const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
     if (path.startsWith('/admin') || path.startsWith('/api')) return c.notFound()
 
@@ -214,7 +217,7 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
           return c.body(await rssXml(env, concept), 200, { 'content-type': 'application/rss+xml' })
         }
         const page = path.includes('/page/') ? parseInt(path.split('/page/')[1], 10) || 1 : 1
-        const res = await renderListPage(env, concept, page, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft: user ? c.req.query('__menudraft') || undefined : undefined })
+        const res = await renderListPage(env, concept, page, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft: user ? c.req.query('__menudraft') || undefined : undefined, studioPreview })
         if (!res) return c.notFound()
         return c.html(res.html, 200, { 'cache-control': PAGE_CACHE })
       }
@@ -228,7 +231,7 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
       const gated = await gateCheck(c, env, doc, path)
       if (gated) return gated
       const menuDraft = user ? c.req.query('__menudraft') || undefined : undefined
-      const html = await renderDocPage(env, doc, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft })
+      const html = await renderDocPage(env, doc, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft, studioPreview })
       return c.html(html, 200, { 'cache-control': doc.access?.mode && doc.access.mode !== 'public' ? 'private, no-store' : PAGE_CACHE })
     }
 

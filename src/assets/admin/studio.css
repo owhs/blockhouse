@@ -22,6 +22,9 @@
   --bg-active: light-dark(oklch(89% 0.012 var(--acc-h)), oklch(33% 0.02 var(--acc-h)));
   --ink: light-dark(oklch(23% 0.008 var(--acc-h)), oklch(93% 0.005 var(--acc-h)));
   --mut: light-dark(oklch(46% 0.01 var(--acc-h)), oklch(70% 0.008 var(--acc-h)));
+  /* Badge text sits on --bg-hover, where the dark muted ink measured 3.85:1.
+     Badges get their own, brighter ink; everything else keeps --mut. */
+  --badge-ink: light-dark(oklch(46% 0.01 var(--acc-h)), oklch(88% 0.008 var(--acc-h)));
   --fnt: light-dark(oklch(50% 0.012 var(--acc-h)), oklch(66% 0.009 var(--acc-h)));
   --line: light-dark(oklch(87% 0.006 var(--acc-h)), oklch(29% 0.01 var(--acc-h)));
   --line-soft: light-dark(oklch(92% 0.005 var(--acc-h)), oklch(24% 0.009 var(--acc-h)));
@@ -73,7 +76,7 @@
 [data-palette="indigo"] { --acc-h: 280; --acc-c: 0.15; --acc: oklch(56% 0.17 280); --acc-strong: oklch(48% 0.18 280); --acc-bright: oklch(70% 0.15 280); }
 [data-palette="copper"] { --acc-h: 55; --acc-c: 0.1; --acc: oklch(56% 0.11 55); --acc-strong: oklch(48% 0.11 55); --acc-bright: oklch(70% 0.12 55); }
 [data-palette="claret"] { --acc-h: 15; --acc-c: 0.11; --acc: oklch(50% 0.13 15); --acc-strong: oklch(43% 0.13 15); --acc-bright: oklch(66% 0.14 15); }
-[data-theme="light"] { color-scheme: light; } [data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; } :root[data-theme="dark"] { color-scheme: dark; }
 /* Compact used to set --fs alone, which reaches inherited body text and nothing
    else — every tokenised size stayed put, so the switch did almost nothing. */
 [data-density="compact"] {
@@ -94,14 +97,15 @@ html { overflow: hidden; }
 body { font: var(--fs)/1.55 var(--font); background: var(--bg); color: var(--ink); overflow: hidden; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, textarea, select { font: inherit; color: inherit; }
-a { color: var(--acc-bright); text-decoration: none; }
+/* --acc-bright is the dark-theme accent; used unconditionally it painted every
+   link mid-green on the light studio's white (2.6–3.0:1). light-dark() is what
+   the rest of this file already does. The underline is the non-colour cue. */
+a { color: light-dark(var(--acc-strong), var(--acc-bright)); text-decoration: underline; text-underline-offset: .15em; text-decoration-color: color-mix(in oklch, currentColor 45%, transparent); }
 ::selection { background: color-mix(in oklch, var(--acc) 28%, transparent); }
 :focus-visible { outline: 2px solid var(--acc-bright); outline-offset: 1px; border-radius: var(--r-xs); }
 
 .ico { vertical-align: -0.18em; flex-shrink: 0; }
 .ico.rot90 { transform: rotate(90deg); }
-.badge { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.15rem; padding: 0 var(--s1); border-radius: var(--r-pill); background: var(--bg-hover); color: var(--fnt); font-size: var(--t-xs); font-weight: var(--fw-bold); margin-left: auto; }
-.row-item.active .badge { background: color-mix(in oklch, var(--acc) 18%, transparent); color: inherit; }
 .ico-wrap { display: inline-flex; align-items: center; }
 .ico-txt { font-size: 0.8em; font-weight: var(--fw-bold); }
 
@@ -136,8 +140,8 @@ a { color: var(--acc-bright); text-decoration: none; }
    rail (⌘B). Labels-by-default is the difference between a tool you can read
    and one you have to hover-interrogate. */
 .side { grid-area: side; display: flex; flex-direction: column; gap: 1px; padding: var(--s2) var(--s3) var(--s2); background: var(--bg-panel); border-right: 1px solid var(--line); z-index: 20; overflow-y: auto; overflow-x: visible; scrollbar-width: thin; }
-.side-title { font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fnt); padding: var(--s3) var(--s3) var(--s1); user-select: none; }
-.side-title:first-child { padding-top: var(--s1); }
+.side-title { font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fnt); padding: var(--rail-title-pt) var(--s3) var(--s0); user-select: none; }
+.side-title:first-child { padding-top: var(--s0); }
 .side-item { position: relative; color: var(--mut); }
 .side-item .ico-wrap { display: grid; place-items: center; width: 1.15rem; flex-shrink: 0; }
 .side-item:hover { background: var(--bg-hover); color: var(--ink); }
@@ -159,10 +163,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .app.side-collapsed .side-item:hover .tip { opacity: 1; }
 
 .ribbon { grid-area: ribbon; display: flex; align-items: stretch; gap: var(--s0); padding: 0 var(--s3); background: var(--bg-panel); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; z-index: 20; }
-.ribbon-btn { display: inline-flex; align-items: center; gap: var(--s2); padding: 0 var(--s4); font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); border-bottom: 2px solid transparent; white-space: nowrap; }
-.ribbon-btn:hover { color: var(--ink); background: var(--bg-hover); }
-.ribbon-btn.active { color: light-dark(var(--acc-strong), var(--acc-bright)); border-color: var(--acc); }
-.ribbon-sep { width: 1px; background: var(--line-soft); margin: var(--s2) var(--s1); }
 
 .view { grid-area: view; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; }
 
@@ -182,7 +182,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .row-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semi); }
 .row-sub { font-size: var(--t-xs); color: var(--fnt); font-weight: var(--fw-regular); }
 
-.chip { font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.03em; padding: var(--s0) var(--s2); border-radius: var(--r-pill); text-transform: capitalize; flex-shrink: 0; }
 .chip.published { background: color-mix(in oklch, var(--ok) 16%, transparent); color: var(--ok-ink); }
 .chip.draft { background: var(--bg-hover); color: var(--mut); }
 .chip.review { background: color-mix(in oklch, var(--warn) 16%, transparent); color: var(--warn-ink); }
@@ -190,7 +189,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .chip.err { background: color-mix(in oklch, var(--err) 14%, transparent); color: var(--err-ink); }
 
 /* ---------- buttons & inputs ---------- */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: var(--ctl-h); padding: 0 var(--s4); border-radius: var(--r-s); font-weight: var(--fw-semi); font-size: var(--t-m); border: 1px solid transparent; transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: var(--ctl-h); padding: 0 var(--s4); border-radius: var(--r-s); font-weight: var(--fw-semi); font-size: var(--t-m); border: 1px solid transparent; transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); white-space: nowrap; }
 .btn:active { transform: scale(0.97); }
 .btn.primary { background: var(--acc); color: var(--acc-ink); }
 .btn.primary:hover { background: var(--acc-strong); }
@@ -230,15 +229,13 @@ a { color: var(--acc-bright); text-decoration: none; }
 .field-check input { accent-color: var(--acc); width: 1rem; height: 1rem; }
 .field-check span { font-size: var(--t-m); font-weight: var(--fw-medium); }
 .field-group { border: 1px solid var(--line-soft); border-radius: var(--r-s); padding: var(--s3) var(--s3) var(--s0); background: color-mix(in oklch, var(--bg-panel) 60%, transparent); }
-.field-group > .fg-title { font-size: var(--t-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fnt); margin-bottom: var(--s2); }
 .multi-tags { display: flex; flex-wrap: wrap; gap: var(--s1); }
-.multi-tag { display: inline-flex; align-items: center; gap: var(--s1); background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); font-size: var(--t-s); font-weight: var(--fw-semi); padding: var(--s0) var(--s1) var(--s0) var(--s3); border-radius: var(--r-pill); }
 .multi-tag button { display: grid; place-items: center; opacity: 0.7; }
 .multi-tag button:hover { opacity: 1; }
 .seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px; gap: 2px; }
 .seg button { padding: var(--s1) var(--s3); border-radius: var(--r-xs); font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); display: inline-flex; align-items: center; gap: var(--s1); }
 .seg button.active { background: var(--bg-raise); color: var(--ink); box-shadow: var(--shadow-s); }
-.seg button { transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
+.seg button { transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
 
 /* ---------- editor view ---------- */
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) var(--insp-w); min-height: 0; min-width: 0; }
@@ -275,7 +272,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .insp-crumbs button:hover { background: var(--bg-hover); color: var(--ink); }
 .insp-crumbs .sep { opacity: 0.5; }
 .insp-body { overflow-y: auto; padding: var(--s4); min-height: 0; }
-.insp-section-title { display: flex; align-items: center; justify-content: space-between; font-size: var(--t-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.07em; color: var(--fnt); margin: var(--s5) 0 var(--s3); }
 .insp-section-title:first-child { margin-top: 0; }
 
 /* block tree */
@@ -302,7 +298,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .picker-item .p-ico { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--r-s); background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
 .picker-item .p-label { font-size: var(--t-s); font-weight: var(--fw-semi); }
 .picker-item .p-desc { font-size: var(--t-xs); color: var(--fnt); line-height: 1.35; }
-.picker-group-title { font-size: var(--t-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.07em; color: var(--fnt); margin-bottom: var(--s2); }
 
 /* list-field rows */
 .list-rows { display: grid; gap: var(--s2); }
@@ -347,7 +342,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .media-name { font-size: var(--t-s); font-weight: var(--fw-semi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-dims { font-size: var(--t-xs); color: var(--fnt); }
 .media-alt-warn { position: absolute; top: 0.4rem; right: 0.4rem; background: var(--warn); color: oklch(24% 0.06 75); font-size: var(--t-xs); font-weight: var(--fw-bold); padding: var(--s0) var(--s2); border-radius: var(--r-pill); }
-.dropzone { border: 1.5px dashed var(--line); border-radius: var(--r); padding: var(--s6); text-align: center; color: var(--fnt); font-size: var(--t-m); margin-bottom: var(--s4); transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease); }
+.dropzone { border: 1.5px dashed var(--line); border-radius: var(--r); padding: var(--s6); text-align: center; color: var(--fnt); font-size: var(--t-m); margin-bottom: var(--s4); transition: border-color var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease); }
 .dropzone.over { border-color: var(--acc); background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
 
 /* data tables / generic resources */
@@ -409,7 +404,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .og-card .og-domain { font-size: var(--t-xs); text-transform: uppercase; color: var(--fnt); }
 .og-card .og-title { font-size: var(--t-m); font-weight: var(--fw-semi); margin: var(--s0) 0; }
 .og-card .og-desc { font-size: var(--t-s); color: var(--mut); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.score-dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: var(--r-pill); margin-right: var(--s0); }
 
 /* dialogs */
 .dlg { margin: auto; border: 0; border-radius: var(--r-l); background: var(--bg-panel); color: var(--ink); box-shadow: var(--shadow); padding: 0; width: min(30rem, 92vw); max-height: min(86vh, 50rem); }
@@ -425,7 +419,10 @@ a { color: var(--acc-bright); text-decoration: none; }
 .pal-input:focus { outline: 0; border-color: var(--acc); }
 .pal-list { display: grid; gap: 1px; }
 .pal-item { color: var(--ink); }
-.pal-item:hover, .pal-item.active { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
+/* Only the active row is highlighted. Hover used to paint a second row, so the
+   palette showed two "selected" rows and neither was obviously the one Enter
+   would run — the pointer already moves `active` as it passes over a row. */
+.pal-item.active { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
 .pal-ico { width: 1.4rem; display: grid; place-items: center; opacity: 0.85; }
 .pal-hint { margin-left: auto; font-size: var(--t-xs); color: var(--fnt); }
 
@@ -455,14 +452,13 @@ a { color: var(--acc-bright); text-decoration: none; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); margin-bottom: var(--s5); flex-wrap: wrap; }
 .page-head h1 { font-size: var(--t-2xl); letter-spacing: -0.02em; line-height: 1.15; }
 .page-head .sub { color: var(--mut); font-size: var(--t-m); margin-top: var(--s0); }
-.card { background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-s); padding: var(--s5) var(--s5); }
+.card, .set-card { background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-s); padding: var(--s5) var(--s5); }
 .cards { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
 .stat { display: grid; gap: var(--s0); }
 .stat .n { font-size: var(--t-3xl); font-weight: var(--fw-bold); letter-spacing: -0.02em; }
 .stat .l { font-size: var(--t-s); color: var(--mut); font-weight: var(--fw-semi); }
 .mut { color: var(--mut); } .fnt { color: var(--fnt); } .mono { font-family: var(--mono); }
 .hr { border: 0; border-top: 1px solid var(--line-soft); margin: var(--s5) 0; }
-.pill-perm { display: inline-block; font: var(--fw-semi) var(--t-xs) var(--mono); background: var(--bg-hover); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s0) var(--s2); margin: var(--s0) var(--s0) var(--s0) 0; }
 .code-out { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: var(--s3) var(--s4); font: var(--t-s) var(--mono); word-break: break-all; user-select: all; }
 .swatches { display: flex; gap: var(--s2); }
 .swatch { width: 1.9rem; height: 1.9rem; border-radius: var(--r-s); border: 2px solid transparent; cursor: pointer; display: grid; place-items: center; color: #fff; }
@@ -483,7 +479,6 @@ a { color: var(--acc-bright); text-decoration: none; }
 .mrow.muted { color: var(--fnt); font-weight: var(--fw-regular); font-size: var(--t-s); }
 .mrow.muted:hover { color: var(--ink); }
 .mrow-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.mrow-tag { font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.04em; text-transform: uppercase; background: var(--bg-hover); color: var(--fnt); padding: var(--s0) var(--s1); border-radius: var(--r-xs); flex-shrink: 0; }
 .mrow.active .mrow-tag { background: color-mix(in oklch, var(--acc) 16%, transparent); color: inherit; }
 .mrow-tools { margin-left: auto; display: inline-flex; gap: var(--s0); visibility: hidden; opacity: 0; transition: opacity var(--dur-1) var(--ease); }
 .mrow:hover .mrow-tools, .mrow:focus-within .mrow-tools, .mrow.active .mrow-tools { visibility: visible; opacity: 1; }
@@ -524,7 +519,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .avatar { width: 2rem; height: 2rem; border-radius: 50%; display: inline-grid; place-items: center; background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); font-size: var(--t-xs); font-weight: var(--fw-bold); flex-shrink: 0; }
 .switch { display: inline-flex; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; pointer-events: none; }
-.switch-track { width: 2.1rem; height: 1.2rem; border-radius: var(--r-pill); background: var(--line); position: relative; transition: background var(--dur-2) var(--ease); display: inline-block; }
+.switch-track { width: 2.1rem; height: 1.2rem; border-radius: var(--r-pill); background: var(--line); position: relative; transition: background-color var(--dur-2) var(--ease); display: inline-block; }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: calc(1.2rem - 4px); height: calc(1.2rem - 4px); border-radius: 50%; background: #fff; transition: translate var(--dur-2) var(--ease); box-shadow: 0 1px 3px #0003; }
 .switch input:checked + .switch-track { background: var(--acc); }
 .switch input:checked + .switch-track::after { translate: 0.9rem 0; }
@@ -612,10 +607,14 @@ a { color: var(--acc-bright); text-decoration: none; }
   display: flex; align-items: center; width: 100%; text-align: left;
   gap: var(--s3); padding: var(--s3) var(--s3);
   border-radius: var(--r-s); font-size: var(--t-m); font-weight: var(--fw-medium);
-  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 /* dense variants: the trees, where depth matters more than air */
 .tree-item, .mrow, .list-row-head { gap: var(--s2); padding: var(--s1) var(--s2); }
+/* the rail: one token sets every row's height, so 18 items plus Help and
+   Collapse still fit a 900px-tall window with all sections open */
+.side-item { padding-block: var(--rail-item-py); }
+.side-foot { padding-top: var(--s1); }
 
 /* ==========================================================================
    v3 — craft, motion, reach.
@@ -644,7 +643,7 @@ a { color: var(--acc-bright); text-decoration: none; }
 .dlg.in::backdrop { opacity: 1; }
 .view > * { animation: view-in var(--dur-2) var(--ease) both; }
 @keyframes view-in { from { opacity: 0; translate: 0 4px } to { opacity: 1; translate: 0 0 } }
-.icon-btn { transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
+.icon-btn { transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
 .icon-btn:active, .row-item:active, .tree-item:active, .pal-item:active { transform: scale(0.985); }
 
 
@@ -696,14 +695,10 @@ a { color: var(--acc-bright); text-decoration: none; }
 button.side-title { display: flex; align-items: center; gap: var(--s2); width: 100%; cursor: pointer; border-radius: var(--r-xs); }
 button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .side-title .ico-wrap { margin-left: auto; transition: rotate var(--dur-2) var(--ease); }
-.sec-count { margin-left: auto; font-size: var(--t-xs); font-weight: var(--fw-bold); color: var(--fnt); background: var(--bg-hover); border-radius: var(--r-pill); padding: var(--s0) var(--s2); letter-spacing: 0; }
 .side-sec.closed .side-title .ico-wrap { rotate: -90deg; }
 .side-sec.closed .side-sec-items { display: none; }
-.side-item .pin-mark { margin-left: auto; opacity: 0; color: var(--fnt); display: grid; place-items: center; }
-.side-item:hover .pin-mark, .side-item:focus-within .pin-mark { opacity: 0.75; }
-.side-item .count { margin-left: auto; font-size: var(--t-xs); font-weight: var(--fw-bold); color: var(--fnt); background: var(--bg-hover); border-radius: var(--r-pill); padding: var(--s0) var(--s2); }
+.side-item .count { margin-left: auto; }
 .side-item.active .count { background: color-mix(in oklch, var(--acc) 20%, transparent); color: inherit; }
-.nav-tools { display: flex; gap: var(--s1); padding-top: var(--s2); }
 
 /* ---------- side sheet: bring the control to the user ---------- */
 .nav-scrim { position: fixed; inset: 0; background: light-dark(#3c3c4922, #00000066); z-index: 45; }
@@ -720,12 +715,8 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 /* ---------- bulk selection ---------- */
 .bulk-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); margin-top: var(--s4); z-index: 6; }
 .bulk-bar strong { font-size: var(--t-m); }
-.row-check { display: grid; place-items: center; width: 1.2rem; flex-shrink: 0; }
 
 /* ---------- list rows ---------- */
-.list-head { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.05em; text-transform: uppercase; color: var(--fnt); border-bottom: 1px solid var(--line-soft); }
-.list-head button { color: inherit; font: inherit; display: inline-flex; align-items: center; gap: var(--s1); }
-.list-head button:hover { color: var(--mut); }
 .card.stat.link { cursor: pointer; text-align: left; transition: border-color var(--dur-1) var(--ease), translate var(--dur-1) var(--ease); }
 .card.stat.link:hover { border-color: var(--acc); translate: 0 -2px; }
 
@@ -733,7 +724,6 @@ button.side-title:hover { color: var(--mut); background: var(--bg-hover); }
 .set-search { margin: 0 var(--s4) var(--s2); }
 .field.flash { animation: field-flash 1.8s var(--ease); border-radius: var(--r-s); }
 @keyframes field-flash { 0%, 65% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--acc) 40%, transparent) } 100% { box-shadow: 0 0 0 3px transparent } }
-.dirty-dot { width: 6px; height: 6px; border-radius: var(--r-pill); background: var(--warn); display: inline-block; margin-left: var(--s2); }
 
 /* ---------- editor: the outline gets its own rail ---------- */
 .editor { grid-template-columns: auto minmax(0, 1fr) var(--insp-w); }
@@ -811,9 +801,9 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
 .toasts-alert { bottom: 1.1rem; }
 .toasts:empty { display: none; }
 
-/* plugin cards are buttons, so they need the card's look without a button's reset */
-button.card.plug-card { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-button.card.plug-card:hover { border-color: var(--acc); }
+/* Controls that exist only once something has collapsed into a drawer.
+   Must sit BEFORE the breakpoints, or it wins at every width. */
+.nav-toggle, .panel-toggle { display: none; }
 
 /* ==========================================================================
    Responsive — LAST in the sheet on purpose.
@@ -824,23 +814,19 @@ button.card.plug-card:hover { border-color: var(--acc); }
    body{overflow:hidden} leaving no way to reach either.
    ========================================================================== */
 
-/* Controls that exist only once something has collapsed into a drawer.
-   Must sit BEFORE the breakpoints, or it wins at every width. */
-.nav-toggle, .panel-toggle, .insp-toggle { display: none; }
-
 @media (max-width: 1400px) {
   .editor { grid-template-columns: minmax(0, 1fr) var(--insp-w); }
   .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr); }
   .app.insp-hidden .editor, .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
   .outline {
-    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: 14rem; z-index: 40;
+    position: fixed; top: 2.9rem; bottom: 0; left: var(--side-w); width: var(--outline-w, 14rem); z-index: 40;
     translate: -100% 0; box-shadow: var(--shadow-l);
     visibility: hidden; pointer-events: none;
     transition: translate var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
   }
   /* In drawer mode only .open decides anything. .closed is the wide-mode
      collapse flag and must not leave the drawer half-shown. */
-  .outline.closed { width: 14rem; translate: -100% 0; }
+  .outline.closed { width: var(--outline-w, 14rem); translate: -100% 0; }
   .outline.open, .outline.closed.open { translate: 0 0; visibility: visible; pointer-events: auto; transition-delay: 0s, 0s; }
 }
 
@@ -852,9 +838,7 @@ button.card.plug-card:hover { border-color: var(--acc); }
   .app:not(.layout-ribbon) .side-item { justify-content: center; padding: var(--s2) 0; }
   .app:not(.layout-ribbon) .side-item .tip { display: block; }
   .app:not(.layout-ribbon) .side-item:hover .tip { opacity: 1; }
-  .app:not(.layout-ribbon) .count,
-  .app:not(.layout-ribbon) .pin-mark,
-  .app:not(.layout-ribbon) .nav-tools { display: none; }
+  .app:not(.layout-ribbon) .count { display: none; }
   :root { --insp-w: 19rem; }
 }
 
@@ -891,7 +875,6 @@ button.card.plug-card:hover { border-color: var(--acc); }
   .app.insp-open .inspector { translate: 0 0; }
   .app.insp-left .editor .inspector { order: 0; }
   .insp-resize { display: none; }
-  .insp-toggle { display: inline-flex; }
   .fields-grid { grid-template-columns: 1fr; }
  .app.insp-hidden .inspector { display: grid; } 
   .inspector {
@@ -903,7 +886,7 @@ button.card.plug-card:hover { border-color: var(--acc); }
 
 @media (max-width: 860px) {
  .widget.span2 { grid-column: span 1; } 
-  .app, .app.layout-ribbon { grid-template-columns: 1fr; grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
+  .app, .app.layout-ribbon { grid-template-columns: minmax(0, 1fr); grid-template-rows: 2.9rem 1fr; grid-template-areas: "top" "view"; }
   .app .side, .app.layout-ribbon .side {
     display: flex; position: fixed; top: 2.9rem; bottom: 0; left: 0; width: 15rem; z-index: 50;
     translate: -100% 0; transition: translate var(--dur-2) var(--ease); box-shadow: var(--shadow-l);
@@ -919,7 +902,6 @@ button.card.plug-card:hover { border-color: var(--acc); }
   .app.layout-ribbon button.side-title { padding: var(--s3) var(--s3) var(--s1); height: auto; margin: 0; border-top: 0; }
   .app:not(.layout-ribbon) .side-item { justify-content: flex-start; padding: var(--s2) var(--s3); }
   .app:not(.layout-ribbon) .side-item .tip { display: none; }
-  .app:not(.layout-ribbon) .nav-tools { display: flex; }
   .app:not(.layout-ribbon) .count { display: block; }
   .app.side-collapsed { --side-w: 15rem; }
   .app.layout-ribbon .ribbon { display: none; }
@@ -984,7 +966,1340 @@ button.card.plug-card:hover { border-color: var(--acc); }
 .app.wide .editor,
 .app.wide.insp-left .editor { grid-template-columns: minmax(0, 1fr); }
 .app.wide { grid-template-columns: 1fr; grid-template-areas: "top" "view"; }
-.app.wide .exit-wide { display: inline-flex; }
-.exit-wide { display: none; }
-/* The way out has to be visible without hunting for it. */
 .app.wide .wide-btn { background: color-mix(in oklch, var(--acc) 22%, transparent); color: var(--ink); }
+
+/* ==== WP-1: Shell & navigation ==== */
+.view-site { display: inline-flex; align-items: center; gap: var(--s2); }
+
+/* The site switcher is its own control, not decoration glued to the brand. */
+.top-site.site-switch {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: var(--s1) var(--s2); border: 1px solid transparent; border-radius: var(--r-s);
+  background: none; color: var(--mut); font-size: var(--t-m); cursor: pointer;
+}
+.top-site.site-switch:hover { background: var(--bg-hover); border-color: var(--line); color: var(--ink); }
+.top-site-name { font-weight: var(--fw-semi); }
+
+/* One button for everything about you: preferences, shortcuts, theme, sign out. */
+.user-btn {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: var(--s1) var(--s2); border: 1px solid transparent; border-radius: var(--r-pill);
+  background: none; color: var(--ink); font-size: var(--t-m); cursor: pointer;
+}
+.user-btn:hover { background: var(--bg-hover); border-color: var(--line); }
+.user-ava {
+  width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--acc); color: var(--acc-ink);
+  font-size: var(--t-xs); font-weight: var(--fw-heavy); letter-spacing: 0;
+}
+.pref-intro { margin-bottom: var(--s4); }
+
+@media (max-width: 860px) {
+  .user-name { display: none; }
+}
+
+/* ==== WP-3: Help ==== */
+.help-search-wrap { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft); }
+.help-search { width: 100%; }
+.help-nav { padding-top: var(--s2); }
+.help-group {
+  font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut);
+  text-transform: uppercase; letter-spacing: .04em;
+  padding: var(--s3) var(--s3) var(--s1);
+}
+.help-group:first-child { padding-top: 0; }
+.help-none { padding: var(--s4) var(--s3); font-size: var(--t-s); }
+
+.help-main { max-width: 58rem; }
+.help-sec { margin-bottom: var(--s6, 2rem); scroll-margin-top: var(--s3); }
+.help-sec-title { font-size: var(--t-xl); margin-bottom: var(--s1); }
+.help-sec-sum { font-size: var(--t-m); color: var(--ink); margin-bottom: var(--s4); }
+.help-para { font-size: var(--t-m); line-height: 1.6; margin-bottom: var(--s3); max-width: 46rem; }
+
+.help-warn {
+  display: flex; gap: var(--s3); align-items: flex-start;
+  padding: var(--s3) var(--s4); border-radius: var(--r-s); margin-bottom: var(--s3);
+  background: color-mix(in oklch, var(--warn) 12%, transparent);
+  color: var(--warn-ink); font-size: var(--t-m);
+}
+
+.help-steps { list-style: none; margin: 0 0 var(--s4); padding: 0; display: grid; gap: var(--s3); counter-reset: helpstep; }
+.help-step { display: grid; grid-template-columns: 1.5rem 1fr; gap: var(--s3); align-items: start; font-size: var(--t-m); line-height: 1.55; counter-increment: helpstep; }
+.help-step-n {
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright));
+  font-size: var(--t-s); font-weight: var(--fw-semi);
+}
+.help-step-n::before { content: counter(helpstep); }
+
+.help-facts {
+  margin: 0 0 var(--s4); padding: var(--s1) var(--s4);
+  border: 1px solid var(--line-soft); border-radius: var(--r-m, var(--r-s));
+  display: grid; grid-template-columns: minmax(9rem, 14rem) 1fr; gap: 0 var(--s4);
+}
+.help-fact-k, .help-fact-v { padding: var(--s3) 0; border-bottom: 1px solid var(--line-soft); margin: 0; }
+.help-facts > :nth-last-child(1), .help-facts > :nth-last-child(2) { border-bottom: 0; }
+.help-fact-k { font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); }
+.help-fact-v { font-size: var(--t-m); }
+.help-fact-hint { font-size: var(--t-s); color: var(--mut); margin-top: var(--s0); }
+
+.help-divider { margin: var(--s6, 2rem) 0 var(--s5); padding-top: var(--s5); border-top: 1px solid var(--line); scroll-margin-top: var(--s3); }
+.help-divider h2 { font-size: var(--t-xl); margin-bottom: var(--s1); }
+
+.help-code { margin-bottom: var(--s3); }
+.help-code-head { font-size: var(--t-s); color: var(--mut); margin-bottom: var(--s1); display: flex; justify-content: space-between; align-items: center; }
+.help-code .code-out { white-space: pre-wrap; }
+.help-link { margin-right: var(--s2); }
+
+/* the ? sheet */
+.help-tips { margin: 0 0 var(--s5) var(--s5); display: grid; gap: var(--s2); font-size: var(--t-m); line-height: 1.5; }
+.help-tips-none { margin-bottom: var(--s4); }
+.help-related { margin-bottom: var(--s5); }
+.help-related-title { font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); text-transform: uppercase; letter-spacing: .04em; margin-bottom: var(--s2); }
+.help-related-row {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s3); border-radius: var(--r-s); color: var(--ink);
+  font-size: var(--t-m); text-decoration: none; border-bottom: 1px solid var(--line-soft);
+}
+.help-related-row:last-child { border-bottom: 0; }
+.help-related-row:hover { background: var(--bg-hover); }
+.help-open { display: inline-flex; gap: var(--s2); align-items: center; }
+
+/* ==== WP-4: Editor layout & interaction ==== */
+
+:root { --outline-w: 15rem; }
+
+/* ---- outline: rows fit the rail, they never scroll sideways ---- */
+.outline-body { overflow-x: hidden; }
+.tree { min-width: 0; width: 100%; }
+/* Indent is a variable the row sets, capped at five levels, so deep nesting
+   cannot push a label out of the rail (it used to clip from the LEFT). */
+.tree .tree-item {
+  position: relative; overflow: hidden; min-width: 0;
+  padding-left: calc(var(--s2) + var(--depth, 0) * 0.7rem);
+  padding-right: 1.9rem;
+}
+.tree .tree-item .t-fold, .tree .tree-item .t-grip, .tree .tree-item .t-ico { flex-shrink: 0; }
+.tree .tree-item .t-label { min-width: 0; }
+/* The actions button is a sibling of the label, parked at the row end, so the
+   row itself is one clickable surface with no button nested inside a button. */
+.tree .tree-item .mrow-tools {
+  position: absolute; right: var(--s1); top: 50%; translate: 0 -50%; margin-left: 0;
+}
+.tree-empty { padding: var(--s3) var(--s2); font-size: var(--t-s); color: var(--fnt); }
+.panel-title.grow { flex: 1; }
+
+/* ---- toolbar ---- */
+.top-sep { width: 1px; align-self: stretch; margin: var(--s1) var(--s1); background: var(--line); }
+.panel-btn { position: relative; }
+.panel-btn-label {
+  position: absolute; top: calc(100% + 5px); left: 50%; translate: -50% 0; z-index: 30;
+  background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r-xs);
+  padding: 2px 6px; font-size: var(--t-xs); font-weight: var(--fw-medium); color: var(--mut);
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--dur-1) var(--ease);
+}
+.panel-btn:hover .panel-btn-label, .panel-btn:focus-visible .panel-btn-label { opacity: 1; }
+.restore-btn { color: var(--fnt); }
+
+/* ---- the canvas ---- */
+/* The badge explains itself in a sentence; "81% · widen" told nobody anything. */
+.preview-scale {
+  max-width: min(28rem, 60%); font: var(--fw-medium) var(--t-xs)/1.35 var(--font); text-align: left;
+  line-height: 1.35; white-space: normal; border-radius: var(--r-s); padding: var(--s1) var(--s2);
+}
+/* Tablet and phone get a device frame so a centred column reads as a device. */
+.preview-wrap.w-tablet .preview-frame-holder { width: 834px; border: 10px solid light-dark(oklch(72% 0.01 var(--acc-h)), oklch(32% 0.01 var(--acc-h))); }
+.preview-wrap.w-mobile .preview-frame-holder { width: 390px; border: 10px solid light-dark(oklch(72% 0.01 var(--acc-h)), oklch(32% 0.01 var(--acc-h))); }
+/* An empty page asks to be started here, on the page itself. */
+.canvas-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--s5); z-index: 3; pointer-events: none; }
+.canvas-empty-card {
+  pointer-events: auto; display: grid; gap: var(--s2); justify-items: center; text-align: center;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--r-l);
+  box-shadow: var(--shadow-l); padding: var(--s6) var(--s5); max-width: 26rem; width: 100%;
+}
+.canvas-empty-card h2 { font-size: var(--t-l); }
+.canvas-empty-card p { font-size: var(--t-s); color: var(--fnt); margin-bottom: var(--s2); }
+.canvas-empty-starters { display: grid; gap: var(--s1); width: 100%; margin-bottom: var(--s2); }
+
+/* ---- inspector ---- */
+.insp-empty { padding: var(--s7) var(--s4); }
+.insp-empty-acts { display: grid; gap: var(--s1); margin-top: var(--s3); width: 100%; }
+.insp-note { font-size: var(--t-xs); margin-bottom: var(--s2); }
+/* Help belongs under the input it explains. In the two-column label row a
+   sentence of help sat beside a narrow field and squeezed it to nothing. */
+.fields-stack .field > label:not(.field-check) { display: contents; }
+.fields-stack .field > label:not(.field-check) > span:first-child {
+  order: 0; font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut);
+}
+.fields-stack .field > label:not(.field-check) > .help { order: 2; }
+.fields-stack .field > :not(label) { order: 1; }
+
+/* ---- the toolbar owns the full editor width ---- */
+/* It used to live inside the canvas column, so with both panels open the title
+   input had ~14 characters. Row 1 spans outline | canvas | inspector; the
+   panels and their own heads start in row 2. */
+.editor { grid-template-rows: auto minmax(0, 1fr); }
+.editor > .editor-top { grid-column: 1 / -1; grid-row: 1; }
+.editor > .outline, .editor > .editor-mid, .editor > .inspector { grid-row: 2; }
+.editor-mid { grid-template-rows: minmax(0, 1fr); }
+.doc-title-input { min-width: 12rem; text-overflow: ellipsis; }
+
+/* ==== WP-6: signed out in place ==== */
+/* The mid-session sign-in card sits inside the view area, with the rail and
+   the rest of the studio still around it — so it must not claim a whole
+   viewport the way the full-page sign-in screen does. */
+.login-wrap.login-inline { height: auto; min-height: 0; padding: var(--s6) var(--s4); }
+.login-inline .login-card { margin-inline: auto; }
+
+/* ==== WP-5: One width model ==== */
+/* Shown when the selected block sits inside a Section: the Section owns the
+   width, so point at it rather than repeating a control that would not apply. */
+.insp-layout-inherit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
+.insp-layout-inherit > p.mut { font-size: var(--t-xs); margin: 0; }
+
+/* ==== WP-2: Settings ==== */
+/* Six groups, one Save. Cards no longer carry their own button, so the card
+   head is a title and a sentence — nothing else. */
+.set-main { max-width: 54rem; }
+.set-head-btns { display: flex; gap: var(--s2); }
+.set-nohit { padding: var(--s3); font-size: var(--t-m); }
+
+/* .set-card / .set-card-head are the shared .card / .card-head — see WP-10. */
+.set-card { margin-bottom: var(--s4); }
+.set-card-actions { margin-top: var(--s3); }
+.set-card-head + .set-card-actions { margin-top: 0; margin-bottom: var(--s3); }
+
+.set-sub { margin: var(--s5) 0 var(--s3); }
+.set-sub-title { font-size: var(--t-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fnt); }
+.set-sub-note { font-size: var(--t-s); margin: var(--s0) 0 0; max-width: 44rem; }
+.set-note { font-size: var(--t-s); margin-top: var(--s2); max-width: 46rem; }
+.set-example { font-size: var(--t-s); font-family: var(--mono); margin-top: calc(var(--s2) * -1); margin-bottom: var(--s3); }
+.set-tags { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
+.set-card .field-group { margin-bottom: var(--s4); }
+
+/* A password is not a text box you read over someone's shoulder. */
+.set-secret { display: flex; gap: var(--s2); align-items: center; }
+.set-secret input { flex: 1; min-width: 0; font-family: var(--mono); }
+
+/* the feature switchboard */
+.set-switches { display: grid; }
+.set-switch-row { display: flex; gap: var(--s4); align-items: flex-start; padding: var(--s3) 0; border-bottom: 1px solid var(--line-soft); }
+.set-switch-row:last-child { border-bottom: 0; }
+.set-switch-row strong { font-size: var(--t-m); }
+.set-switch-note { font-size: var(--t-s); margin: var(--s0) 0 0; max-width: 42rem; }
+
+/* content types, borrowed whole from the concepts view */
+.set-embed { border: 1px solid var(--line-soft); border-radius: var(--r-s); overflow: hidden; }
+.set-embed .split { grid-template-columns: 13rem minmax(0, 1fr); height: 30rem; }
+.set-embed .main-pad { padding: var(--s4); }
+.set-embed .panel-head { display: none; }
+
+.set-fonts { display: grid; gap: var(--s2); }
+.set-font-row { display: grid; grid-template-columns: 1.4fr 1fr 0.7fr auto auto; gap: var(--s2); align-items: center; }
+.set-font-row .input, .set-font-row .field-check span { font-size: var(--t-s); }
+.set-font-row .field-check { margin: 0; }
+.set-module-row { cursor: default; }
+
+.set-preview-link { margin-top: var(--s2); }
+.set-link-input { width: 100%; font-family: var(--mono); font-size: var(--t-s); }
+.set-log-line { font-size: var(--t-xs); font-family: var(--mono); padding: var(--s0) 0; border-bottom: 1px solid var(--line-soft); }
+
+/* the developer drawer: present, closed, and clearly labelled */
+.set-details { padding: 0; }
+.set-details > summary { cursor: pointer; padding: var(--s4) var(--s5); font-weight: var(--fw-semi); color: var(--mut); }
+.set-details-body { padding: 0 var(--s5) var(--s5); }
+
+/* One save for the page, pinned to the bottom of the scroller it belongs to. */
+.set-savebar {
+  position: sticky; bottom: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  padding: var(--s3) var(--s6);
+  background: var(--bg-panel); border-top: 1px solid var(--line); box-shadow: var(--shadow-l);
+}
+.set-savebar-text { font-size: var(--t-m); font-weight: var(--fw-semi); }
+.set-savebar-btns { display: flex; gap: var(--s2); }
+.set-card.flash, .set-switch-row.flash { animation: field-flash 1.8s var(--ease); border-radius: var(--r-s); }
+
+/* ==== WP-8: Site tools ==== */
+
+/* ---- Navigation ---- */
+/* The view had no heading of its own: it opened on a bare select and a "+".
+   The title block sits above the menu picker inside the left column. */
+.menu-left-title { display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s4) var(--s3) var(--s1); }
+.menu-left-title > div { flex: 1; min-width: 0; }
+.menu-left-title h1 { font-size: var(--t-xl); line-height: 1.2; }
+.menu-left-title .sub { color: var(--mut); font-size: var(--t-s); margin-top: var(--s0); }
+.menu-left-head { flex-wrap: wrap; }
+.menu-left-head select { flex: 1 1 100%; }
+.menu-add-item { flex: 1; justify-content: center; }
+.menu-panel-seg { flex-wrap: wrap; }
+.menu-panel-help { font-size: var(--t-s); margin: var(--s2) 0 0; }
+.menu-insp-bullets { text-align: left; font-size: var(--t-s); margin: 0; padding-left: var(--s4); display: grid; gap: var(--s0); }
+
+/* ---- Design ---- */
+.design-head { margin-bottom: var(--s4); }
+.design-head-acts { display: flex; gap: var(--s2); align-items: center; }
+.design-card { padding: var(--s4); display: grid; gap: var(--s3); }
+.design-note { font-size: var(--t-xs); margin: 0; }
+.design-reset { justify-self: start; font-size: var(--t-s); color: light-dark(var(--acc-strong), var(--acc-bright)); text-decoration: underline; text-underline-offset: 2px; }
+.design-scheme { display: grid; gap: var(--s1); }
+.design-toggle-row { margin-left: var(--s4); }
+.design-tpl-intro { display: grid; gap: var(--s2); justify-items: start; margin-bottom: var(--s3); }
+.design-tpl-note { margin-top: var(--s2); }
+.design-tpl-current { display: inline-flex; align-items: center; gap: var(--s0); font-size: var(--t-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.04em; color: light-dark(var(--acc-strong), var(--acc-bright)); }
+.design-more-link { font-size: var(--t-m); font-weight: var(--fw-semi); }
+
+/* ---- Header & footer ---- */
+.chrome-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: var(--s4); padding: var(--s4); align-content: start; }
+.chrome-head { margin-bottom: 0; }
+.chrome-head h1 { font-size: var(--t-xl); }
+.chrome-slot-row { align-items: flex-start; }
+.chrome-slot-text { display: grid; gap: 1px; min-width: 0; text-align: left; }
+.chrome-slot-hint { font-size: var(--t-xs); color: var(--mut); white-space: normal; }
+.chrome-block-btn { flex: 1; display: flex; align-items: baseline; gap: var(--s2); cursor: pointer; text-align: left; min-width: 0; }
+.chrome-block-kind { font-weight: var(--fw-semi); flex-shrink: 0; }
+.chrome-block-sum { color: var(--mut); font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chrome-preview-label { font-size: var(--t-s); margin: 0 0 var(--s2); }
+
+/* ---- Template code ---- */
+.tpl-page { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; overflow: hidden; }
+.tpl-head { padding: var(--s4) var(--s4) var(--s3); margin-bottom: 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.tpl-head h1 { font-size: var(--t-xl); }
+.tpl-head .sub { max-width: 52rem; }
+
+/* ---- SEO ---- */
+.seo-head-acts { display: flex; gap: var(--s2); align-items: center; }
+.seo-audit-card { margin-bottom: var(--s4); }
+.seo-summary { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: center; margin-bottom: var(--s3); }
+.seo-summary-line { margin: 0; font-size: var(--t-m); }
+.seo-needy { color: var(--warn-ink); }
+.seo-only { margin: 0; }
+.seo-count { font-weight: var(--fw-bold); display: inline-flex; gap: var(--s1); align-items: center; margin-right: var(--s3); white-space: nowrap; }
+.seo-count.err { color: var(--err-ink); }
+.seo-count.warn { color: var(--warn-ink); }
+.seo-count.ok { color: var(--ok-ink); }
+/* Every issue is listed, so the column needs room and each line needs its
+   own way out to the fix. */
+.seo-issues { max-width: 34rem; }
+.seo-issues .seo-check { display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s0) 0; }
+.seo-issue-text { flex: 1; white-space: normal; }
+.seo-fix { flex-shrink: 0; }
+.seo-doc-link { font-weight: var(--fw-semi); }
+.seo-row { cursor: default; }
+
+/* ==== WP-7: Dashboard & lists ==== */
+.head-actions { display: flex; align-items: center; gap: var(--s2); }
+.sec-title { font-size: var(--t-l); margin: var(--s6) 0 var(--s3); }
+.sec-title:first-child { margin-top: 0; }
+
+/* Needs attention / Continue editing — one sentence per row, one way out. */
+.attn-card { padding: var(--s2); display: grid; gap: var(--s0); }
+.attn-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3); border-radius: var(--r-s); }
+.attn-row + .attn-row { border-top: 1px solid var(--line-soft); }
+.attn-ico { display: inline-flex; color: var(--warn-ink); flex-shrink: 0; }
+.attn-clear .attn-ico { color: var(--ok-ink); }
+.attn-text { flex: 1; font-size: var(--t-m); }
+.attn-card .row-item { width: 100%; }
+.start-card { border-color: var(--acc); }
+.start-card p { margin-top: var(--s2); }
+
+.stat-row { display: grid; gap: var(--s4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 60rem) { .stat-row { grid-template-columns: 1fr 1fr; } }
+
+/* Content list table */
+.list-search-row { margin-bottom: var(--s3); }
+.list-search { width: 100%; }
+.rail-group { padding: var(--s4) var(--s3) var(--s1); font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.05em; text-transform: uppercase; color: var(--fnt); }
+.data-table th.sortable { user-select: none; }
+.sort-arrow { display: inline-flex; margin-left: var(--s1); vertical-align: middle; }
+.data-table .col-check { width: 1.5rem; padding-right: 0; }
+.data-table .col-when { white-space: nowrap; color: var(--mut); }
+.cell-title { display: block; font-weight: var(--fw-semi); }
+.cell-path { display: block; font-size: var(--t-xs); color: var(--mut); }
+.col-tick { display: inline-flex; color: var(--ok-ink); }
+.col-empty { color: var(--fnt); }
+.chip.sched { background: color-mix(in oklch, var(--acc) 16%, transparent); color: light-dark(var(--acc-strong), var(--acc-bright)); text-transform: none; }
+.chip.stale, .chip.published, .chip.draft, .chip.review { text-transform: none; }
+
+/* ==== WP-9: Studio admin pages ==== */
+.app-row { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); }
+.app-row:last-child { border-bottom: 0; }
+.app-row .app-main { flex: 1; min-width: 0; }
+.app-row .app-name { font-size: var(--t-m); font-weight: var(--fw-semi); }
+.app-row .app-desc { font-size: var(--t-s); color: var(--mut); margin: var(--s0) 0 0; }
+.app-disclose { margin-top: var(--s2); }
+.app-disclose > summary { cursor: pointer; font-size: var(--t-s); color: var(--mut); }
+.app-disclose-body { margin-top: var(--s2); display: grid; gap: var(--s1); }
+.app-perm-sentence { font-size: var(--t-m); }
+.app-limit-title { font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); margin-top: var(--s2); }
+.app-version { font-size: var(--t-xs); color: var(--fnt); }
+.banner-warn { display: flex; gap: var(--s3); align-items: center; padding: var(--s3) var(--s4); margin-bottom: var(--s4); border: 1px solid var(--warn); border-radius: var(--r-m); background: color-mix(in oklch, var(--warn) 10%, transparent); font-size: var(--t-m); }
+.app-foot { margin-top: var(--s4); }
+.app-foot .help { display: block; font-size: var(--t-s); color: var(--mut); margin-top: var(--s1); }
+
+.deploy-hero { padding: var(--s5); margin-bottom: var(--s4); }
+.deploy-hero h2 { font-size: var(--t-l); margin: 0 0 var(--s1); }
+.deploy-hero .deploy-url { font-size: var(--t-m); word-break: break-all; }
+.deploy-hero .deploy-when { font-size: var(--t-s); color: var(--mut); margin: var(--s1) 0 var(--s4); }
+.deploy-actions { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
+.deploy-out { margin-top: var(--s3); }
+.deploy-tech { margin-top: var(--s5); }
+.deploy-tech > summary { cursor: pointer; font-size: var(--t-m); font-weight: var(--fw-semi); color: var(--mut); padding: var(--s2) 0; }
+.deploy-tech-body { margin-top: var(--s4); }
+
+.act-filters { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; margin-bottom: var(--s3); }
+.act-filters .input { width: auto; }
+.act-when { white-space: nowrap; color: var(--mut); font-size: var(--t-s); }
+.act-who { white-space: nowrap; font-size: var(--t-m); }
+.act-what { font-size: var(--t-m); }
+.act-tech { font-size: var(--t-xs); color: var(--fnt); margin-top: var(--s0); word-break: break-all; }
+
+/* ==== WP-11: Edit everything from the page ==== */
+/* When a click on the page sends you to the box that controls those words,
+   the box has to announce itself — otherwise the inspector just looks the
+   same as it did a moment ago. */
+.field-flash { animation: fieldflash 1.1s ease; border-radius: var(--r-s); }
+@keyframes fieldflash {
+  0%, 45% { background-color: color-mix(in srgb, var(--acc) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 16%, transparent); }
+  100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .field-flash { animation: none; outline: 2px solid var(--acc); } }
+
+/* ==========================================================================
+   ==== WP-10: Visual system ====
+   One card, one badge, one section title, and a small utility set so the JS
+   never needs an inline style for spacing or type.
+
+   ALIASES (kept for one round so nothing breaks — new code uses the left-hand
+   name): .chip / .mrow-tag / .multi-tag / .count / .pill-perm are all .badge;
+   .insp-section-title / .fg-title / .picker-group-title are all .section-title.
+   ========================================================================== */
+
+/* ---------- card ---------- */
+.card-head, .set-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4); }
+.card-head > :first-child { min-width: 0; }
+.card-title, .card-head strong, .set-card-head strong { font-size: var(--t-l); font-weight: var(--fw-bold); letter-spacing: -0.01em; }
+.card-sub, .card-head .sub, .set-card-head .sub { color: var(--mut); font-size: var(--t-m); margin-top: var(--s0); max-width: 46rem; }
+.card-actions, .set-card-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.card-body { display: grid; gap: var(--s3); }
+
+/* ---------- badge ---------- */
+.badge, .chip, .mrow-tag, .multi-tag, .count {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: var(--s0) var(--s2); border-radius: var(--r-pill);
+  background: var(--bg-hover); color: var(--badge-ink);
+  font-size: var(--t-xs); font-weight: var(--fw-bold); letter-spacing: 0.03em;
+  flex-shrink: 0; white-space: nowrap;
+}
+.badge-ok, .badge.ok { background: color-mix(in oklch, var(--ok) 16%, transparent); color: var(--ok-ink); }
+.badge-warn, .badge.warn { background: color-mix(in oklch, var(--warn) 16%, transparent); color: var(--warn-ink); }
+.badge-err, .badge.err { background: color-mix(in oklch, var(--err) 14%, transparent); color: var(--err-ink); }
+.badge-muted { background: var(--bg-hover); color: var(--mut); }
+.badge-accent, .multi-tag { background: var(--acc-soft); color: light-dark(var(--acc-strong), var(--acc-bright)); }
+/* codes and permission keys stay monospace and square — they are text you read */
+.badge-code, .pill-perm {
+  display: inline-flex; align-items: center;
+  font: var(--fw-semi) var(--t-xs) var(--mono); letter-spacing: 0;
+  background: var(--bg-hover); border: 1px solid var(--line); color: var(--mut);
+  border-radius: var(--r-s); padding: var(--s0) var(--s2);
+  margin: var(--s0) var(--s0) var(--s0) 0; white-space: nowrap;
+}
+.multi-tag { padding-left: var(--s3); font-size: var(--t-s); font-weight: var(--fw-semi); letter-spacing: 0; }
+/* inside a selected row a badge borrows the row's own colour */
+.row-item.active .count, .row-item.active .badge, .side-item.active .badge { background: color-mix(in oklch, var(--acc) 18%, transparent); color: inherit; }
+
+/* ---------- section title ---------- */
+.section-title, .insp-section-title, .fg-title, .picker-group-title, .design-h, .set-sub-title, .rail-group, .pal-group, .help-related-title {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  font-size: var(--t-xs); font-weight: var(--fw-bold);
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--fnt);
+}
+.section-title, .insp-section-title { margin: var(--s5) 0 var(--s3); }
+.fg-title, .picker-group-title { margin-bottom: var(--s2); }
+
+/* ---------- layout utilities ---------- */
+.row { display: flex; align-items: center; gap: var(--s2); }
+.grow { flex: 1; }
+.stack-0 { display: grid; gap: var(--s0); }
+.stack-1 { display: grid; gap: var(--s1); }
+.stack-2 { display: grid; gap: var(--s2); }
+.stack-3 { display: grid; gap: var(--s3); }
+.stack-4 { display: grid; gap: var(--s4); }
+.stack-5 { display: grid; gap: var(--s5); }
+.bb-soft { border-bottom: 1px solid var(--line-soft); }
+.bd-0 { border: 0; }
+.bd-dash { border: 1px dashed var(--line); }
+.bd-line { border: 1px solid var(--line); }
+.bg-acc-soft { background: var(--acc-soft); }
+.bg-app { background: var(--bg); }
+.bg-none { background: none; }
+.bg-panel { background: var(--bg-panel); }
+.break-all { word-break: break-all; }
+.clickable { cursor: pointer; }
+.cursor-default { cursor: default; }
+.d-block { display: block; }
+.d-flex { display: flex; }
+.d-grid { display: grid; }
+.d-iflex { display: inline-flex; }
+.fw-regular { font-weight: var(--fw-regular); }
+.fw-semi { font-weight: var(--fw-semi); }
+.gap-0 { gap: var(--s0); }
+.gap-1 { gap: var(--s1); }
+.gap-2 { gap: var(--s2); }
+.gap-3 { gap: var(--s3); }
+.gap-4 { gap: var(--s4); }
+.gap-5 { gap: var(--s5); }
+.gap-px { gap: 1px; }
+.inset-0 { inset: 0; }
+.items-baseline { align-items: baseline; }
+.items-center { align-items: center; }
+.items-start { align-items: start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.justify-self-center { justify-self: center; }
+.m-0 { margin: 0; }
+.m-0-0-3 { margin: var(--s0) 0 var(--s3); }
+.m-0-0-4-5 { margin: 0 0 var(--s4) var(--s5); }
+.m-1-0-3 { margin: var(--s1) 0 var(--s3); }
+.m-2-0-0 { margin: var(--s2) 0 0; }
+.m-2-0-1 { margin: var(--s2) 0 var(--s1); }
+.m-3-0 { margin: var(--s3) 0; }
+.m-3-0-1 { margin: var(--s3) 0 var(--s1); }
+.m-5-0-2 { margin: var(--s5) 0 var(--s2); }
+.mb-0 { margin-bottom: var(--s0); }
+.mb-1 { margin-bottom: var(--s1); }
+.mb-2 { margin-bottom: var(--s2); }
+.mb-3 { margin-bottom: var(--s3); }
+.mb-4 { margin-bottom: var(--s4); }
+.mb-5 { margin-bottom: var(--s5); }
+.mh-12 { max-height: 12rem; }
+.mh-13 { max-height: 13rem; }
+.mh-16 { max-height: 16rem; }
+.mh-9 { max-height: 9rem; }
+.minh-16 { min-height: 16rem; }
+.minh-1e { min-height: 1em; }
+.minw-0 { min-width: 0; }
+.minw-10 { min-width: 10rem; }
+.minw-3_4 { min-width: 3.4rem; }
+.ml-1 { margin-left: var(--s1); }
+.ml-2 { margin-left: var(--s2); }
+.ml-auto { margin-left: auto; }
+.mr-0 { margin-right: var(--s0); }
+.mr-1 { margin-right: var(--s1); }
+.mt-0 { margin-top: var(--s0); }
+.mt-1 { margin-top: var(--s1); }
+.mt-2 { margin-top: var(--s2); }
+.mt-3 { margin-top: var(--s3); }
+.mt-4 { margin-top: var(--s4); }
+.mw-14 { max-width: 14rem; }
+.mw-16 { max-width: 16rem; }
+.mw-18 { max-width: 18rem; }
+.mw-52 { max-width: 52rem; }
+.mw-62 { max-width: 62rem; }
+.mw-64 { max-width: 64rem; }
+.mw-7 { max-width: 7rem; }
+.mw-72 { max-width: 72rem; }
+.mw-78 { max-width: 78rem; }
+.no-pointer { pointer-events: none; }
+.no-underline { text-decoration: none; }
+.nowrap { white-space: nowrap; }
+.obj-contain { object-fit: contain; }
+.ova { overflow: auto; }
+.ovh { overflow: hidden; }
+.ovy-a { overflow-y: auto; }
+.p-0 { padding: 0; }
+.p-0-0 { padding: var(--s0) 0; }
+.p-0-3-3 { padding: 0 var(--s3) var(--s3); }
+.p-0-6-0-2 { padding: var(--s0) var(--s6) var(--s0) var(--s2); }
+.p-1-0 { padding: var(--s1) 0; }
+.p-1-2 { padding: var(--s1) var(--s2); }
+.p-1-3 { padding: var(--s1) var(--s3); }
+.p-1-4 { padding: var(--s1) var(--s4); }
+.p-2-0 { padding: var(--s2) 0; }
+.p-2-3 { padding: var(--s2) var(--s3); }
+.p-2-4 { padding: var(--s2) var(--s4); }
+.p-3 { padding: var(--s3); }
+.p-3-3 { padding: var(--s3) var(--s3); }
+.p-3-4 { padding: var(--s3) var(--s4); }
+.p-3-5 { padding: var(--s3) var(--s5); }
+.p-4 { padding: var(--s4); }
+.p-4-3-1 { padding: var(--s4) var(--s3) var(--s1); }
+.p-4-4 { padding: var(--s4) var(--s4); }
+.place-center { place-items: center; }
+.pos-abs { position: absolute; }
+.pos-fixed { position: fixed; }
+.pos-rel { position: relative; }
+.pos-sticky { position: sticky; }
+.pre-wrap { white-space: pre-wrap; }
+.rad-pill { border-radius: var(--r-pill); }
+.rad-s { border-radius: var(--r-s); }
+.rad-xs { border-radius: var(--r-xs); }
+.select-all { user-select: all; }
+.ta-l { text-align: left; }
+.ta-r { text-align: right; }
+.text-3xl { font-size: var(--t-3xl); }
+.text-l { font-size: var(--t-l); }
+.text-m { font-size: var(--t-m); }
+.text-s { font-size: var(--t-s); }
+.text-xl { font-size: var(--t-xl); }
+.text-xs { font-size: var(--t-xs); }
+.tov-ellipsis { text-overflow: ellipsis; }
+.txt-acc { color: var(--acc); }
+.txt-err { color: var(--err-ink); }
+.txt-ok { color: var(--ok-ink); }
+.txt-warn { color: var(--warn-ink); }
+.w-13 { width: 13rem; }
+.w-15 { width: 15rem; }
+.w-1_1 { width: 1.1rem; }
+.w-auto { width: auto; }
+.w-full { width: 100%; }
+.wrap { flex-wrap: wrap; }
+.z-200 { z-index: 200; }
+
+/* ---------- rail density ----------
+   At 1440x900 with every section open the rail ran past Help and the Collapse
+   control. The row height is a token (applied on .side-item / .side-title up
+   in the shell block, so the collapsed and drawer rules still out-rank it),
+   which keeps the Compact preference working without any per-item hack. */
+:root { --rail-item-py: var(--s1); --rail-title-pt: var(--s2); }
+[data-density="compact"] { --rail-item-py: 0.2rem; --rail-title-pt: var(--s1); }
+
+/* ---------- WP-10: the last of the inline styles, as named parts ---------- */
+.m-2 { margin: var(--s2); }
+.pt-1 { padding-top: var(--s1); }
+.grow-14 { flex: 1.4; }
+.txt-acc-strong { color: light-dark(var(--acc-strong), var(--acc-bright)); }
+.card-danger { border-color: color-mix(in oklch, var(--err) 35%, var(--line)); }
+.card-warn { border-color: var(--warn); }
+
+/* header & footer: the block slots sit in a filling grid */
+.chrome-slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--s2); }
+
+/* data tables: a totals strip pinned to the bottom of the scroller */
+.data-totals {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; gap: var(--s5); flex-wrap: wrap;
+  margin: var(--s2) -1.1rem -0.6rem; padding: var(--s3) var(--s5);
+  background: var(--bg-panel); border-top: 1px solid var(--line);
+}
+.money-prefix { position: absolute; left: 0.6rem; top: 50%; translate: 0 -50%; color: var(--fnt); }
+
+/* deploy */
+.deploy-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--s3); margin-bottom: var(--s5); }
+.deploy-target-blurb { font-size: var(--t-s); line-height: 1.45; margin: 0; }
+.deploy-check { display: grid; grid-template-columns: 1.2rem minmax(9rem, 13rem) 1fr; gap: var(--s3); align-items: start; padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); }
+.deploy-budget-row { display: grid; grid-template-columns: minmax(8rem, 16rem) 1fr 5rem; gap: var(--s3); align-items: center; padding: var(--s1) 0; }
+.deploy-bar { height: 7px; border-radius: var(--r-pill); background: var(--line-soft); overflow: hidden; }
+
+/* a slider's read-out, so the number never shifts the track as it changes */
+.range-out { font: var(--fw-semi) var(--t-s) var(--mono); min-width: 3.4rem; text-align: right; }
+
+/* fields */
+.field-color { height: 2.1rem; padding: var(--s0); }
+.field-img-preview { aspect-ratio: 16/7; border-radius: var(--r-s); border: 1px solid var(--line); cursor: pointer; overflow: hidden; }
+/* the native colour dialog needs a real input, but not a visible one */
+.offscreen-color { position: fixed; opacity: 0; pointer-events: none; }
+
+/* shell odds and ends */
+.shortcut-row { display: grid; grid-template-columns: minmax(7rem, 9rem) 1fr; gap: var(--s4); padding: var(--s1) 0; align-items: baseline; }
+.guess-list { min-width: min(22rem, 80vw); }
+.menu-chip-row { display: inline-flex; gap: var(--s0); flex-wrap: wrap; vertical-align: middle; }
+.kv-row { display: grid; grid-template-columns: 8rem 1fr; gap: var(--s3); align-items: center; margin-bottom: var(--s1); }
+.role-row { display: grid; grid-template-columns: 6rem 1fr; gap: var(--s4); font-size: var(--t-m); }
+
+/* media library */
+.media-alt-warn.tag-private { left: 0.4rem; right: auto; background: var(--ink); color: var(--bg-raise); }
+.media-check {
+  position: absolute; top: 0.4rem; left: 0.4rem; width: 1.1rem; height: 1.1rem;
+  border-radius: var(--r-xs); border: 1.5px solid var(--line); background: var(--bg-raise);
+  display: grid; place-items: center; color: #fff; z-index: 2;
+}
+.media-check.on { background: var(--acc); border-color: var(--acc); }
+.focal-picker { position: relative; border-radius: var(--r-s); overflow: hidden; cursor: crosshair; border: 1px solid var(--line); }
+
+/* numeric table columns line up on their last digit */
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* A half-width field only earns a shared row when it is a short control with
+   no help to read. Anything with a sentence under it, or a box you type into,
+   takes the full width — and so does the half beside it, so the pair stays a
+   pair rather than leaving one lonely column. */
+.fields-stack .field.half:has(.help),
+.fields-stack .field.half:has(textarea, input[type="text"], .rt-wrap, .field-code),
+.fields-stack .field.half:has(.help) + .field.half,
+.fields-stack .field.half:has(textarea, input[type="text"], .rt-wrap, .field-code) + .field.half,
+.fields-stack .field.half:has(+ .field.half:has(.help)),
+.fields-stack .field.half:has(+ .field.half:has(textarea, input[type="text"], .rt-wrap, .field-code)) {
+  grid-column: 1 / -1;
+}
+
+/* ==== R2-A: editor preview, outline and rich text ==== */
+
+/* The zoom level moved out of the canvas: it used to sit pinned over the
+   bottom-right of the page on every document, covering content. It now reads
+   as a quiet label beside the device buttons and still hides the panels when
+   clicked. */
+.preview-zoom {
+  font: var(--fw-medium) var(--t-xs)/1 var(--font);
+  color: var(--mut); background: none; border: 0;
+  padding: var(--s0) var(--s1); border-radius: var(--r-xs); white-space: nowrap;
+  cursor: pointer;
+}
+.preview-zoom:hover { color: var(--ink); background: var(--bg-hover); }
+/* R10/R9-1: 1100, not 1000 — between 1001 and 1100 the badge was spilling
+   out of the toolbar's middle group and landing on top of "Saved". */
+@media (max-width: 1100px) { .preview-zoom-holder { display: none; } }
+
+/* Desktop preview: the frame is sized in JS (1024 virtual width, capped at
+   1440 when it fits) and centred; the holder must not stretch past it. */
+.preview-wrap .preview-frame-holder { max-width: 100%; }
+
+/* Rich text toolbar buttons now hold an icon or a short word rather than a
+   bare glyph, so they need to size to their content. */
+.rt-toolbar button .ico-wrap { display: inline-flex; }
+.rt-toolbar button { min-width: 1.75rem; padding-inline: var(--s1); }
+
+/* ==== R2-C: rail links, app capabilities, access codes, SEO tiers ==== */
+
+/* Rail rows are anchors now (middle-click, copy link, open in a new tab).
+   They must keep looking and behaving exactly like the buttons they replaced. */
+a.side-item { text-decoration: none; box-sizing: border-box; }
+a.side-item:hover { text-decoration: none; }
+
+/* Apps: the plain sentences are the answer to "what can it do"; the dotted
+   codes live one fold deeper, with the ticks that limit them. */
+.app-limit { margin-top: var(--s3); border-top: 1px solid var(--line); padding-top: var(--s2); }
+.app-limit > summary { cursor: pointer; font-size: var(--t-s); color: var(--fnt); font-weight: var(--fw-medium); }
+.app-limit > summary:hover { color: var(--ink); }
+.app-limit-body { display: grid; gap: var(--s1); padding-top: var(--s2); }
+
+/* People → Extra access: codes off by default. */
+.grant-codes-toggle { margin-bottom: var(--s2); }
+.grant-list .grant-code { display: none; }
+.grant-list.show-codes .grant-code { display: inline; }
+
+/* SEO: three tiers. A suggestion is folded away until asked for, and never
+   coloured like a problem. */
+.seo-check.problem .seo-ico { color: var(--err-ink, var(--ink)); }
+.seo-check.look .seo-ico { color: var(--warn-ink, var(--fnt)); }
+.seo-check.suggestion .seo-ico { color: var(--fnt); }
+.seo-issue-detail { color: var(--fnt); }
+.seo-suggestions { margin-top: var(--s1); }
+.seo-suggestions > summary { cursor: pointer; font-size: var(--t-s); color: var(--fnt); }
+.seo-suggestions > summary:hover { color: var(--ink); }
+.seo-count.warn { white-space: nowrap; }
+
+/* Settings search: an empty result should still point somewhere. */
+.set-nohit { display: grid; gap: var(--s1); padding: var(--s3); }
+
+/* ==== R3: hidden always wins (the set-savebar display:flex out-ranked the UA rule) ==== */
+[hidden] { display: none !important; }
+
+/* ==== R3-B: Activity filter captions, SEO grouped rows, list title links ==== */
+
+/* Every Activity dropdown says what it filters, instead of leaving you to
+   infer it from whichever option happens to be selected. */
+.act-filters { align-items: flex-end; }
+.act-filter { display: grid; gap: 2px; }
+.act-filter-cap { font-size: var(--t-xs); color: var(--mut); font-weight: var(--fw-semi); }
+.act-filter .input { width: auto; }
+
+/* One collapsed row for the 33 pages that all share the same single note, so
+   the real faults are not buried under identical lines. */
+.seo-group-row > td { background: var(--sub-bg, transparent); }
+.seo-group > summary { cursor: pointer; display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
+.seo-group-label { font-weight: var(--fw-semi); }
+.seo-group-list { display: grid; gap: 2px; padding: var(--s2) 0 var(--s1) var(--s4); }
+.seo-group-item { display: flex; gap: var(--s2); align-items: baseline; flex-wrap: wrap; }
+
+/* Content-list titles are links now: they must not look like links until you
+   are on the row, or the whole table turns blue. */
+a.cell-title { color: inherit; text-decoration: none; }
+a.cell-title:hover, tr:hover a.cell-title { text-decoration: underline; }
+
+/* ==== R3-A: rail names, outline rows, site switcher ==== */
+
+/* The collapsed rail is icon + name, not icon + guesswork. A tooltip you have
+   to hover to read is not a label, so each item is two lines: the icon, and the
+   name under it, small and clipped rather than hidden. Section headings become
+   the thin dividers they already were. Applies wherever the rail is narrow —
+   the ⌘B collapse and the automatic one below 1280px. */
+.app.side-collapsed { --side-w: 4.25rem; }
+.app.side-collapsed .side-item {
+  flex-direction: column; gap: 0.1rem; padding: var(--s1) 0.15rem; text-align: center;
+}
+.app.side-collapsed .side-label {
+  display: block; width: 100%; font-size: 10.5px; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--fw-medium);
+}
+.app.side-collapsed .side-item.active::before { left: -0.2rem; height: 1rem; }
+.app.side-collapsed .side-item .count { display: none; }
+.app.side-collapsed .side-item .tip, .app:not(.layout-ribbon) .side-item .tip { left: 4.45rem; }
+.app.side-collapsed .side-foot .side-label { display: block; }
+
+@media (max-width: 1280px) {
+  .app:not(.layout-ribbon) { --side-w: 4.25rem; }
+  .app:not(.layout-ribbon) .side-item {
+    flex-direction: column; gap: 0.1rem; padding: var(--s1) 0.15rem; text-align: center;
+  }
+  .app:not(.layout-ribbon) .side-label {
+    display: block; width: 100%; font-size: 10.5px; line-height: 1.15;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--fw-medium);
+  }
+}
+/* …but the off-canvas drawer has full width again, so words come back in full. */
+@media (max-width: 860px) {
+  .app:not(.layout-ribbon) .side-item,
+  .app.side-collapsed .side-item { flex-direction: row; text-align: left; padding: var(--s2) var(--s3); }
+  .app:not(.layout-ribbon) .side-label,
+  .app.side-collapsed .side-label { font-size: var(--t-m); line-height: inherit; width: auto; }
+}
+
+/* Outline rows: the content on line one, what kind of block it is on line two.
+   On one line the type was what the ellipsis ate first — the part that tells
+   you what the row actually is. */
+.tree-item .t-label { white-space: normal; display: grid; align-content: center; min-height: 2.3rem; }
+.tree-item .t-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-item .t-type { display: block; font-size: var(--t-xs); color: var(--fnt); line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-item.selected .t-type { color: inherit; opacity: 0.8; }
+
+/* Site switcher: which one you are in, and the address each one answers on. */
+.site-sw-current { opacity: 0.85; cursor: default; }
+.site-sw-name { font-weight: var(--fw-medium); }
+.site-sw-folder { color: var(--fnt); font-size: var(--t-s); margin-left: var(--s1); }
+.site-sw-url { color: var(--fnt); font-size: var(--t-s); }
+
+/* ==== R4 ==== */
+
+/* The outline panel could not be opened above 1400px. It lived in an `auto`
+   grid track and animated its own `width`: the track sized itself from the
+   animated width while the width resolved against the track, so the transition
+   never finished and the panel sat at 1px for ever. The track is now an
+   explicit width the grid owns and the panel simply fills it. */
+@media (min-width: 1401px) {
+  /* No transition on the track either: animating it kept the transition in a
+     permanently "running" state against the 1fr neighbour, and the panel again
+     never arrived. A panel that opens instantly is worth more than one that
+     slides and then is not there. */
+  .editor { grid-template-columns: var(--outline-col, 15rem) minmax(0, 1fr) var(--insp-w); }
+  .app.insp-left .editor { grid-template-columns: var(--insp-w) minmax(0, 1fr) var(--outline-col, 15rem); }
+  .app.insp-hidden .editor { grid-template-columns: var(--outline-col, 15rem) minmax(0, 1fr); }
+  .app.insp-hidden.insp-left .editor { grid-template-columns: minmax(0, 1fr) var(--outline-col, 15rem); }
+  .editor:has(> .outline.closed) { --outline-col: 0rem; }
+  .outline, .outline.closed { width: auto; min-width: 0; overflow: hidden; transition: none; }
+  .outline.closed { border-right: 0; }
+}
+
+/* ==== R5-A ==== */
+
+/* F5 — the collapsed rail clipped "Header & footer" and "Template code" mid
+   word: a 52px nowrap box for names that need 77px. The name now wraps onto a
+   second line (never a third) and the rail is wide enough to hold the longest
+   word in the set. Applies to both narrow-rail cases — the ⌘B collapse and the
+   automatic one below 1280px. */
+.app.side-collapsed { --side-w: 5rem; }
+.app.side-collapsed .side-label {
+  white-space: normal; overflow-wrap: break-word; text-overflow: clip;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  line-clamp: 2; text-align: center; max-height: 2.4em;
+}
+.app.side-collapsed .side-item .tip, .app:not(.layout-ribbon) .side-item .tip { left: 5.2rem; }
+
+@media (max-width: 1280px) {
+  .app:not(.layout-ribbon) { --side-w: 5rem; }
+  .app:not(.layout-ribbon) .side-label {
+    white-space: normal; overflow-wrap: break-word; text-overflow: clip;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    line-clamp: 2; text-align: center; max-height: 2.4em; overflow: hidden;
+  }
+}
+/* The off-canvas drawer is full width again — one line, no clamp. */
+@media (max-width: 860px) {
+  .app:not(.layout-ribbon) .side-label,
+  .app.side-collapsed .side-label {
+    display: block; max-height: none; text-align: left; white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+/* F3 — the two panel toggles in the editor toolbar said what they did only
+   while you hovered them. A label you have to hover to read is not a label:
+   both now carry their words beside the icon, always. */
+.panel-btn { width: auto; gap: 0.3rem; padding-inline: var(--s2); }
+.panel-btn-label {
+  position: static; translate: none; z-index: auto; opacity: 1;
+  background: none; border: 0; padding: 0; border-radius: 0;
+  color: inherit; pointer-events: auto; transition: none;
+}
+
+/* F10 — at 1920 the content column sat against the left edge with ~750px of
+   empty grey beside it. Centring is now owned by `.main` itself rather than by
+   the child's auto margins, so no later rule can strand the column, and the
+   dashboard and the content lists (the two views with no explicit width) may
+   grow to 72rem before the whitespace starts. */
+.main { display: flex; flex-direction: column; align-items: center; }
+.main > * { width: 100%; }
+.main-pad { margin-inline: auto; }
+.main-pad:not([class*="mw-"]):not(.set-main):not(.help-main) { max-width: 72rem; }
+
+/* F12 — a site whose studio is not listening is shown, but not as a link. */
+.site-sw-off { opacity: 0.6; cursor: default; }
+.site-sw-off .fnt { text-align: right; }
+
+/* ==== R5-B ==== */
+
+/* One line under the Redirects heading explaining permanent vs temporary. */
+.r5b-redirect-help { margin: 0 0 10px; }
+
+/* ==== R6-B ==== */
+/* Brand variables: the remove control sits on the row it removes. */
+.brandvar-remove { justify-self: start; margin-top: var(--s1); padding: 0; background: none; border: 0; color: var(--fnt); font-size: var(--t-s); text-decoration: underline; cursor: pointer; }
+.brandvar-remove:hover { color: var(--err-ink); }
+.brandvar-tokens { margin-top: var(--s3); }
+.brandvar-tokens > summary { cursor: pointer; font-size: var(--t-s); color: var(--fnt); }
+.brandvar-token-list { list-style: none; margin: var(--s2) 0 0; padding: 0; display: grid; gap: var(--s1); }
+.brandvar-token-list code { font-size: 12px; }
+
+/* ==== R6-A ==== */
+/* The switcher's purpose was hidden in a title=. Say "Switch" on screen. */
+.top-site-switch { font-size: var(--t-xs); color: var(--fnt); }
+.top-site.site-switch:hover .top-site-switch { color: var(--mut); }
+@media (max-width: 1100px) { .top-site-switch { display: none; } }
+
+/* A studio we could not reach is still a link — the registry may be stale and
+   only the person knows where that studio moved to. It just does not pretend. */
+a.row-item.site-sw-off { color: var(--mut); }
+a.row-item.site-sw-off .row-ico { opacity: .6; }
+
+/* Tablet/phone widths are rendered at 834/390 and scaled by the same transform
+   path as Desktop, so the holder's width is set inline; do not fix it here. */
+.preview-wrap.w-tablet .preview-frame-holder,
+.preview-wrap.w-mobile .preview-frame-holder { max-width: 100%; }
+
+/* ==== R7 ==== */
+
+/* A card you can press. Replaces the inline text-align/padding/cursor/border
+   that the Deploy target cards carried. */
+.card-action {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--s4);
+  cursor: pointer;
+  border-color: var(--line);
+  font: inherit;
+  color: inherit;
+}
+.card-action:hover { border-color: var(--acc-soft, var(--line)); }
+.card-action.selected { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+
+/* The doctor verdict card: one data-driven colour, handed in as --card-accent. */
+.card-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
+  border-color: var(--card-accent, var(--line));
+}
+.card-verdict-ico { display: flex; }
+
+/* People → Status: the switch says what it means on screen, not in a tooltip. */
+.switch-word { color: var(--fnt); font-size: var(--t-s); white-space: nowrap; }
+
+/* ==== R8 ==== */
+/* Deploy page-weight rows: the size and alignment were repeated as a static
+   inline style on every row (41 copies on one site). Only the colour is
+   conditional, so only the colour stays a per-row decision. */
+.deploy-budget-size { font-size: var(--t-xs); text-align: right; color: var(--mut); }
+.deploy-budget-size.over { color: var(--warn-ink); }
+
+/* ==== R9 ==== */
+/* Links now carry an underline (R8-2). Anchors that are really buttons, rows
+   or cards must not — they already read as controls from their own box. */
+a.btn, a.row-item, a.side-item, a.card, a.skip-link, a.help-open, a.help-related-row,
+a.site-sw-off, a.cell-title, a.no-underline, a.tree-item, a.mrow, a.pal-item,
+a.picker-item, a.mbar-item, a.quick-item { text-decoration: none; }
+a.btn:hover, a.cell-title:hover, a.row-item:hover { text-decoration: none; }
+
+/* R8-5 — deploy.js static layout that was still inline. */
+.deploy-check-ico { display: flex; padding-top: var(--s0); }
+.deploy-check-out { font-size: var(--t-xs); margin: var(--s2) 0 0; white-space: pre-wrap; }
+.deploy-budget-fill { height: 100%; border-radius: var(--r-pill); }
+
+
+/* ==== R10 ==== */
+
+/* R9-1 — the toolbar's middle group is flexible, so it has to clip rather
+   than let the title, the save state and the zoom badge spill over the group
+   beside it (at 1024 the badge was painted on top of the word "Saved"). */
+.editor-top-group.grow { overflow: hidden; }
+.editor-top-group.grow > .doc-title-input { flex: 1 1 6rem; min-width: 4rem; }
+.editor-top-group.grow > .save-state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.editor-top-group.grow > .restore-btn { flex: 0 0 auto; }
+
+/* R9-2a — with no panel open there is nothing to hide, so the note is plain
+   text rather than a button that does nothing when clicked. */
+.preview-zoom-holder { display: inline-flex; align-items: center; min-width: 0; }
+.preview-zoom-flat { cursor: default; }
+.preview-zoom-flat:hover { color: var(--mut); background: none; }
+
+/* R9-2b — on a narrow window the panels float over the page; say so, and
+   offer the way back to the whole page. */
+.canvas-overlay-note {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s1) var(--s3); background: var(--bg-hover);
+  border-bottom: 1px solid var(--line); color: var(--ink); font-size: var(--t-xs);
+}
+.canvas-overlay-close {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--acc-strong); text-decoration: underline; text-underline-offset: .15em;
+  font: inherit; flex: 0 0 auto;
+}
+
+/* R9-7 — the rail count is a needs-publishing count; the pencil says so. */
+.count-unpub { gap: var(--s0); }
+.count-pen { display: inline-flex; align-items: center; opacity: .8; }
+
+/* Category 5 — inherited width, read-only, with its value. */
+.insp-inherit-line { color: var(--mut); font-size: var(--t-s); margin: 0 0 var(--s2); }
+.insp-inherit-val { color: var(--ink); font-weight: var(--fw-semi); }
+
+/* R9-5 — static halves of inline styles, now classes. */
+.bulk-bar { display: flex; gap: var(--s2); align-items: center; margin-bottom: var(--s4); flex-wrap: wrap; }
+.runout-line { font-size: var(--t-m); font-weight: var(--fw-semi); margin: var(--s2) 0 var(--s1); }
+
+/* The caption sits above the canvas, so the middle column needs its two rows
+   back (a later rule had collapsed it to one). */
+.editor-mid { grid-template-rows: auto minmax(0, 1fr); }
+
+/* ==== R11 ==== */
+
+/* R10-1 — the toolbar's middle group had no priority order, so at 1024 the
+   status chip kept all 122 px of itself, the title fell to 64 px ("Car ...")
+   and the word "Saved" was squeezed to nothing. Order it: the title is the
+   last thing to lose width, the save state may never vanish, and the chip
+   yields first. Below 1100 the chip and the preview-width buttons leave the
+   toolbar entirely (both are in the "⋯" menu at that width), which is what
+   frees the room the title and "Saved" need. */
+.editor-top-group.grow > .doc-title-input { flex: 1 1 12rem; min-width: 6rem; }
+.editor-top-group.grow > .doc-status {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.editor-top-group.grow > .save-state { flex: 0 0 auto; min-width: 3.5rem; }
+@media (max-width: 1100px) {
+  .editor-top > .editor-top-group > .doc-status,
+  .editor-top > .editor-top-group > .seg,
+  .editor-top > .editor-top-group > .top-sep { display: none; }
+}
+
+/* R10-2 — on the active row the badge inherited the row's own accent ink over
+   the row's accent tint and measured 3.85:1. The badge has its own ink token;
+   use it here too. */
+.side-item.active .count { color: var(--badge-ink); }
+.row-item.active .count, .row-item.active .badge, .side-item.active .badge { color: var(--badge-ink); }
+
+/* R10-3 — .tpl-shell declared rows but no column track, so its children sized
+   to max-content (1470 px inside a 944 px shell) and the Save button ran off
+   the right of the window with nothing to scroll. */
+.tpl-shell { grid-template-columns: minmax(0, 1fr); }
+.tpl-bar, .tpl-main { min-width: 0; }
+.tpl-bar { flex-wrap: wrap; }
+
+/* R10-4 — the Help topics column widened to its longest label and put a
+   sideways scrollbar under the list, cutting "…header or footer text" mid-word.
+   The rows wrap to a second line instead; the column never scrolls sideways. */
+.help-nav { overflow-x: hidden; min-width: 0; }
+.help-nav .row-item { min-width: 0; align-items: flex-start; }
+.help-nav .row-ico { flex: 0 0 auto; margin-top: .1em; }
+.help-nav .row-label { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+
+/* ==== R12 ==== */
+/* A `display: grid` container with no column track gets one implicit
+   `max-content` column: the intrinsic width of the longest label then wins
+   over its parent and pushes the row past the window edge, with nothing to
+   scroll and no way to reach the controls on the right (R11-1, the same
+   defect R10-3 fixed on `.tpl-shell`). Every grid below holds text the site
+   owner typed, so every one of them gets the same `minmax(0, 1fr)` guard and
+   the `min-width: 0` that lets the existing ellipsis actually apply. */
+.list-rows, .tree, .picker-groups, .tbl-edit, .kb-cards, .pal-list, .mlevel,
+.stack-1, .set-switches, .set-fonts, .set-nohit, .panel-body, .field,
+.help-group-rows {
+  grid-template-columns: minmax(0, 1fr);
+}
+.list-rows, .list-row, .list-row-head, .tree, .picker-groups, .tbl-edit,
+.kb-cards, .pal-list, .mlevel, .stack-1, .set-switches, .set-fonts,
+.help-group-rows {
+  min-width: 0;
+}
+
+/* R11-4: the help topic captions are headings now, and their buttons a
+   labelled group — the group needs the 1px row rhythm `.panel-body` used to
+   give the buttons directly. */
+.help-group-rows { display: grid; gap: 1px; }
+h2.help-group { margin: 0; }
+
+/* ==== R12b: the shell must never be wider than the window (round-12 critic, 390px) ==== */
+.topbar { min-width: 0; }
+.top-brand, .top-mid, .top-end, .top-site, .top-site-name { min-width: 0; }
+.top-site-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 12rem; }
+@media (max-width: 600px) {
+  .top-site-name { max-width: 7rem; }
+  .view-site .view-site-label, .user-btn .user-name { display: none; }
+}
+/* list filter labels wrap instead of clipping ("With unpublished changes") */
+.split > .panel .row-item .row-label { white-space: normal; overflow-wrap: anywhere; }
+
+/* ==== R14-A ==== */
+/* R13-1 — the dashboard cards must not push the page wider than the window.
+   The grid had no column track, so its implicit column took the widest row's
+   max-content and the whole page travelled sideways at 390. */
+.attn-card { grid-template-columns: minmax(0, 1fr); }
+.attn-card .row-item { min-width: 0; }
+.attn-card .row-item .row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attn-card .row-item .row-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the status chip is the point of the row — it never shrinks away */
+.attn-card .row-item .chip { flex: 0 0 auto; }
+.attn-row { min-width: 0; }
+.attn-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* R13-1 — only the table scrolls sideways, never the heading and filters. */
+.table-wrap { max-width: 100%; overflow-x: auto; }
+
+/* R13-2 — icon-only topbar controls kept shrinking past their own glyphs. */
+.searchish, .view-site, .user-btn { flex: 0 0 auto; }
+
+@media (max-width: 37.5rem) {
+  /* Narrow content lists keep the two columns that answer "which one, and is
+     it live?"; the rest are a sideways scroll nobody asked for. */
+  .data-table th.col-extra, .data-table td.col-extra,
+  .data-table th.col-when, .data-table td.col-when { display: none; }
+}
+@media (max-width: 30rem) {
+  /* ⌘K still opens the same palette. */
+  .searchish { display: none; }
+}
+
+/* R13-5 — a switch that is on but not yet loaded says so on its own row. */
+.badge-pending:not(:empty) {
+  display: inline-block; margin-left: var(--s2); padding: 0 var(--s2);
+  border-radius: var(--r-pill); background: var(--bg-hover); color: var(--mut);
+  font-size: var(--t-xs); font-weight: var(--fw-medium); white-space: nowrap;
+}
+
+/* R13-7 — the Role group's label is a span, so it can name a radiogroup. */
+.field > .field-label { font-size: var(--t-s); font-weight: var(--fw-semi); color: var(--mut); }
+
+/* ==== R15 ==== */
+
+/* R14-1 — the raw capability keys in "Limit what it may do (advanced)" are
+   hidden behind their own "Show technical details" tick, the pattern Activity
+   already uses. The tick sits above the list and is set apart from it. */
+.app-limit-body .field-check.perm-tech {
+  margin: 6px 0 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--mut);
+  font-size: var(--t-s);
+}
+
+/* ==== R16 ==== */
+/* Below 600px a `.data-table.cards-sm` stops being a wide table and becomes one
+   card per row, so nothing important hides off to the right on a phone. The
+   column heading for each line comes from the cell's own data-label. */
+@media (max-width: 600px) {
+  .data-table.cards-sm { width: 100%; display: block; border: 0; }
+  .data-table.cards-sm thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .data-table.cards-sm tbody { display: block; }
+  .data-table.cards-sm tbody tr {
+    display: block;
+    padding: .75rem .85rem;
+    margin-bottom: .6rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md, 8px);
+    background: var(--panel, var(--bg));
+  }
+  .data-table.cards-sm tbody tr:last-child { margin-bottom: 0; }
+  .data-table.cards-sm tbody td {
+    display: block;
+    width: auto;
+    border: 0;
+    padding: .25rem 0;
+    text-align: left;
+    white-space: normal;
+  }
+  .data-table.cards-sm tbody td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted, #6b7280);
+    margin-bottom: .15rem;
+  }
+  .data-table.cards-sm .table-wrap,
+  .table-wrap:has(> .data-table.cards-sm) { overflow-x: visible; }
+  .data-table.cards-sm select.input { width: 100%; max-width: 20rem; }
+}
+
+/* ==== R17 ==== */
+
+/* Restore points: the qualifier on a row ("2 saves in the same minute",
+   "no visible change") sits quieter than the time beside it. */
+.rp-note { font-style: italic; opacity: .85; }
+
+/* People → your own row. The state your own account is in, as words, where
+   a switch you can never move used to sit. */
+.user-self-state {
+  display: inline-block;
+  font-size: .82rem;
+  color: var(--mut);
+}
+
+/* ==== R18 ==== */
+/* A run of saves made inside one minute folds into a single expandable row,
+   so the list reads as the few moments the owner remembers. */
+.rp-group { border-radius: var(--r-s); }
+.rp-group[open] { background: var(--bg-panel); }
+.rp-summary {
+  cursor: pointer;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-s);
+  font-size: var(--t-m);
+  list-style: none;
+}
+.rp-summary::-webkit-details-marker { display: none; }
+.rp-summary::before {
+  content: '›';
+  display: inline-block;
+  width: 1em;
+  transform: rotate(90deg);
+  transition: transform var(--dur-1) ease;
+}
+.rp-group[open] > .rp-summary::before { transform: rotate(270deg); }
+.rp-summary:hover { background: var(--bg-hover); }
+.rp-summary:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.rp-group-body { padding: 0 0 var(--s1) var(--s4); }
+
+/* ==== R19 ==== */
+/* Two sites on one host can share a name; the topbar then carries the site's
+   own web address after it. Quieter than the name, and gone when the topbar is
+   already tight for room. */
+.top-site-hint { color: var(--fnt); font-weight: var(--fw-regular); }
+@media (max-width: 1100px) { .top-site-hint { display: none; } }
+/* The address echoed back on an unknown route. */
+.nf-addr { font-family: var(--mono, ui-monospace, monospace); font-size: 0.92em; word-break: break-all; }
+
+/* ==== R20 ==== */
+
+/* R19-1 — toggling the studio's own light/dark left three controls painted in
+   the previous theme: a white "View site" pill and a white selected rail row
+   against dark chrome, both at about 1:1 against their own text. The cause was
+   `transition: background …` on the shorthand — the shorthand's colour does not
+   re-resolve when the `light-dark()` behind it flips, so the old paint stayed
+   while the text (an untransitioned property) moved. Every such transition is
+   now `background-color`, and `color-scheme` is pinned on `:root[data-theme]`
+   so the flip is a root-level change rather than a media-query guess. Nothing
+   here animates a background image or gradient, so nothing is lost.
+   While <html> carries `.theme-swapping` for one frame the transitions are off
+   altogether, which is what makes the swap instant rather than a cross-fade
+   through the wrong colour. */
+:root.theme-swapping *, :root.theme-swapping *::before, :root.theme-swapping *::after {
+  transition: none !important;
+}
+
+/* R19-2 — at 390px the toolbar's content is about 900px wide, and
+   `flex-wrap: nowrap; overflow: hidden` clipped everything after the title:
+   Save, Publish, Outline, the settings panel, Help and the "⋯" menu were all
+   off-screen with no scroll and no way to reach them. Someone correcting a
+   sentence on their phone could not save it. Below 620px the bar is two rows
+   instead: the document (back, title, status, how it is saved) on the first,
+   every control on the second. The second row costs about 314px of the 374px a
+   390px window leaves after padding, so nothing wraps a third time and nothing
+   is out of reach. */
+@media (max-width: 620px) {
+  .editor-top { flex-wrap: wrap; overflow: visible; row-gap: var(--s2); }
+  .editor-top > .editor-top-group:last-child {
+    flex: 1 0 100%; justify-content: flex-end; flex-wrap: wrap; row-gap: var(--s1);
+  }
+  /* Save comes back on to the second row, so it is a button again rather than
+     an item buried in the "⋯" menu. */
+  .editor-top .btn.ghost.small { display: inline-flex; }
+  /* The separators divided a single row; on two rows they are just clutter. */
+  .editor-top > .editor-top-group:last-child > .top-sep { display: none; }
+  .editor-top-group.grow { flex: 1 1 auto; min-width: 0; }
+}
+
+/* R19-3 — at 768 the outline drawer is positioned from the rail's own width, so
+   on a narrow window its right edge (and with it the row's "Actions for …"
+   button) finished past the canvas. Clamp the drawer to the window: it may
+   start no further right than its own width allows, and it may never be wider
+   than the window it floats over. */
+@media (max-width: 1400px) {
+  .outline, .outline.closed {
+    width: min(var(--outline-w, 14rem), calc(100vw - 2.5rem));
+    max-width: calc(100vw - 2.5rem);
+  }
+}
+/* Below 861px the rail is itself an off-canvas drawer and the outline already
+   starts at the window edge, so only the band where it is offset by the rail
+   needs the clamp. */
+@media (min-width: 861px) and (max-width: 1400px) {
+  .outline {
+    left: clamp(0px, var(--side-w), max(0px, calc(100vw - var(--outline-w, 14rem))));
+  }
+}
+
+/* ==== R21 ==== */
+
+/* R20-1 — the toolbar's second row measured 424px inside a 390px window with
+   `overflow: visible`, so "Publish again" was cut in half and "More document
+   actions" — the only way to Undo, Redo, Unpublish, Delete and the quick edits
+   — sat entirely off-screen. Two things, because one was not enough:
+   (a) below 480px the row sheds what it can afford to lose — the zoom/scale
+       sentence (it moves into the "⋯" menu as a line you cannot click) and the
+       words beside the two panel toggles (the icons keep their aria labels) —
+       and its gaps tighten to 4px. That leaves
+       help 32 + Outline 32 + Settings panel 32 + Save 52 + "Publish again" 96
+       + ⋯ 32 = 276px of controls and 5 × 4px of gap = 296px, inside the 374px a
+       390px window leaves after the bar's own padding.
+   (b) the row scrolls sideways anyway, so no future label, no longer word and
+       no larger text setting can ever put a control out of reach again. */
+@media (max-width: 480px) {
+  .editor-top { gap: 4px; }
+  .editor-top .preview-zoom-holder { display: none; }
+  .editor-top .panel-btn { width: var(--ctl-h); gap: 0; padding-inline: 0; }
+  .editor-top .panel-btn > .panel-btn-label { display: none; }
+  .editor-top > .editor-top-group:last-child {
+    gap: 4px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .editor-top > .editor-top-group:last-child > *,
+  .editor-top > .editor-top-group:last-child .editor-top-group > * {
+    flex: 0 0 auto;
+  }
+  .editor-top > .editor-top-group:last-child .editor-top-group { gap: 4px; }
+}
+
+/* ==== R23: owner-reported ==== */
+/* Panel toggles: icon and word on ONE line, same height as every other toolbar
+   control. They were an inline-grid (from .icon-btn) so the word stacked
+   under the icon and spilled out of the 32px button. */
+.editor-top .panel-btn { display: inline-flex; align-items: center; justify-content: center; height: var(--ctl-h); width: auto; gap: 0.35rem; padding-inline: var(--s2); white-space: nowrap; }
+.editor-top .panel-btn > .panel-btn-label { position: static; display: inline; line-height: 1; }
+/* List rows in the inspector: say that they open. */
+.list-row-head { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s2); }
+.list-row-head .lr-chev { display: inline-grid; place-items: center; color: var(--fnt); transition: rotate var(--dur-1) var(--ease); }
+.list-row.open > .list-row-head .lr-chev { rotate: 90deg; }
+.list-row-head .lr-edit { font-size: var(--t-xs); color: var(--mut); margin-left: auto; }
+.list-row.open > .list-row-head .lr-edit { visibility: hidden; }
+/* Preview height: the overlay caption is display:none until needed, which
+   dropped the preview into the first (auto) row of .editor-mid and left the
+   tall row empty — a 154px canvas on a 1080px screen. Pin the rows. */
+.editor-mid > .canvas-overlay-note { grid-row: 1; }
+.editor-mid > .preview-wrap { grid-row: 2; min-height: 0; }

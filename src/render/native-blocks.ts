@@ -8,6 +8,7 @@ import { escapeAttr as ea, escapeHtml as eh, slugify } from '../core/util.ts'
 import { mdToHtml, mdText } from '../core/markdown.ts'
 import { pictureHtml } from './imgtag.ts'
 import { sanitizeHtml, sanitizeSvg } from '../core/sanitize.ts'
+import { LAYOUT_WIDTHS, normalizeWidth } from './layout.ts'
 
 const f = (key: string, type: any, label: string, extra: any = {}) => ({ key, type, label, ...extra })
 
@@ -25,7 +26,12 @@ function align(a: string | undefined): string { return a && a !== 'left' ? ` sty
 
 /** inline-edit annotation: emitted only in the editor preview */
 function wbe(ctx: RenderCtx, prop: string, mode?: string): string {
-  return ctx.annotate ? ` data-wbe="${prop}"${mode ? ` data-wbe-mode="${mode}"` : ''}` : ''
+  if (!ctx.annotate) return ''
+  // mode 'img' means "this is the picture from that prop" — clicking it selects
+  // the block and puts the cursor on the matching image field, rather than
+  // trying to type into an image.
+  if (mode === 'img') return ` data-wbe-img="${prop}"`
+  return ` data-wbe="${prop}"${mode ? ` data-wbe-mode="${mode}"` : ''}`
 }
 
 export function registerNativeBlocks(registry: Registry) {
@@ -33,25 +39,25 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'section', label: 'Section', group: 'Layout', icon: 'layout', container: true,
-      description: 'Wrapper with width, background and anchor controls',
+      description: 'A band across the page. Give it a background and put other blocks inside.',
       fields: [
-        f('width', 'select', 'Width', { options: [{ value: 'normal' }, { value: 'wide' }, { value: 'full' }], default: 'normal' }),
-        f('background', 'select', 'Background', { options: [{ value: 'none' }, { value: 'subtle' }, { value: 'accent' }, { value: 'contrast' }], default: 'none' }),
-        f('padding', 'select', 'Vertical padding', { options: [{ value: 'normal' }, { value: 'compact' }, { value: 'spacious' }, { value: 'none' }], default: 'normal' }),
-        f('anchor', 'text', 'Anchor id', { help: 'Link to this section with #anchor' }),
+        f('width', 'select', 'Width', { options: LAYOUT_WIDTHS.map(w => ({ value: w.value, label: w.label })), default: 'normal', help: 'How wide this section runs across the page.', canonicalWidth: true }),
+        f('background', 'select', 'Background', { options: [{ value: 'none', label: 'None' }, { value: 'subtle', label: 'Soft tint' }, { value: 'accent', label: 'Brand colour' }, { value: 'contrast', label: 'Dark' }], default: 'none' }),
+        f('padding', 'select', 'Vertical padding', { options: [{ value: 'normal', label: 'Normal' }, { value: 'compact', label: 'Tight' }, { value: 'spacious', label: 'Roomy' }, { value: 'none', label: 'None' }], default: 'normal' }),
+        f('anchor', 'text', 'Jump-to name', { help: 'A short name so links can jump straight to this section (letters and dashes).' }),
       ],
       defaults: { width: 'normal', background: 'none', padding: 'normal' },
       render: (_c, n, inner) =>
-        `<section class="wb-section bg-${ea(n.props.background)} pad-${ea(n.props.padding)}"${n.props.anchor ? ` id="${ea(n.props.anchor)}"` : ''}><div class="container w-${ea(n.props.width)}">${inner}</div></section>`,
+        `<section class="wb-section bg-${ea(n.props.background)} pad-${ea(n.props.padding)}"${n.props.anchor ? ` id="${ea(n.props.anchor)}"` : ''}><div class="container w-${ea(normalizeWidth(n.props.width) || 'normal')}">${inner}</div></section>`,
     },
 
     {
       type: 'columns', label: 'Columns', group: 'Layout', icon: 'columns', container: true,
-      description: 'Responsive grid — each child block becomes a cell',
+      description: 'Side-by-side columns. Put a block in each.',
       fields: [
-        f('cols', 'select', 'Columns', { options: [{ value: '2' }, { value: '3' }, { value: '4' }], default: '2' }),
-        f('gap', 'select', 'Gap', { options: [{ value: 'normal' }, { value: 'tight' }, { value: 'loose' }], default: 'normal' }),
-        f('align', 'select', 'Vertical align', { options: [{ value: 'top' }, { value: 'center' }], default: 'top' }),
+        f('cols', 'select', 'Columns', { options: [{ value: '2', label: 'Two' }, { value: '3', label: 'Three' }, { value: '4', label: 'Four' }], default: '2' }),
+        f('gap', 'select', 'Gap', { options: [{ value: 'normal', label: 'Normal' }, { value: 'tight', label: 'Tight' }, { value: 'loose', label: 'Roomy' }], default: 'normal' }),
+        f('align', 'select', 'Vertical align', { options: [{ value: 'top', label: 'Top' }, { value: 'center', label: 'Middle' }], default: 'top' }),
       ],
       defaults: { cols: '2', gap: 'normal', align: 'top' },
       render: (_c, n, inner) => `<div class="wb-columns cols-${ea(n.props.cols)} gap-${ea(n.props.gap)} valign-${ea(n.props.align)}">${inner}</div>`,
@@ -59,11 +65,12 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'heading', label: 'Heading', group: 'Text', icon: 'heading',
+      description: 'A title that breaks your writing into sections.',
       fields: [
         f('text', 'text', 'Text', { required: true }),
-        f('level', 'select', 'Level', { options: [{ value: '1', label: 'H1' }, { value: '2', label: 'H2' }, { value: '3', label: 'H3' }, { value: '4', label: 'H4' }], default: '2', width: 'half' }),
-        f('align', 'select', 'Align', { options: [{ value: 'left' }, { value: 'center' }], default: 'left', width: 'half' }),
-        f('eyebrow', 'text', 'Eyebrow', { help: 'Small label above the heading' }),
+        f('level', 'select', 'Level', { options: [{ value: '1', label: 'Biggest (page title)' }, { value: '2', label: 'Section title' }, { value: '3', label: 'Sub-section' }, { value: '4', label: 'Smallest' }], default: '2', width: 'half', help: 'Use the biggest once per page, then work down in order.' }),
+        f('align', 'select', 'Align', { options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centred' }], default: 'left', width: 'half' }),
+        f('eyebrow', 'text', 'Eyebrow', { help: 'A small line above the heading.' }),
       ],
       defaults: { level: '2', align: 'left' },
       render: (c, n) => {
@@ -79,7 +86,7 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'richtext', label: 'Rich text', group: 'Text', icon: 'text',
-      description: 'WYSIWYG text, stored as markdown',
+      description: 'Paragraphs, lists and links — most of your writing goes here.',
       fields: [f('md', 'richtext', 'Content')],
       defaults: { md: '' },
       render: (c, n) => `<div class="wb-richtext prose"${wbe(c, 'md', 'md')}>${mdToHtml(n.props.md || '')}</div>`,
@@ -87,12 +94,14 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'quote', label: 'Quote', group: 'Text', icon: 'quote',
+      description: 'Words from a customer or colleague, set apart from the rest of the page.',
       fields: [f('text', 'textarea', 'Quote', { rows: 3 }), f('cite', 'text', 'Attribution')],
       render: (c, n) => `<figure class="wb-quote"><blockquote${wbe(c, 'text')}>${eh(n.props.text)}</blockquote>${n.props.cite ? `<figcaption${wbe(c, 'cite')}>${eh(n.props.cite)}</figcaption>` : ''}</figure>`,
     },
 
     {
       type: 'code', label: 'Code', group: 'Text', icon: 'code',
+      description: 'A block of computer code, shown exactly as typed.',
       fields: [
         f('code', 'code', 'Code'),
         f('lang', 'text', 'Language', { width: 'half' }),
@@ -104,14 +113,15 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'image', label: 'Image', group: 'Media', icon: 'image',
+      description: 'One picture on its own, with an optional caption under it.',
       fields: [
         f('mediaId', 'image', 'Image', { required: true }),
-        f('alt', 'text', 'Alt text', { help: 'Overrides the library alt' }),
+        f('alt', 'text', 'Description for screen readers', { help: 'Says what the picture shows, for people who cannot see it. Leave blank to use the description saved with the picture.' }),
         f('caption', 'text', 'Caption'),
-        f('width', 'select', 'Size', { options: [{ value: 'normal' }, { value: 'wide' }, { value: 'small' }], default: 'normal', width: 'half' }),
+        f('width', 'select', 'Picture size', { options: [{ value: 'small', label: 'Small' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Large' }], default: 'normal', width: 'half', help: 'How big the picture itself is drawn.' }),
         f('rounded', 'boolean', 'Rounded corners', { default: true, width: 'half' }),
-        f('lightbox', 'boolean', 'Open in lightbox', { width: 'half' }),
-        f('priority', 'boolean', 'Above the fold', { help: 'Eager-load + preload (use once per page)', width: 'half' }),
+        f('lightbox', 'boolean', 'Enlarge on click', { width: 'half', help: 'Clicking the picture opens it full size over the page.' }),
+        f('priority', 'boolean', 'First thing people see', { help: 'Loads this picture first. Use it once per page, on the picture at the very top.', width: 'half' }),
       ],
       defaults: { width: 'normal', rounded: true },
       enhance: 'lightbox',
@@ -121,24 +131,27 @@ export function registerNativeBlocks(registry: Registry) {
           alt: n.props.alt, priority: n.props.priority,
           width: n.props.width === 'wide' ? 1280 : n.props.width === 'small' ? 480 : 860,
         })
-        return `<figure class="wb-image size-${ea(n.props.width)}${n.props.rounded ? ' rounded' : ''}${n.props.lightbox ? '" data-lightbox="1' : ''}">${pic}${n.props.caption ? `<figcaption>${eh(n.props.caption)}</figcaption>` : ''}</figure>`
+        return `<figure class="wb-image size-${ea(n.props.width)}${n.props.rounded ? ' rounded' : ''}${n.props.lightbox ? '" data-lightbox="1' : ''}"${wbe(c, 'mediaId', 'img')}>${pic}${n.props.caption ? `<figcaption${wbe(c, 'caption')}>${eh(n.props.caption)}</figcaption>` : ''}</figure>`
       },
     },
 
     {
       type: 'gallery', label: 'Gallery', group: 'Media', icon: 'copy',
+      description: 'A grid of pictures — a finished job, a product range, a site visit.',
       fields: [
-        f('items', 'list', 'Images', { item: [f('mediaId', 'image', 'Image'), f('alt', 'text', 'Alt text')] }),
-        f('cols', 'select', 'Columns', { options: [{ value: '2' }, { value: '3' }, { value: '4' }], default: '3', width: 'half' }),
-        f('lightbox', 'boolean', 'Lightbox', { default: true, width: 'half' }),
+        f('items', 'list', 'Images', { item: [f('mediaId', 'image', 'Image'), f('alt', 'text', 'Description for screen readers')] }),
+        f('cols', 'select', 'Columns', { options: [{ value: '2', label: 'Two' }, { value: '3', label: 'Three' }, { value: '4', label: 'Four' }], default: '3', width: 'half' }),
+        f('lightbox', 'boolean', 'Enlarge on click', { default: true, width: 'half', help: 'Clicking a picture opens it full size over the page.' }),
       ],
       defaults: { items: [], cols: '3', lightbox: true },
       enhance: 'lightbox',
       render: async (c, n) => {
         const cells: string[] = []
-        for (const it of n.props.items || []) {
+        const items: any[] = n.props.items || []
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i]
           if (!it.mediaId) continue
-          cells.push(`<figure${n.props.lightbox ? ' data-lightbox="1"' : ''}>${await pictureHtml(c, it.mediaId, { alt: it.alt, width: 640, sizes: '(max-width: 640px) 50vw, 33vw' })}</figure>`)
+          cells.push(`<figure${n.props.lightbox ? ' data-lightbox="1"' : ''}${wbe(c, `items.${i}.mediaId`, 'img')}>${await pictureHtml(c, it.mediaId, { alt: it.alt, width: 640, sizes: '(max-width: 640px) 50vw, 33vw' })}</figure>`)
         }
         return `<div class="wb-gallery cols-${ea(n.props.cols)}">${cells.join('')}</div>`
       },
@@ -146,10 +159,11 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'video', label: 'Video', group: 'Media', icon: 'video',
+      description: 'A video you host yourself, played straight on the page.',
       fields: [
-        f('url', 'text', 'Video URL', { help: 'MP4/WebM file URL' }),
-        f('poster', 'image', 'Poster image'),
-        f('autoplay', 'boolean', 'Autoplay (muted)', { width: 'half' }),
+        f('url', 'text', 'Video address', { help: 'The web address of the video file, ending .mp4 or .webm.' }),
+        f('poster', 'image', 'Still picture shown before play'),
+        f('autoplay', 'boolean', 'Start playing on its own (no sound)', { width: 'half' }),
         f('loop', 'boolean', 'Loop', { width: 'half' }),
       ],
       render: async (c, n) => {
@@ -166,10 +180,10 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'embed', label: 'Embed', group: 'Media', icon: 'play',
-      description: 'YouTube/Vimeo with a privacy-friendly click-to-load facade',
+      description: 'A YouTube or Vimeo video that only loads when someone presses play.',
       fields: [
-        f('url', 'text', 'URL', { required: true, help: 'YouTube, Vimeo or embeddable page URL' }),
-        f('title', 'text', 'Title', { help: 'Accessible label' }),
+        f('url', 'text', 'Video address', { required: true, help: 'Paste the web address of the YouTube or Vimeo page.' }),
+        f('title', 'text', 'Title', { help: 'What the video shows. Read out to people using a screen reader.' }),
       ],
       enhance: 'embed',
       render: (_c, n) => {
@@ -191,13 +205,13 @@ export function registerNativeBlocks(registry: Registry) {
     },
 
     {
-      type: 'svg', label: 'SVG', group: 'Media', icon: 'vector',
-      description: 'Inline vector art — theme-aware via currentColor',
+      type: 'svg', label: 'Drawing or icon', group: 'Media', icon: 'vector',
+      description: 'A simple line drawing or symbol that picks up your brand colours.',
       fields: [
-        f('source', 'svg', 'SVG source', { help: 'Sanitized. Use fill="currentColor" to follow the theme.' }),
-        f('maxWidth', 'number', 'Max width (px)', { width: 'half' }),
-        f('align', 'select', 'Align', { options: [{ value: 'left' }, { value: 'center' }], default: 'center', width: 'half' }),
-        f('animate', 'boolean', 'Fade in on view', { default: false }),
+        f('source', 'svg', 'Drawing', { help: 'Paste the drawing code your designer gave you. Anything unsafe is removed automatically.' }),
+        f('maxWidth', 'number', 'Largest width (pixels)', { width: 'half' }),
+        f('align', 'select', 'Align', { options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centred' }], default: 'center', width: 'half' }),
+        f('animate', 'boolean', 'Fade in when scrolled to', { default: false }),
       ],
       defaults: { align: 'center' },
       enhance: 'reveal',
@@ -210,12 +224,13 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'button', label: 'Button', group: 'Actions', icon: 'link',
+      description: 'A button that takes someone to another page — "Get a quote", "See the range".',
       fields: [
         f('label', 'text', 'Label', { required: true }),
         f('link', 'link', 'Link'),
-        f('style', 'select', 'Style', { options: [{ value: 'primary' }, { value: 'ghost' }, { value: 'soft' }], default: 'primary', width: 'half' }),
-        f('size', 'select', 'Size', { options: [{ value: 'normal' }, { value: 'large' }], default: 'normal', width: 'half' }),
-        f('align', 'select', 'Align', { options: [{ value: 'left' }, { value: 'center' }], default: 'left', width: 'half' }),
+        f('style', 'select', 'Style', { options: [{ value: 'primary', label: 'Solid (main action)' }, { value: 'ghost', label: 'Outlined' }, { value: 'soft', label: 'Soft tint' }], default: 'primary', width: 'half' }),
+        f('size', 'select', 'Size', { options: [{ value: 'normal', label: 'Normal' }, { value: 'large', label: 'Large' }], default: 'normal', width: 'half' }),
+        f('align', 'select', 'Align', { options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centred' }], default: 'left', width: 'half' }),
         f('newTab', 'boolean', 'Open in new tab', { width: 'half' }),
       ],
       defaults: { style: 'primary', size: 'normal', align: 'left' },
@@ -225,10 +240,11 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'cta', label: 'Call to action', group: 'Actions', icon: 'send',
+      description: 'A short prompt with buttons — the "ask" at the end of a page.',
       fields: [
         f('title', 'text', 'Title'),
         f('text', 'textarea', 'Text', { rows: 2 }),
-        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary' }, { value: 'ghost' }], default: 'primary' })] }),
+        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary', label: 'Solid (main action)' }, { value: 'ghost', label: 'Outlined' }], default: 'primary' })] }),
       ],
       defaults: { buttons: [] },
       render: async (c, n) => {
@@ -242,40 +258,43 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'hero', label: 'Hero', group: 'Layout', icon: 'mountain',
+      description: 'The opening banner of a page — big headline, a line of text and a button or two.',
       fields: [
         f('title', 'text', 'Title', { required: true }),
         f('text', 'textarea', 'Text', { rows: 2 }),
-        f('eyebrow', 'text', 'Eyebrow'),
+        f('eyebrow', 'text', 'Eyebrow', { help: 'A small line above the headline.' }),
         f('mediaId', 'image', 'Image'),
-        f('layout', 'select', 'Layout', { options: [{ value: 'center' }, { value: 'split' }], default: 'center', width: 'half' }),
-        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary' }, { value: 'ghost' }], default: 'primary' })] }),
+        f('layout', 'select', 'Layout', { options: [{ value: 'center', label: 'Centred' }, { value: 'split', label: 'Text beside the picture' }], default: 'center', width: 'half' }),
+        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary', label: 'Solid (main action)' }, { value: 'ghost', label: 'Outlined' }], default: 'primary' })] }),
       ],
       defaults: { layout: 'center', buttons: [] },
       render: async (c, n) => {
         const btns: string[] = []
         for (const b of n.props.buttons || []) btns.push(`<a class="btn btn-${ea(b.style || 'primary')} btn-large" href="${ea(await href(c, b.link))}">${eh(b.label)}</a>`)
         const img = n.props.mediaId ? await pictureHtml(c, n.props.mediaId, { priority: true, width: n.props.layout === 'split' ? 640 : 1280, vtName: 'hero-' + n.id.slice(-6) }) : ''
-        return `<header class="wb-hero layout-${ea(n.props.layout)}"><div class="hero-copy">${n.props.eyebrow ? `<p class="eyebrow"${wbe(c, 'eyebrow')}>${eh(n.props.eyebrow)}</p>` : ''}<h1${wbe(c, 'title')}>${eh(n.props.title)}</h1>${n.props.text ? `<p class="hero-text"${wbe(c, 'text')}>${eh(n.props.text)}</p>` : ''}${btns.length ? `<div class="hero-actions">${btns.join('')}</div>` : ''}</div>${img ? `<div class="hero-media">${img}</div>` : ''}</header>`
+        return `<header class="wb-hero layout-${ea(n.props.layout)}"><div class="hero-copy">${n.props.eyebrow ? `<p class="eyebrow"${wbe(c, 'eyebrow')}>${eh(n.props.eyebrow)}</p>` : ''}<h1${wbe(c, 'title')}>${eh(n.props.title)}</h1>${n.props.text ? `<p class="hero-text"${wbe(c, 'text')}>${eh(n.props.text)}</p>` : ''}${btns.length ? `<div class="hero-actions">${btns.join('')}</div>` : ''}</div>${img ? `<div class="hero-media"${wbe(c, 'mediaId', 'img')}>${img}</div>` : ''}</header>`
       },
     },
 
     {
       type: 'divider', label: 'Divider', group: 'Layout', icon: 'minus',
-      fields: [f('style', 'select', 'Style', { options: [{ value: 'line' }, { value: 'dots' }, { value: 'blank' }], default: 'line' })],
+      description: 'A line across the page to separate one part from the next.',
+      fields: [f('style', 'select', 'Style', { options: [{ value: 'line', label: 'Line' }, { value: 'dots', label: 'Dots' }, { value: 'blank', label: 'Invisible gap' }], default: 'line' })],
       defaults: { style: 'line' },
       render: (_c, n) => `<hr class="wb-divider style-${ea(n.props.style)}">`,
     },
     {
       type: 'spacer', label: 'Spacer', group: 'Layout', icon: 'spacer',
-      fields: [f('size', 'select', 'Size', { options: [{ value: 'small' }, { value: 'medium' }, { value: 'large' }], default: 'medium' })],
+      description: 'Empty space, for when two blocks need more room between them.',
+      fields: [f('size', 'select', 'Size', { options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], default: 'medium' })],
       defaults: { size: 'medium' },
       render: (_c, n) => `<div class="wb-spacer size-${ea(n.props.size)}" aria-hidden="true"></div>`,
     },
 
     {
       type: 'faq', label: 'FAQ', group: 'Interactive', icon: 'help', container: true, childTypes: ['faq-item'],
-      description: 'Accessible accordion + automatic FAQ structured data',
-      fields: [f('single', 'boolean', 'Open one at a time', { default: false })],
+      description: 'Questions that open to show the answer. Search engines understand it too.',
+      fields: [f('single', 'boolean', 'Open one at a time', { default: false, help: 'Opening a question closes the one before it.' })],
       render: (_c, n, inner) => `<div class="wb-faq"${n.props.single ? ' data-single="1"' : ''}>${inner}</div>`,
       jsonld: (ctx, node) => {
         const qs = (node.children || []).filter(c => c.type === 'faq-item' && c.props.question)
@@ -291,6 +310,7 @@ export function registerNativeBlocks(registry: Registry) {
     },
     {
       type: 'faq-item', label: 'FAQ item', group: 'Interactive', icon: 'help', container: true, hiddenFromPicker: false,
+      description: 'One question. Put the answer inside it.',
       fields: [f('question', 'text', 'Question', { required: true }), f('open', 'boolean', 'Open by default', { width: 'half' })],
       enhance: 'faq',
       render: (_c, n, inner) =>
@@ -299,6 +319,7 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'tabs', label: 'Tabs', group: 'Interactive', icon: 'tabs', container: true, childTypes: ['tab'],
+      description: 'Named tabs that swap what is shown below them — specs, downloads, delivery.',
       fields: [],
       enhance: 'tabs',
       render: (_c, n, inner) => {
@@ -309,6 +330,7 @@ export function registerNativeBlocks(registry: Registry) {
     },
     {
       type: 'tab', label: 'Tab', group: 'Interactive', icon: 'tabs', container: true, hiddenFromPicker: false,
+      description: 'One tab. Put whatever it should show inside it.',
       fields: [f('label', 'text', 'Label', { required: true })],
       render: (ctx, n, inner) => {
         const parentInfo = (ctx as any)._tabIndex?.[n.id] || { parent: n.id, index: 0 }
@@ -318,6 +340,7 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'table', label: 'Table', group: 'Interactive', icon: 'table',
+      description: 'Rows and columns of figures — capacities, sizes, lead times.',
       fields: [
         f('data', 'table', 'Table data'),
         f('headerRow', 'boolean', 'First row is header', { default: true, width: 'half' }),
@@ -342,6 +365,7 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'pricing', label: 'Pricing', group: 'Marketing', icon: 'tag',
+      description: 'Side-by-side price cards, each with a list of what is included.',
       fields: [
         f('plans', 'list', 'Plans', {
           item: [
@@ -366,9 +390,9 @@ export function registerNativeBlocks(registry: Registry) {
 
     {
       type: 'html', label: 'Raw HTML', group: 'Advanced', icon: 'code',
-      description: 'Sanitized raw HTML (editors and up)',
+      description: 'Paste in code from another service — a booking widget, a live map. Editors and above only.',
       permission: 'content.publish',
-      fields: [f('html', 'code', 'HTML')],
+      fields: [f('html', 'code', 'HTML', { help: 'Anything unsafe is removed before the page is shown.' })],
       render: (_c, n) => `<div class="wb-html">${sanitizeHtml(n.props.html || '')}</div>`,
     },
   ]

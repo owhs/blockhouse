@@ -3,6 +3,7 @@
 // p, h2–h4, bold/italic/code, links, ul/ol, blockquote.
 
 import { h, promptDialog, toast, sc } from './ui.js'
+import { iconEl } from './icons.js'
 import { post } from './api.js'
 
 export function mountRichtext(md, onChange, opts = {}) {
@@ -26,56 +27,71 @@ export function mountRichtext(md, onChange, opts = {}) {
   const cmd = (name, arg) => { surface.focus(); document.execCommand(name, false, arg); emit() }
   const block = tag => cmd('formatBlock', `<${tag}>`)
 
-  const btn = (label, title, fn) => h('button', { type: 'button', title, onmousedown: e => e.preventDefault(), onclick: fn }, label)
+  /**
+   * Every toolbar button says what it does in words — as a tooltip and to a
+   * screen reader. The glyphs (‹› ¶ ❝ ⌫ ✦) were unguessable and were read out
+   * as the glyph itself; where the studio has an icon for the job it is used
+   * and marked aria-hidden, otherwise the button carries a short word.
+   */
+  const btn = (face, name, fn) => h('button', {
+    type: 'button', title: name, 'aria-label': name,
+    onmousedown: e => e.preventDefault(), onclick: fn,
+  }, face)
+  const glyph = s => h('span', { 'aria-hidden': 'true' }, s)
 
   let mode = 'visual'
   const mdArea = h('textarea.mono', { rows: 10, style: { display: 'none', borderRadius: '0 0 var(--r-s) var(--r-s)' }, spellcheck: 'false' })
   mdArea.addEventListener('input', () => onChange(mdArea.value))
 
+  const aiFace = iconEl('sparkle', 14)
+  const aiBtn = btn(aiFace, 'Improve with AI', async e => {
+    const b = e.currentTarget
+    const sel = window.getSelection()
+    const hasSel = sel && !sel.isCollapsed && surface.contains(sel.anchorNode)
+    const text = hasSel ? sel.toString() : domToMd(surface)
+    b.replaceChildren(glyph('…'))
+    try {
+      const r = await post('/x/ai/assist', { task: 'improve', text })
+      if (hasSel) document.execCommand('insertText', false, r.result)
+      else surface.innerHTML = mdToHtml(r.result)
+      emit()
+    } catch (err) {
+      // api.js already toasts the reason; say what it means for this button
+      if (err?.status === 404) toast('The AI assist app is not installed on this site', 'err')
+    }
+    b.replaceChildren(aiFace)
+  })
+
   const toolbar = h('div.rt-toolbar', {},
-    btn('B', sc('Bold (⌘B)'), () => cmd('bold')),
-    btn('I', sc('Italic (⌘I)'), () => cmd('italic')),
-    btn('‹›', 'Inline code', () => wrapCode(surface, emit)),
+    btn(glyph('B'), sc('Bold (⌘B)'), () => cmd('bold')),
+    btn(glyph('I'), sc('Italic (⌘I)'), () => cmd('italic')),
+    btn(iconEl('code', 14), 'Inline code', () => wrapCode(surface, emit)),
     h('span.rt-sep'),
-    btn('¶', 'Paragraph', () => block('p')),
-    btn('H2', 'Heading 2', () => block('h2')),
-    btn('H3', 'Heading 3', () => block('h3')),
+    btn(iconEl('text', 14), 'Paragraph', () => block('p')),
+    btn(glyph('H2'), 'Heading 2', () => block('h2')),
+    btn(glyph('H3'), 'Heading 3', () => block('h3')),
     h('span.rt-sep'),
-    btn('•', 'Bullet list', () => cmd('insertUnorderedList')),
-    btn('1.', 'Numbered list', () => cmd('insertOrderedList')),
-    btn('❝', 'Quote', () => block('blockquote')),
+    btn(glyph('•'), 'Bullet list', () => cmd('insertUnorderedList')),
+    btn(glyph('1.'), 'Numbered list', () => cmd('insertOrderedList')),
+    btn(iconEl('quote', 14), 'Quote', () => block('blockquote')),
     h('span.rt-sep'),
-    btn('🔗', 'Link', async () => {
+    btn(iconEl('link', 14), 'Link', async () => {
       const sel = window.getSelection()
       if (!sel || sel.isCollapsed) return
       const url = await promptDialog({ title: 'Add a link', label: 'URL', placeholder: 'https://… or /path', confirmLabel: 'Link' })
       if (url) cmd('createLink', url)
     }),
-    btn('⌫', 'Clear formatting', () => cmd('removeFormat')),
+    btn(glyph('Clear'), 'Clear formatting', () => cmd('removeFormat')),
     h('span.rt-sep'),
-    btn('✦', 'AI: improve selection or all', async e => {
-      const b = e.currentTarget
-      const sel = window.getSelection()
-      const hasSel = sel && !sel.isCollapsed && surface.contains(sel.anchorNode)
-      const text = hasSel ? sel.toString() : domToMd(surface)
-      b.textContent = '…'
-      try {
-        const r = await post('/x/ai/assist', { task: 'improve', text })
-        if (hasSel) document.execCommand('insertText', false, r.result)
-        else surface.innerHTML = mdToHtml(r.result)
-        emit()
-      } catch (err) {
-        // api.js already toasts the reason; say what it means for this button
-        if (err?.status === 404) toast('The AI assist app is not installed on this site', 'err')
-      }
-      b.textContent = '✦'
-    }),
+    aiBtn,
     h('span.rt-sep'),
-    btn('MD', 'Toggle markdown source', function () {
+    btn(glyph('Text'), 'Show plain text (advanced)', function () {
       mode = mode === 'visual' ? 'md' : 'visual'
       if (mode === 'md') { mdArea.value = domToMd(surface); surface.style.display = 'none'; mdArea.style.display = '' }
       else { surface.innerHTML = mdToHtml(mdArea.value); mdArea.style.display = 'none'; surface.style.display = '' }
       this.classList.toggle('on', mode === 'md')
+      const label = mode === 'md' ? 'Hide plain text (advanced)' : 'Show plain text (advanced)'
+      this.setAttribute('aria-label', label); this.title = label
     }),
   )
   return h('div', {}, toolbar, surface, mdArea)

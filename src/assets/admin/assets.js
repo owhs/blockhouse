@@ -6,6 +6,7 @@ import { get, post, patch, del } from './api.js'
 import { h, dialog, confirmDialog, toast, emptyState, debounce, promptDialog, undoToast } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView, state } from './state.js'
+import { helpButton } from './help.js'
 
 const humanSize = n => !n ? '' : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`
 
@@ -17,8 +18,8 @@ registerView('media', async root => {
 
   const grid = h('div.media-grid')
   const treeHolder = h('div.panel-body')
-  const bulkBar = h('div', { style: { display: 'none', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s4)', flexWrap: 'wrap' } })
-  const countLabel = h('span.fnt', { style: { fontSize: 'var(--t-s)' } })
+  const bulkBar = h('div.bulk-bar', { hidden: true })
+  const countLabel = h('span.fnt.text-s', {})
 
   const qs = () => {
     const p = new URLSearchParams()
@@ -42,7 +43,7 @@ registerView('media', async root => {
     ]
     treeHolder.replaceChildren(
       ...rows,
-      idx.tags.length ? h('div.panel-title', { style: { padding: 'var(--s4) var(--s3) var(--s1)' } }, 'Tags') : '',
+      idx.tags.length ? h('div.panel-title.p-4-3-1', {}, 'Tags') : '',
       ...idx.tags.map(t => h('button.row-item', {
         class: filter.tag === t.tag ? 'active' : '',
         onclick: () => { filter.tag = filter.tag === t.tag ? '' : t.tag; refresh() },
@@ -71,13 +72,13 @@ registerView('media', async root => {
           ? h('img', { src: `/media/${m.file}`, loading: 'lazy', alt: '', style: m.focal ? { objectPosition: `${m.focal.x * 100}% ${m.focal.y * 100}%` } : {} })
           : iconEl('page', 22)),
         !m.alt && m.type.startsWith('image/') ? h('span.media-alt-warn', {}, 'no alt') : '',
-        m.private ? h('span.media-alt-warn', { style: { left: '0.4rem', right: 'auto', background: 'var(--ink)' } }, 'private') : '',
+        m.private ? h('span.media-alt-warn.tag-private', {}, 'private') : '',
         h('div.media-meta', {},
           h('div.media-name', {}, m.name),
           h('div.media-dims', {}, m.width ? `${m.width}×${m.height} · ` : '', humanSize(m.size), (m.tags || []).length ? ` · ${m.tags.length} tag${m.tags.length > 1 ? 's' : ''}` : '')))
       // a small checkbox affordance for selection without modifier keys
-      const check = h('span', {
-        style: { position: 'absolute', top: '0.4rem', left: '0.4rem', width: '1.1rem', height: '1.1rem', borderRadius: 'var(--r-xs)', border: '1.5px solid var(--line)', background: selection.has(m.id) ? 'var(--acc)' : 'var(--bg-raise)', display: 'grid', placeItems: 'center', color: '#fff' },
+      const check = h('span.media-check', {
+        class: selection.has(m.id) ? 'on' : '',
         onclick: e => { e.stopPropagation(); toggleSel(m.id) },
         html: selection.has(m.id) ? icon('check', 11) : '',
       })
@@ -88,8 +89,8 @@ registerView('media', async root => {
   function toggleSel(id) { selection.has(id) ? selection.delete(id) : selection.add(id); renderGrid(); renderBulk() }
 
   function renderBulk() {
-    if (!selection.size) { bulkBar.style.display = 'none'; return }
-    bulkBar.style.display = 'flex'
+    if (!selection.size) { bulkBar.hidden = true; return }
+    bulkBar.hidden = false
     bulkBar.replaceChildren(
       h('strong', {}, `${selection.size} selected`),
       h('button.btn.ghost.small', { onclick: async () => {
@@ -137,8 +138,7 @@ registerView('media', async root => {
     const focal = { ...(m.focal || { x: 0.5, y: 0.5 }) }
     const isImage = m.type.startsWith('image/')
 
-    const focalPicker = h('div', {
-      style: { position: 'relative', borderRadius: 'var(--r-s)', overflow: 'hidden', cursor: 'crosshair', border: '1px solid var(--line)' },
+    const focalPicker = h('div.focal-picker', {
       onclick: e => {
         const r = e.currentTarget.getBoundingClientRect()
         focal.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
@@ -147,7 +147,7 @@ registerView('media', async root => {
       },
     })
     const dot = h('span', { style: { position: 'absolute', left: `${focal.x * 100}%`, top: `${focal.y * 100}%`, width: '14px', height: '14px', marginLeft: '-7px', marginTop: '-7px', borderRadius: 'var(--r-pill)', border: '2px solid #fff', background: 'var(--acc)', boxShadow: '0 0 0 1px #0006', pointerEvents: 'none' } })
-    if (isImage) focalPicker.append(h('img', { src: `/media/${m.file}`, style: { display: 'block', width: '100%', maxHeight: '13rem', objectFit: 'contain', background: 'var(--bg)' } }), dot)
+    if (isImage) focalPicker.append(h('img.d-block.w-full.mh-13.obj-contain.bg-app', { src: `/media/${m.file}` }), dot)
 
     const { renderFields } = window.__blockhouseFields
     dialog({
@@ -164,7 +164,7 @@ registerView('media', async root => {
           { key: 'tags', type: 'text', label: 'Tags (comma separated)', width: 'half' },
           { key: 'private', type: 'boolean', label: 'Private (delivered only via file links)' },
         ], vals, () => {}),
-        h('p.fnt.mono', { style: { fontSize: 'var(--t-xs)' } }, `/media/${m.file} · ${m.type} · ${humanSize(m.size)}${m.width ? ` · ${m.width}×${m.height}` : ''}`)),
+        h('p.fnt.mono.text-xs', {}, `/media/${m.file} · ${m.type} · ${humanSize(m.size)}${m.width ? ` · ${m.width}×${m.height}` : ''}`)),
       actions: [
         isImage ? { label: 'Edit image…', onClick: () => { processWizard(m, refresh); return true } } : null,
         { label: 'Delete', kind: 'danger', onClick: async () => {
@@ -203,7 +203,7 @@ registerView('media', async root => {
   drop.addEventListener('dragleave', () => drop.classList.remove('over'))
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); upload([...e.dataTransfer.files]) })
 
-  const search = h('input.input', { placeholder: 'Search name, alt, tags…', style: { maxWidth: '18rem' } })
+  const search = h('input.input.mw-18', { type: 'search', 'aria-label': 'Search assets', placeholder: 'Search name, alt, tags…' })
   search.addEventListener('input', debounce(() => { filter.text = search.value; refresh() }, 250))
   const typeSeg = h('div.seg', {}, ...[['', 'All'], ['image', 'Images'], ['doc', 'Files']].map(([k, l]) =>
     h('button', { class: filter.type === k ? 'active' : '', onclick: e => { filter.type = k; typeSeg.querySelectorAll('button').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); refresh() } }, l)))
@@ -212,12 +212,13 @@ registerView('media', async root => {
     h('div.panel', {},
       h('div.panel-head', {}, h('span.panel-title', {}, 'Library')),
       treeHolder),
-    h('div.main', {}, h('div.main-pad', { style: { maxWidth: '78rem' } },
+    h('div.main', {}, h('div.main-pad.mw-78', {},
       h('div.page-head', {},
         h('div', {}, h('h1', {}, 'Assets'), h('p.sub', {}, 'Folders, tags and non-destructive image editing. Originals are never overwritten.')),
-        h('div', { style: { display: 'flex', gap: 'var(--s2)' } },
+        h('div.d-flex.gap-2.items-center', {},
+          helpButton('media', 'Assets'),
           h('button.btn.primary', { onclick: () => fileInput.click() }, iconEl('upload', 15), 'Upload'))),
-      h('div', { style: { display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginBottom: 'var(--s4)', flexWrap: 'wrap' } }, search, typeSeg, countLabel),
+      h('div.d-flex.gap-3.items-center.mb-4.wrap', {}, search, typeSeg, countLabel),
       bulkBar, drop, grid))))
 
   await refresh()
@@ -230,8 +231,8 @@ function processWizard(m, onDone) {
   const crop = { x: 0, y: 0, w: 1, h: 1 }
   let cropping = false
 
-  const stage = h('div', { style: { position: 'relative', overflow: 'hidden', borderRadius: 'var(--r-s)', border: '1px solid var(--line)', background: 'var(--bg)' } })
-  const img = h('img', { src: `/media/${m.file}`, style: { display: 'block', width: '100%', maxHeight: '16rem', objectFit: 'contain' } })
+  const stage = h('div.pos-rel.ovh.rad-s.bd-line.bg-app', {})
+  const img = h('img.d-block.w-full.mh-16.obj-contain', { src: `/media/${m.file}` })
   const cropBox = h('div', { style: { position: 'absolute', inset: '0', border: '2px dashed var(--acc)', background: 'color-mix(in oklch, var(--acc) 10%, transparent)', display: 'none', pointerEvents: 'none' } })
   stage.append(img, cropBox)
 
@@ -254,7 +255,7 @@ function processWizard(m, onDone) {
   stage.addEventListener('pointerup', () => { start = null })
 
   const preset = (label, w, hh) => h('button.btn.ghost.small', { onclick: () => { ops.width = w; ops.height = hh || undefined; sync() } }, label)
-  const out = h('div.fnt', { style: { fontSize: 'var(--t-s)' } })
+  const out = h('div.fnt.text-s', {})
   const sync = () => {
     out.textContent = `→ ${ops.width || 'auto'}${ops.height ? `×${ops.height}` : ''} ${ops.format.toUpperCase()} q${ops.quality}` +
       (crop.w < 1 || crop.h < 1 ? ` · cropped ${Math.round(crop.w * 100)}%×${Math.round(crop.h * 100)}%` : '') +
@@ -279,9 +280,9 @@ function processWizard(m, onDone) {
     title: `Edit image — ${m.name}`,
     width: 'min(44rem, 95vw)',
     body: h('div', {},
-      h('p.dlg-text', { style: { marginBottom: 'var(--s3)' } }, 'Creates a new asset; the original stays untouched.'),
+      h('p.dlg-text.mb-3', {}, 'Creates a new asset; the original stays untouched.'),
       stage,
-      h('div', { style: { display: 'flex', gap: 'var(--s2)', margin: 'var(--s3) 0', flexWrap: 'wrap', alignItems: 'center' } },
+      h('div.row.m-3-0.wrap', {},
         h('button.btn.ghost.small', { onclick: e => { cropping = !cropping; e.currentTarget.classList.toggle('primary', cropping); e.currentTarget.textContent = cropping ? 'Drag on the image…' : 'Crop' } }, 'Crop'),
         h('button.btn.ghost.small', { onclick: () => { crop.x = 0; crop.y = 0; crop.w = 1; crop.h = 1; cropBox.style.display = 'none'; sync() } }, 'Reset crop'),
         preset('Hero 1600', 1600), preset('Card 800', 800), preset('Thumb 400', 400), preset('OG 1200×630', 1200, 630),

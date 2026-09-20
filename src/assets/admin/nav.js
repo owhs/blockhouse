@@ -1,12 +1,13 @@
 // The navigation model.
 //
-// Three fixed sections named for jobs — Content (things you write), Site (what
-// visitors see), Studio (running the place) — plus a personal Pinned section.
+// Three fixed sections named for jobs — Content (the pages and things you
+// write), Site (how the site looks and what visitors see), Manage (people,
+// apps, settings and publishing) — plus a personal Pinned section.
 // Plugin panels are dispersed into the section matching their job rather than
 // dumped in a group named after how they load.
 //
-// Arrangement (pin, collapse, order, group-by) is personal and lives in
-// prefs(); availability stays site-wide in site.json. That split is deliberate:
+// Arrangement (pin, collapse, order) is personal and lives in prefs();
+// availability stays site-wide in site.json. That split is deliberate:
 // an owner deciding what exists is a different decision from a person deciding
 // what they want in front of them.
 
@@ -18,23 +19,24 @@ const PLUGIN_ICONS = {
   commerce: 'cart', ops: 'server', backups: 'cloud',
 }
 
-// Which job each plugin belongs to. Some genuinely belong to an existing
-// section — search and analytics are part of what visitors get, automations and
-// ops are part of running the place. The rest keep their own records (form
-// submissions, subscribers, delivered files) and belong to neither, so they get
-// their own section instead of being filed under "the things you write", which
-// they are not: a person hunting for form submissions does not think Content.
+// Where each app's panel goes when it does not say for itself. An app that
+// keeps its own records — form entries, subscribers, members, orders, files —
+// is something you work on daily, so it sits with Content. Search and analytics
+// are part of what visitors get, so they sit with Site. Everything else is part
+// of running the place. A panel may carry its own `section` and that wins, so
+// this table is only the default.
 const PLUGIN_SECTION = {
+  forms: 'content', newsletter: 'content', members: 'content', commerce: 'content',
+  data: 'content', drive: 'content', files: 'content',
   search: 'site', analytics: 'site', seo: 'site',
-  ops: 'studio', backups: 'studio', integrations: 'studio', automations: 'studio', ai: 'studio',
 }
-const PLUGIN_FALLBACK_SECTION = 'apps'
+const PLUGIN_FALLBACK_SECTION = 'manage'
+const SECTION_KEYS = new Set(['content', 'site', 'manage'])
 
 export const SECTIONS = [
-  { key: 'content', title: 'Content', hint: 'The things you write and upload' },
-  { key: 'apps', title: 'Apps', hint: 'Extras you switched on — each keeps its own records' },
-  { key: 'site', title: 'Site', hint: 'What visitors see' },
-  { key: 'studio', title: 'Studio', hint: 'Running the place' },
+  { key: 'content', title: 'Content', hint: 'The pages and things you write' },
+  { key: 'site', title: 'Site', hint: 'How the site looks and what visitors see' },
+  { key: 'manage', title: 'Manage', hint: 'People, apps, settings and publishing' },
 ]
 
 /** Every nav item the current user may see, already section-tagged. */
@@ -59,35 +61,46 @@ export function allItems() {
     })
   }
 
-  if (m.perms.settings) out.push({ key: 'types', section: 'content', icon: 'layout', label: 'Content types', hash: '#/types', tip: 'Define your own types — products, projects, docs' })
-  if (m.perms.menus) out.push({ key: 'menus', section: 'site', icon: 'menu', label: 'Menus', hash: '#/menus', tip: 'Navigation, with a live preview' })
-  if (m.perms.settings) out.push({ key: 'chrome', section: 'site', icon: 'layout', label: 'Header & footer', hash: '#/chrome', tip: 'The content around every page' })
-  if (m.perms.settings) out.push({ key: 'design', section: 'site', icon: 'palette', label: 'Design', hash: '#/design', tip: 'Template, palette and scheme — previewed live' })
-  if (m.perms.settings) out.push({ key: 'tpl', section: 'site', icon: 'code', label: 'Templates', hash: '#/tpl', tip: 'The markup, as safe overrides' })
-  if (m.perms.seo) out.push({ key: 'seo', section: 'site', icon: 'compass', label: 'SEO & redirects', hash: '#/seo', tip: 'Audit, feeds and redirects' })
+  if (m.perms.settings) out.push({ key: 'design', section: 'site', icon: 'palette', label: 'Design', hash: '#/design', tip: 'Colours, fonts and the look of every page' })
+  if (m.perms.menus) out.push({ key: 'menus', section: 'site', icon: 'menu', label: 'Navigation', hash: '#/menus', tip: 'The menus visitors use to get around' })
+  if (m.perms.settings) out.push({ key: 'chrome', section: 'site', icon: 'layout', label: 'Header & footer', hash: '#/chrome', tip: 'The content that appears around every page' })
+  if (m.perms.seo) out.push({ key: 'seo', section: 'site', icon: 'compass', label: 'SEO', hash: '#/seo', tip: 'How the site appears in search results, plus redirects' })
 
   for (const p of m.panels || []) {
-    const section = PLUGIN_SECTION[p.plugin] || PLUGIN_FALLBACK_SECTION
+    // A panel that is only settings belongs under Settings → Apps, not in the
+    // rail: nobody wants a whole page for one card of options (WP-9).
+    if (p.settingsOnly) continue
+    // the app may file itself; the table is only what we do when it does not
+    const section = (SECTION_KEYS.has(p.section) && p.section) || PLUGIN_SECTION[p.plugin] || PLUGIN_FALLBACK_SECTION
     out.push({
       key: `p/${p.key}`, section,
       icon: PLUGIN_ICONS[p.plugin] || p.icon || 'plug', label: p.label, hash: `#/p/${p.key}`,
-      // say where it came from, so an app sitting in Content is explained
-      // rather than merely placed
-      tip: section === PLUGIN_FALLBACK_SECTION
-        ? `From the ${p.plugin} app`
-        : `From the ${p.plugin} app · filed under ${SECTIONS.find(x => x.key === section)?.title || section}`,
+      tip: `From the ${p.plugin} app`,
       plugin: p.plugin,
     })
   }
 
-  if (m.perms.users) out.push({ key: 'users', section: 'studio', icon: 'users', label: 'People', hash: '#/users', tip: 'Who can sign in, and what they may do' })
-  if (m.perms.audit) out.push({ key: 'audit', section: 'studio', icon: 'table', label: 'Audit log', hash: '#/audit' })
-  if (m.perms.plugins) out.push({ key: 'plugins', section: 'studio', icon: 'plug', label: 'Apps & permissions', hash: '#/plugins' })
-  out.push({ key: 'deploy', section: 'studio', icon: 'rocket', label: 'Deploy', hash: '#/deploy' })
-  if (m.perms.settings) out.push({ key: 'settings', section: 'studio', icon: 'gear', label: 'Settings', hash: '#/settings' })
-  out.push({ key: 'help', section: 'studio', icon: 'book', label: 'Help', hash: '#/help' })
+  if (m.perms.users) out.push({ key: 'users', section: 'manage', icon: 'users', label: 'People', hash: '#/users', tip: 'Who can sign in, and what they may do' })
+  if (m.perms.plugins) out.push({ key: 'plugins', section: 'manage', icon: 'plug', label: 'Apps', hash: '#/plugins', tip: 'Extras you can switch on, and who may use them' })
+  if (m.perms.settings) out.push({ key: 'settings', section: 'manage', icon: 'gear', label: 'Settings', hash: '#/settings', tip: 'Site name, address, content types and everything else' })
+  out.push({ key: 'deploy', section: 'manage', icon: 'rocket', label: 'Deploy', hash: '#/deploy', tip: 'Put your changes on the live website' })
+  if (m.perms.audit) out.push({ key: 'audit', section: 'manage', icon: 'table', label: 'Activity', hash: '#/audit', tip: 'Who changed what, and when' })
+  if (m.perms.settings) out.push({ key: 'tpl', section: 'manage', icon: 'code', label: 'Template code', hash: '#/tpl', tip: 'For developers — the site’s page templates' })
+  out.push({ key: 'help', section: 'manage', icon: 'book', label: 'Help', hash: '#/help', tip: 'How to do things in the studio' })
 
   return out.filter(it => !hidden.has(it.key) && !hidden.has(it.key.split('/')[1] || ''))
+}
+
+/**
+ * Places that are real but do not deserve a permanent rail row. They still have
+ * to be findable, so search offers them. Content types lives under Settings.
+ */
+export function searchOnlyItems() {
+  if (!state.meta?.perms?.settings) return []
+  return [{
+    key: 'types', section: 'manage', icon: 'layout', label: 'Content types',
+    hash: '#/types', tip: 'The kinds of thing your site holds — in Settings',
+  }]
 }
 
 // ---------- personal arrangement ----------
@@ -99,27 +112,15 @@ export function togglePin(key) {
 }
 export const isPinned = key => pinned().includes(key)
 
-// Content is the daily job, so it opens. Site and Studio are mostly settings
-// you visit occasionally — they stay shut until asked for. Measured before
-// this: 27 rail items, overflowing a 900px-tall window by 230px, which made
-// the primary navigation something you had to scroll to read.
-// An explicit choice always wins and is remembered forever after.
-const DEFAULT_CLOSED = { apps: true, site: true, studio: true }
-export const collapsed = () => ({ ...DEFAULT_CLOSED, ...(prefs().navCollapsed || {}) })
+// Three sections, all open. A closed section hides the thing you were looking
+// for and says nothing about what is behind it, so shutting one is a choice a
+// person makes, never the state they are handed. An explicit choice wins and is
+// remembered forever after.
+export const collapsed = () => ({ ...(prefs().navCollapsed || {}) })
 export function toggleSection(key) {
   const c = { ...collapsed() }
   c[key] = !c[key]
   setPref('navCollapsed', c)
-}
-
-export const groupBy = () => prefs().navGroupBy || 'section'
-export const setGroupBy = v => setPref('navGroupBy', v)
-
-/** Remember what was visited, so "Recent" is real rather than a guess. */
-export function noteVisit(key) {
-  if (!key) return
-  const r = [key, ...(prefs().recentNav || []).filter(k => k !== key)].slice(0, 8)
-  setPref('recentNav', r)
 }
 
 /**
@@ -134,21 +135,11 @@ export function navGroups() {
   const rest = items.filter(i => !pinSet.has(i.key))
 
   const groups = []
-  if (pins.length) groups.push({ key: 'pinned', title: 'Pinned', hint: 'Yours — drag or right-click any item to change', items: pins })
+  if (pins.length) groups.push({ key: 'pinned', title: 'Pinned', hint: 'Yours — right-click any item to change', items: pins })
 
-  const mode = groupBy()
-  if (mode === 'az') {
-    groups.push({ key: 'az', title: 'All, A–Z', items: [...rest].sort((a, b) => a.label.localeCompare(b.label)), collapsible: true })
-  } else if (mode === 'recent') {
-    const order = prefs().recentNav || []
-    const seen = new Set(order)
-    groups.push({ key: 'recent', title: 'Recently used', items: order.map(k => byKey[k]).filter(Boolean).filter(i => !pinSet.has(i.key)), collapsible: true })
-    groups.push({ key: 'rest', title: 'Everything else', items: rest.filter(i => !seen.has(i.key)), collapsible: true })
-  } else {
-    for (const s of SECTIONS) {
-      const list = rest.filter(i => i.section === s.key)
-      if (list.length) groups.push({ ...s, items: list, collapsible: true })
-    }
+  for (const s of SECTIONS) {
+    const list = rest.filter(i => i.section === s.key)
+    if (list.length) groups.push({ ...s, items: list, collapsible: true })
   }
   return groups.filter(g => g.items.length)
 }

@@ -170,3 +170,54 @@ test('search: ranks title matches highest', () => {
 // ---------- validator ----------
 import { validateSite } from '../src/agent/validate.ts'
 test('validate: exists as a function', () => { expect(typeof validateSite).toBe('function') })
+
+// ---------- restore points: what counts as a change ----------
+// R16-1: opening the inspector used to write `layout: {}` onto the selected
+// block, so pressing Save on a page nobody had edited made a new version and
+// told the owner to republish. An empty holder is not content.
+import { docFingerprint } from '../src/storage/content.ts'
+const baseDoc = (blocks: any[]) => ({ id: 'd1', concept: 'page', slug: 'about', title: 'About', status: 'published', blocks }) as any
+
+test('docFingerprint: an empty layout object is not a change', () => {
+  expect(docFingerprint(baseDoc([{ id: 'b1', type: 'richtext', props: { md: 'hi' }, layout: {} }])))
+    .toBe(docFingerprint(baseDoc([{ id: 'b1', type: 'richtext', props: { md: 'hi' } }])))
+})
+
+test('docFingerprint: empty props, seo, access and custom are not changes', () => {
+  const bare = baseDoc([{ id: 'b1', type: 'spacer' }])
+  const padded = { ...baseDoc([{ id: 'b1', type: 'spacer', props: {} }]), seo: {}, access: {}, custom: {}, aliases: [] }
+  expect(docFingerprint(padded)).toBe(docFingerprint(bare))
+})
+
+test('docFingerprint: a real width is still a change', () => {
+  expect(docFingerprint(baseDoc([{ id: 'b1', type: 'richtext', layout: { width: 'wide' } }])))
+    .not.toBe(docFingerprint(baseDoc([{ id: 'b1', type: 'richtext', layout: {} }])))
+})
+
+test('docFingerprint: list positions survive an empty entry', () => {
+  expect(docFingerprint(baseDoc([{ id: 'b1', type: 'x' }, {}, { id: 'b2', type: 'y' }])))
+    .not.toBe(docFingerprint(baseDoc([{ id: 'b1', type: 'x' }, { id: 'b2', type: 'y' }])))
+})
+
+// R17-2: an edit and its undo left the page identical to the live copy, but
+// `hasUnpublishedChanges` compared version numbers, so the studio still said
+// "Published · edited" and asked the owner to republish nothing at all.
+import { publishFingerprint } from '../src/storage/content.ts'
+const published = { ...baseDoc([{ id: 'b1', type: 'richtext', props: { md: 'hi' } }]), version: 4, updatedAt: '2026-01-01T00:00:00.000Z', status: 'published' } as any
+
+test('publishFingerprint: an edit that was undone is not an unpublished change', () => {
+  // Two autosaves later: same words, higher version, newer timestamp.
+  const reverted = { ...published, version: 6, updatedAt: '2026-02-02T10:00:00.000Z' }
+  expect(publishFingerprint(reverted)).toBe(publishFingerprint(published))
+})
+
+test('publishFingerprint: a draft working copy of the same words is not a change', () => {
+  expect(publishFingerprint({ ...published, status: 'draft', version: 5 })).toBe(publishFingerprint(published))
+})
+
+test('publishFingerprint: a real edit is still an unpublished change', () => {
+  const edited = { ...published, version: 5, title: 'About us' }
+  expect(publishFingerprint(edited)).not.toBe(publishFingerprint(published))
+  expect(publishFingerprint({ ...published, version: 5, blocks: [{ id: 'b1', type: 'richtext', props: { md: 'hi there' } }] }))
+    .not.toBe(publishFingerprint(published))
+})

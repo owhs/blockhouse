@@ -459,7 +459,7 @@ export function codeEditor({ rel, value, onChange, onSave, context }) {
     e.preventDefault()
     const color = sw.dataset.color
     if (!/^#[0-9a-fA-F]{6}$/.test(color)) return   // native picker only speaks 6-digit hex
-    const input = h('input', { type: 'color', value: color, style: { position: 'fixed', opacity: 0, pointerEvents: 'none' } })
+    const input = h('input.offscreen-color', { type: 'color', value: color })
     document.body.appendChild(input)
     input.addEventListener('input', () => {
       const idx = ta.value.indexOf(color)

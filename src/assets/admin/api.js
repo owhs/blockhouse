@@ -1,10 +1,26 @@
 // Studio API client — CSRF header + friendly errors.
 import { toast } from './ui.js'
 
-const CSRF_PREFIX = 'blockhouse_c='
+// Each site gets its own cookie name (`blockhouse_c_<suffix>`) so two sites on
+// the same host do not overwrite each other's sign-in — see src/auth/session.ts.
+// Match on the prefix, not an exact name.
+const CSRF_PREFIX = 'blockhouse_c'
 function csrf() {
-  return document.cookie.split('; ').find(c => c.startsWith(CSRF_PREFIX))?.slice(CSRF_PREFIX.length) || ''
+  // Prefer the per-site name (`blockhouse_c_<suffix>`); a stale legacy
+  // `blockhouse_c` cookie from an older build must never win over it.
+  // Two sites on one host both leave a `blockhouse_c_<suffix>` cookie, so the
+  // shell names its own (meta bh-csrf-cookie); the prefix scan is the fallback.
+  const named = document.querySelector('meta[name="bh-csrf-cookie"]')?.content
+  const hits = document.cookie.split('; ').filter(c => c.startsWith(CSRF_PREFIX) && c.includes('='))
+  const hit = (named && hits.find(c => c.startsWith(named + '='))) || hits.find(c => c.startsWith(CSRF_PREFIX + '_')) || hits[0]
+  return hit ? hit.slice(hit.indexOf('=') + 1) : ''
 }
+
+// One 401 signs you out once. Several views can fail at the same moment, and
+// three copies of the same sign-in prompt is not three times as helpful.
+let signedOutPending = false
+/** Call when a sign-in has succeeded, so the next 401 is announced again. */
+export function clearSignedOut() { signedOutPending = false }
 
 export async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, {
@@ -24,7 +40,14 @@ export async function api(path, opts = {}) {
     err.status = res.status
     err.data = json
     err.raw = json?.error
-    if (res.status !== 409 && !opts.quiet) toast(err.message, 'err')
+    if (res.status === 401) {
+      // The shell puts a sign-in card in the view area; a toast saying the same
+      // thing would be the second half of a duplicated message.
+      if (!signedOutPending) {
+        signedOutPending = true
+        dispatchEvent(new CustomEvent('bh:signedout'))
+      }
+    } else if (res.status !== 409 && !opts.quiet) toast(err.message, 'err')
     throw err
   }
   return json
@@ -36,7 +59,7 @@ export async function api(path, opts = {}) {
  */
 function explain(status, json, path) {
   const raw = json?.error
-  if (status === 401) return 'Your session has expired — reload the page and sign in again.'
+  if (status === 401) return 'You’ve been signed out. Sign in again to carry on where you were.'
   if (status === 403) return raw || 'Your account does not have permission for that. An owner or admin can grant it under Apps & permissions.'
   if (status === 404) return raw || `That is no longer there (${path}). It may have been deleted — try reloading.`
   if (status === 413) return 'That file is too large for this site’s upload limit.'
