@@ -5,7 +5,7 @@
 // colour swatches (click to open a picker), beautify, snippets, and a
 // context bar that explains the token under the caret.
 
-import { h } from './ui.js'
+import { h, sc } from './ui.js'
 
 // ---------- language data ----------
 
@@ -404,7 +404,7 @@ export function codeEditor({ rel, value, onChange, onSave, context }) {
       const vdoc = vr && LIQUID.variables.find(([v]) => vr.startsWith(v))?.[1]
       text = fdoc ? `| ${filt} — ${fdoc}` : tdoc ? `{% ${tag} %} — ${tdoc}` : vdoc ? `${vr.split('.')[0]} — ${vdoc}` : ''
     }
-    ctxBar.textContent = text || 'Ctrl+Space — complete · ⌘S — save · ⇧⌥F — beautify. Liquid: {{ output | filter }} · {% tag %}'
+    ctxBar.textContent = text || sc('Ctrl+Space — complete · ⌘S — save · ⇧⌥F — beautify. Liquid: {{ output | filter }} · {% tag %}')
     ctxBar.classList.toggle('has-doc', !!text)
   }
 
@@ -459,7 +459,7 @@ export function codeEditor({ rel, value, onChange, onSave, context }) {
     e.preventDefault()
     const color = sw.dataset.color
     if (!/^#[0-9a-fA-F]{6}$/.test(color)) return   // native picker only speaks 6-digit hex
-    const input = h('input', { type: 'color', value: color, style: { position: 'fixed', opacity: 0, pointerEvents: 'none' } })
+    const input = h('input.offscreen-color', { type: 'color', value: color })
     document.body.appendChild(input)
     input.addEventListener('input', () => {
       const idx = ta.value.indexOf(color)

@@ -9,6 +9,8 @@ export interface BlockNode {
   type: string
   props: Record<string, any>
   children?: BlockNode[]
+  /** How wide this block runs when it sits directly on the page. See src/render/layout.ts. */
+  layout?: { width?: string }
 }
 
 export type DocStatus = 'draft' | 'review' | 'published'
@@ -311,6 +313,15 @@ export interface SecurityConfig {
   private?: 'off' | 'staging' | 'members'
   /** where to send blocked visitors instead of the built-in 401 page, e.g. the production URL */
   privateRedirect?: string
+  /**
+   * A shareable bypass for 'staging' mode — anyone with `?preview=<token>` in
+   * the URL sees the real site without signing in (the token then sets a
+   * cookie, so the rest of their visit doesn't need it in every link). For
+   * handing a staging URL to a client, or letting a stateless single-request
+   * tool — an AI fetch, a screenshot service — see the page without a login
+   * flow. Generate one with `blockhouse security:preview-link`.
+   */
+  previewToken?: string
   /** studio mount point, default 'admin' */
   adminPath?: string
   errorLog?: boolean
@@ -383,6 +394,7 @@ export interface RenderCtx {
   canonicalPath?: string     // set when serving a mirrored alias — canonical points here
   menuDraft?: string         // menu key rendered from the studio's draft buffer
   bare?: boolean             // hide site chrome (editor focused mode)
+  studioPreview?: boolean    // framed by the studio — suppress banners/popups, force panels shut
   baseUrl: string            // '' live, absolute for export? kept '' — canonical handled in seo
   env: any                   // BlockhouseEnv (typed loosely to avoid cycles)
 }

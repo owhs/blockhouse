@@ -52,7 +52,7 @@ export interface PluginContext {
   mail: { send: (msg: { to: string; subject: string; text?: string; html?: string }) => Promise<void> }
   fetch: typeof fetch
   resources: { register: (def: ResourceDef) => void }
-  adminPanel: (opts: { label: string; icon?: string }) => void
+  adminPanel: (opts: { label: string; icon?: string; section?: string; settingsOnly?: boolean }) => void
   util: { id: typeof id; now: typeof now }
   env: any
 }
@@ -70,8 +70,16 @@ export async function loadPlugins(env: any, modules: Record<string, PluginModule
     if (!enabled) continue
     try {
       await mod.register(makeContext(env, mod.manifest, approved))
+      env.registry.pluginsRunning?.add(pid)
     } catch (e) {
-      console.error(`[blockhouse] plugin "${pid}" failed to load:`, e)
+      // A missing grant is a configuration problem with a one-line fix, so say
+      // what to do instead of dumping a stack trace over the startup banner.
+      const detail = e instanceof PermissionError
+        ? `${e.message}
+  Fix: add it to plugins.${pid}.approved in site/site.json, or run \`blockhouse doctor\`.`
+        : (e as Error)?.stack || String(e)
+      env.registry.pluginErrors?.set(pid, String((e as Error)?.message || e))
+      console.error(`[blockhouse] plugin "${pid}" is disabled — ${detail}`)
     }
   }
 }

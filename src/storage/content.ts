@@ -13,6 +13,81 @@ import { envOverrides, mergeConfig } from '../core/config.ts'
 
 const MAX_VERSIONS = 25
 
+/** Every field the editor can change, in a stable order, as one string.
+ *  Two docs with the same fingerprint are the same document as far as the
+ *  owner is concerned — `updatedAt` and `version` are deliberately excluded. */
+const COMPARABLE = [
+  'concept', 'slug', 'title', 'status', 'fields', 'blocks', 'regions', 'seo',
+  'template', 'publishAt', 'custom', 'aliases', 'mirror', 'access',
+] as const
+
+/** What made a restore point: a Save, a Publish, or restoring an older version. */
+export type SaveAction = 'save' | 'publish' | 'restore'
+
+/** What one save did: the stored document, whether the page actually changed,
+ *  and whether a restore point was kept. */
+export type SaveResult = { doc: Doc; unchanged: boolean; snapshot: boolean }
+
+export type VersionInfo = {
+  version: number
+  savedAt: string
+  key: string
+  action: SaveAction
+  title: string
+  /** Content fingerprint — two equal ones mean the page looked the same. */
+  fingerprint: string
+}
+
+/** An empty object or array carries no content, so it must not read as a change. */
+const isEmptyHolder = (v: any) =>
+  v !== null && typeof v === 'object' && (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0)
+
+/**
+ * Sort keys, drop `undefined`, and drop values that hold nothing — `{}`, `[]`.
+ * A form that renders an empty holder onto a node (an inspector opening a width
+ * box, say) would otherwise make an untouched page look edited: the owner is
+ * told to republish work nobody did. Emptiness is dropped bottom-up, so
+ * `{ layout: { extra: {} } }` reduces to nothing at all, same as absent.
+ */
+function stable(v: any): any {
+  // Array *positions* are meaningful — an empty entry is dropped only when it
+  // is the whole value, never from the middle of a list.
+  if (Array.isArray(v)) return v.map(stable)
+  if (v && typeof v === 'object') {
+    const out: Record<string, any> = {}
+    for (const k of Object.keys(v).sort()) {
+      const sv = stable(v[k])
+      if (sv === undefined || isEmptyHolder(sv)) continue
+      out[k] = sv
+    }
+    return out
+  }
+  return v
+}
+
+export function docFingerprint(doc: Doc): string {
+  const pick: Record<string, any> = {}
+  for (const k of COMPARABLE) {
+    const v = (doc as any)[k]
+    if (v === undefined || v === null) continue
+    const sv = stable(v)
+    if (isEmptyHolder(sv)) continue
+    pick[k] = sv
+  }
+  return JSON.stringify(pick)
+}
+
+/** Fingerprint used to compare a working copy with its published snapshot.
+ *  Everything the publish machinery moves on its own is excluded: `version`
+ *  and `updatedAt` are already outside `COMPARABLE`, and `status` is dropped
+ *  here because the snapshot is written with `status: 'published'` while the
+ *  working copy may be back in draft or awaiting review — neither of which is
+ *  an edit to the words on the page. Both sides go through this same function,
+ *  so the comparison is symmetric. */
+export function publishFingerprint(doc: Doc): string {
+  return docFingerprint({ ...doc, status: undefined } as unknown as Doc)
+}
+
 export class ContentStore {
   private conceptCache: Map<string, ConceptDef> | null = null
   private pathIndex: Map<string, { id: string; published: boolean }> | null = null
@@ -244,8 +319,45 @@ export class ContentStore {
     return slug
   }
 
-  async saveDoc(doc: Doc, opts: { snapshot?: boolean } = {}): Promise<Doc> {
+  /** Write `prev` as a restore point and prune the oldest ones. */
+  private async writeVersion(prev: Doc, action: SaveAction) {
+    // The action goes in the file NAME, not in the stored document: a
+    // restore point is a verbatim copy of the page and must stay one.
+    // Nine rows reading "1st restore point · saved at 03:28" gave the owner
+    // nothing to choose between, so the list needs to say what made each one.
+    await this.driver.write(
+      `site/.versions/${prev.id}/${String(prev.version).padStart(5, '0')}.${action}.json`, stringify(prev))
+    const versions = await this.driver.list(`site/.versions/${prev.id}`)
+    for (const old of versions.slice(0, Math.max(0, versions.length - MAX_VERSIONS))) await this.driver.delete(old)
+  }
+
+  async saveDoc(doc: Doc, opts: { snapshot?: boolean; action?: SaveAction } = {}): Promise<Doc> {
+    return (await this.saveDocResult(doc, opts)).doc
+  }
+
+  /** As `saveDoc`, but also reports whether anything changed and whether a
+   *  restore point was written — the editor needs both to word its toast. */
+  async saveDocResult(doc: Doc, opts: { snapshot?: boolean; action?: SaveAction } = {}): Promise<SaveResult> {
     const prev = await this.getDoc(doc.id)
+    // A save that changes nothing must change nothing: no new version, no
+    // restore point, no "edited" badge, no Activity row. Otherwise pressing
+    // Save on an untouched published page tells the owner to republish work
+    // that does not exist. Everything the editor can edit is compared.
+    if (prev && docFingerprint(prev) === docFingerprint(doc)) {
+      // R21-2 — the comparison above is against the last AUTOSAVE, but an
+      // explicit Save promises a restore point. Someone who edits, waits for
+      // the autosave, then presses Save was told "nothing to save" and got no
+      // restore point. So when a snapshot is asked for, compare against the
+      // newest restore point instead, and keep one if the page has moved on.
+      if (opts.snapshot === true) {
+        const [newest] = await this.versions(doc.id)
+        if (!newest || newest.fingerprint !== docFingerprint(prev)) {
+          await this.writeVersion(prev, opts.action || 'save')
+          return { doc: prev, unchanged: true, snapshot: true }
+        }
+      }
+      return { doc: prev, unchanged: true, snapshot: false }
+    }
     if (prev && (prev.slug !== doc.slug || prev.concept !== doc.concept)) {
       doc.slug = await this.uniqueSlug(doc.concept, doc.slug)
       doc.slugHistory = [...new Set([...(prev.slugHistory || []), prev.slug])].slice(-10)
@@ -261,14 +373,11 @@ export class ContentStore {
     }
     doc.updatedAt = now()
     doc.version = (prev?.version || 0) + 1
-    if (opts.snapshot !== false && prev) {
-      await this.driver.write(`site/.versions/${doc.id}/${String(prev.version).padStart(5, '0')}.json`, stringify(prev))
-      const versions = await this.driver.list(`site/.versions/${doc.id}`)
-      for (const old of versions.slice(0, Math.max(0, versions.length - MAX_VERSIONS))) await this.driver.delete(old)
-    }
+    const kept = opts.snapshot !== false && !!prev
+    if (kept && prev) await this.writeVersion(prev, opts.action || 'save')
     await this.driver.write(this.docKey(doc.concept, doc.slug), stringify(doc))
     this.invalidateDoc(doc)
-    return doc
+    return { doc, unchanged: false, snapshot: kept }
   }
 
   async deleteDoc(docId: string): Promise<boolean> {
@@ -284,7 +393,7 @@ export class ContentStore {
     const doc = await this.getDoc(docId)
     if (!doc) return null
     doc.status = 'published'
-    await this.saveDoc(doc, { snapshot: true })
+    await this.saveDoc(doc, { snapshot: true, action: 'publish' })
     await this.driver.write(this.docKey(doc.concept, doc.slug, true), stringify(doc))
     this.invalidateDoc(doc)
     return doc
@@ -304,15 +413,31 @@ export class ContentStore {
   async hasUnpublishedChanges(doc: Doc): Promise<boolean> {
     const pub = await this.getBySlug(doc.concept, doc.slug, true)
     if (!pub) return doc.status === 'published'
-    return pub.version !== doc.version
+    // Version numbers count saves, not changes: an edit and its undo both bump
+    // the version while leaving the page byte-identical to the live copy, and
+    // the owner was then told to republish work that does not exist (R17-2).
+    // Compare what is actually on the page instead.
+    return publishFingerprint(pub) !== publishFingerprint(doc)
   }
 
-  async versions(docId: string): Promise<{ version: number; savedAt: string; key: string }[]> {
+  /**
+   * Restore points, newest first. Each carries what the owner needs to tell
+   * them apart: the action that made it, the title the page had at the time,
+   * and a fingerprint so the list can say "no visible change".
+   */
+  async versions(docId: string): Promise<VersionInfo[]> {
     const keys = await this.driver.list(`site/.versions/${docId}`)
-    const out = []
+    const out: VersionInfo[] = []
     for (const key of keys.reverse()) {
       const d = tryJson<Doc | null>(await this.driver.readText(key), null)
-      if (d) out.push({ version: d.version, savedAt: d.updatedAt, key })
+      if (!d) continue
+      const named = /\.(save|publish|restore)\.json$/.exec(key)
+      out.push({
+        version: d.version, savedAt: d.updatedAt, key,
+        action: (named?.[1] as SaveAction) || 'save',
+        title: d.title,
+        fingerprint: docFingerprint(d),
+      })
     }
     return out
   }

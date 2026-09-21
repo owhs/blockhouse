@@ -3,9 +3,10 @@
 // reflects what would actually happen, not what a README once claimed.
 
 import { get, post, put, del } from './api.js'
-import { h, emptyState, toast, dialog, confirmDialog } from './ui.js'
+import { h, emptyState, toast, dialog, confirmDialog, skeleton, fmtDate } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView, state, prefs, setPref } from './state.js'
+import { helpButton } from './help.js'
 import { renderFields } from './fields.js'
 
 const TARGETS = [
@@ -23,109 +24,168 @@ const PRESETS = {
 }
 
 const LEVEL = {
-  ok: { ico: 'check', colour: 'var(--ok)' },
-  warn: { ico: 'warn', colour: 'var(--warn)' },
-  fail: { ico: 'x', colour: 'var(--bad)' },
+  ok: { ico: 'check', colour: 'var(--ok-ink)' },
+  warn: { ico: 'warn', colour: 'var(--warn-ink)' },
+  fail: { ico: 'x', colour: 'var(--err-ink)' },
   info: { ico: 'info', colour: 'var(--mut)' },
 }
 
 registerView('deploy', async root => {
-  let target = prefs.deployTarget || 'server'
+  let target = prefs().deployTarget || 'server'
   let deep = false
-  const body = h('div.main-pad', { style: { maxWidth: '64rem' } })
+  const body = h('div.main-pad.mw-64', {})
   root.replaceChildren(h('div.main', {}, body))
 
-  const targetCards = () => h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))', gap: '0.6rem', marginBottom: '1.2rem' } },
-    ...TARGETS.map(t => h('button.card', {
+  const targetCards = () => h('div.deploy-targets', {},
+    ...TARGETS.map(t => h('button.card.card-action', {
+      class: target === t.key ? 'selected' : '',
+      'aria-pressed': String(target === t.key),
       onclick: () => { target = t.key; setPref('deployTarget', t.key); draw() },
-      style: {
-        textAlign: 'left', padding: '0.9rem', cursor: 'pointer',
-        borderColor: target === t.key ? 'var(--acc)' : 'var(--line)',
-        boxShadow: target === t.key ? '0 0 0 1px var(--acc) inset' : 'none',
-      },
     },
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', fontWeight: 650 } },
+      h('div.row.mb-1.fw-semi', {},
         iconEl(t.icon, 15), t.label),
-      h('p.fnt', { style: { fontSize: '0.76rem', lineHeight: 1.45, margin: 0 } }, t.blurb))))
+      h('p.fnt.deploy-target-blurb', {}, t.blurb))))
 
-  const checkRow = c => h('div', { style: { display: 'grid', gridTemplateColumns: '1.2rem minmax(9rem, 13rem) 1fr', gap: '0.6rem', alignItems: 'start', padding: '0.45rem 0', borderBottom: '1px solid var(--line-soft)' } },
-    h('span', { style: { color: LEVEL[c.level].colour, display: 'flex', paddingTop: '0.1rem' }, html: icon(LEVEL[c.level].ico, 14) }),
-    h('span', { style: { fontSize: '0.8rem', fontWeight: 600, color: 'var(--mut)' } }, c.label),
+  const checkRow = c => h('div.deploy-check', {},
+    h('span.deploy-check-ico', { style: { color: LEVEL[c.level].colour }, html: icon(LEVEL[c.level].ico, 14) }),
+    h('span.text-s.fw-semi.mut', {}, c.label),
     h('span', {},
-      h('span', { style: { fontSize: '0.85rem' } }, c.detail),
-      c.fix ? h('div.fnt', { style: { fontSize: '0.76rem', marginTop: '0.15rem' } }, '→ ', c.fix) : ''))
+      h('span.text-m', {}, c.detail),
+      c.fix ? h('div.fnt.text-s.mt-0', {}, '→ ', c.fix) : ''))
 
-  async function draw() {
-    body.replaceChildren(
-      h('div.page-head', {}, h('div', {},
-        h('h1', {}, 'Deploy'),
-        h('p.sub', {}, 'Where this site runs, whether it is ready, and the files to get it there.'))),
-      targetCards(),
-      h('div.spin'))
-
+  // The checks, run when someone asks for them rather than on every visit.
+  async function runChecks(holder) {
+    holder.replaceChildren(skeleton('rows', 4))
     let data
     try { data = await get(`/doctor?target=${target}${deep ? '&deep=1' : ''}`) }
     catch (e) {
-      body.replaceChildren(
-        h('div.page-head', {}, h('div', {}, h('h1', {}, 'Deploy'))),
-        targetCards(),
-        emptyState(icon('warn', 26), 'Diagnostics unavailable', String(e.message || e)))
+      holder.replaceChildren(emptyState(icon('warn', 26), 'Checks unavailable', String(e.message || e)))
       return
     }
-
     const groups = []
     for (const c of data.checks) {
       const last = groups[groups.length - 1]
       if (last && last.name === c.group) last.items.push(c)
       else groups.push({ name: c.group, items: [c] })
     }
-
     const s = data.summary
-    const verdict = s.fail ? { text: `${s.fail} problem${s.fail === 1 ? '' : 's'} to fix`, colour: 'var(--bad)', ico: 'x' }
-      : s.warn ? { text: `${s.warn} warning${s.warn === 1 ? '' : 's'}`, colour: 'var(--warn)', ico: 'warn' }
-        : { text: 'All checks passed', colour: 'var(--ok)', ico: 'check' }
+    const verdict = s.fail ? { text: `${s.fail} problem${s.fail === 1 ? '' : 's'} to fix`, colour: 'var(--err-ink)', ico: 'x' }
+      : s.warn ? { text: `${s.warn} warning${s.warn === 1 ? '' : 's'}`, colour: 'var(--warn-ink)', ico: 'warn' }
+        : { text: 'All checks passed', colour: 'var(--ok-ink)', ico: 'check' }
+
+    holder.replaceChildren(
+      h('div.card.card-verdict', { style: { '--card-accent': verdict.colour } },
+        h('span.card-verdict-ico', { style: { color: verdict.colour }, html: icon(verdict.ico, 18) }),
+        h('div', {},
+          h('div.fw-semi', {}, verdict.text),
+          h('div.fnt.text-s', {}, `environment: ${data.env} · ${s.ok} passing`))),
+      ...groups.map(g => h('section.mb-5', {},
+        h('h2.text-l.mb-1', {}, g.name),
+        h('div.card.p-1-4', {}, ...g.items.map(checkRow)))))
+  }
+
+  // ---------- the part a site owner needs ----------
+  function heroSection(profiles, lastRun) {
+    const out = h('div.deploy-out')
+    const url = state.meta?.site?.url || ''
+    // The one button: run the saved publishing target if there is one this
+    // person may press, otherwise write the site out as files.
+    const runnable = profiles.find(p => p.target === 'production') || profiles[0]
+
+    const publish = h('button.btn.primary', {
+      onclick: async e => {
+        e.target.disabled = true
+        out.replaceChildren(h('div.spin'))
+        try {
+          if (runnable) {
+            if (!(await confirmDialog('Publish the website?', `Builds the site and sends it to “${runnable.label}”.`, 'Publish'))) { out.replaceChildren(); return }
+            const r = await post(`/deploy/run/${runnable.id}`)
+            out.replaceChildren(h('pre.code-out.text-xs.pre-wrap', {}, (r.log || []).join('\n')))
+            toast(r.ok === false ? 'It did not finish — read the log below' : 'Website published', r.ok === false ? 'err' : 'ok', 6000)
+          } else {
+            const r = await post('/export', {})
+            out.replaceChildren()
+            toast(`Exported ${r.pages} pages to ${r.outDir}/. Upload that folder to your host.`, 'ok', 8000)
+          }
+          setPref('lastPublishAt', new Date().toISOString())
+          draw()
+        } catch (err) {
+          out.replaceChildren(h('p.fnt.txt-err', {}, String(err.message || err)))
+          toast('It did not finish', 'err')
+        } finally { e.target.disabled = false }
+      },
+    }, iconEl('rocket', 14), runnable ? 'Publish website now' : 'Export site files')
+
+    return h('div.card.deploy-hero', {},
+      h('h2', {}, 'Your website'),
+      url
+        ? h('div.deploy-url', {}, 'Your website is at ', h('a', { href: url, target: '_blank', rel: 'noopener' }, url))
+        : h('div.deploy-url', {}, 'No website address is set yet — add one under Settings → Site.'),
+      h('p.deploy-when', {}, lastRun ? `Last published ${fmtDate(lastRun)}.` : 'Not published from here yet.'),
+      h('div.deploy-actions', {},
+        publish,
+        h('span.fnt.text-s', {}, runnable
+          ? `Sends the site to “${runnable.label}”.`
+          : 'Creates a folder of ready-to-upload website files.'),
+      ),
+      h('div.deploy-actions.mt-3', {},
+        h('span.fnt.text-s', {}, 'Something look wrong?'),
+        h('button.btn.ghost.small', { onclick: () => runChecks(out) }, iconEl('gauge', 13), 'Run the checks')),
+      out)
+  }
+
+  async function draw() {
+    body.replaceChildren(
+      h('div.page-head', {}, h('div', {},
+        h('h1', {}, 'Deploy'),
+        h('p.sub', {}, 'Put your changes on the live website.')),
+        helpButton('deploy', 'Deploy')),
+      skeleton('rows', 3))
+
+    const { profiles = [] } = await get('/deploy/profiles').catch(() => ({ profiles: [] }))
+    // when it last went out: the activity log knows, if this account may read it
+    let lastRun = prefs().lastPublishAt || null
+    const { entries = [] } = await get('/audit').catch(() => ({ entries: [] }))
+    const logged = entries.find(e => e.action === 'deploy.run' || e.action === 'export.run')
+    if (logged && (!lastRun || new Date(logged.at) > new Date(lastRun))) lastRun = logged.at
 
     body.replaceChildren(
       h('div.page-head', {}, h('div', {},
         h('h1', {}, 'Deploy'),
-        h('p.sub', {}, 'Where this site runs, whether it is ready, and the files to get it there.')),
-        h('div', { style: { display: 'flex', gap: '0.4rem' } },
-          h('button.btn.ghost', { onclick: () => { deep = !deep; draw() } }, iconEl(deep ? 'check' : 'gauge', 14), deep ? 'Deep checks on' : 'Include page weight'),
-          h('button.btn.ghost', { onclick: draw }, iconEl('refresh', 14), 'Re-run'))),
+        h('p.sub', {}, 'Put your changes on the live website.')),
+        helpButton('deploy', 'Deploy')),
 
-      targetCards(),
-      deployTargets(),
+      heroSection(profiles, lastRun),
 
-      h('div.card', { style: { display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.8rem 1rem', marginBottom: '1rem', borderColor: verdict.colour } },
-        h('span', { style: { color: verdict.colour, display: 'flex' }, html: icon(verdict.ico, 18) }),
-        h('div', {},
-          h('div', { style: { fontWeight: 650 } }, verdict.text),
-          h('div.fnt', { style: { fontSize: '0.76rem' } }, `environment: ${data.env} · ${s.ok} passing`))),
-
-      ...groups.map(g => h('section', { style: { marginBottom: '1.2rem' } },
-        h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, g.name),
-        h('div.card', { style: { padding: '0.3rem 1rem' } }, ...g.items.map(checkRow)))),
-
-      presetSection(),
-      weightSection())
+      h('details.deploy-tech', {},
+        h('summary', {}, 'Technical details (for developers)'),
+        h('div.deploy-tech-body', {},
+          h('p.fnt.text-s.mt-0', {}, 'Export writes the built pages and assets into the project’s ', h('code', {}, 'dist'), ' folder.'),
+          h('div.d-flex.gap-2.mb-4', {},
+            h('button.btn.ghost', { onclick: () => { deep = !deep; draw() } }, iconEl(deep ? 'check' : 'gauge', 14), deep ? 'Deep checks on' : 'Include page weight'),
+            h('button.btn.ghost', { onclick: draw }, iconEl('refresh', 14), 'Re-run')),
+          targetCards(),
+          deployTargets(),
+          presetSection(),
+          weightSection())))
   }
 
   // ---------- saved deploy targets (encrypted credentials, one-click runs) ----------
   function deployTargets() {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 4))
     const paint = async () => {
       const { profiles } = await get('/deploy/profiles').catch(() => ({ profiles: [] }))
       holder.replaceChildren(
         ...(profiles.length ? profiles.map(p => {
           const out = h('div')
           const isProd = p.target === 'production'
-          return h('div.card', { style: { padding: '0.75rem 0.95rem', marginBottom: '0.5rem' } },
-            h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap' } },
+          return h('div.card.p-3-4.mb-2', {},
+            h('div.d-flex.items-center.gap-3.wrap', {},
               iconEl(p.kind === 'hook' ? 'link' : p.kind === 'command' ? 'code' : 'box', 16),
-              h('div', { style: { flex: 1, minWidth: '10rem' } },
-                h('strong', { style: { fontSize: '0.88rem' } }, p.label),
-                h('div.fnt', { style: { fontSize: '0.74rem' } }, `${p.kind} · needs ${p.minRole}+`)),
-              h('span.mrow-tag', { style: isProd ? { background: 'color-mix(in oklch, var(--err) 16%, transparent)', color: 'var(--err)' } : { background: 'color-mix(in oklch, var(--ok) 16%, transparent)', color: 'var(--ok)' } }, p.target),
+              h('div.grow.minw-10', {},
+                h('strong.text-m', {}, p.label),
+                h('div.fnt.text-xs', {}, `${p.kind} · needs ${p.minRole}+`)),
+              h('span.mrow-tag', { style: isProd ? { background: 'color-mix(in oklch, var(--err) 16%, transparent)', color: 'var(--err-ink)' } : { background: 'color-mix(in oklch, var(--ok) 16%, transparent)', color: 'var(--ok-ink)' } }, p.target),
               h('button.btn.ghost.small', { onclick: async () => { const r = await post(`/deploy/profiles/${p.id}/test`); toast(`${r.ok ? '✓' : '✗'} ${r.detail}`, r.ok ? 'ok' : 'err', 4500) } }, 'Test'),
               h('button.btn.ghost.small', { onclick: () => editProfile(p) }, 'Edit'),
               h('button.icon-btn', { title: 'Delete', onclick: async () => { if (await confirmDialog('Delete target?', `“${p.label}” is removed; nothing is undeployed.`)) { await del(`/deploy/profiles/${p.id}`); paint() } }, html: icon('trash', 13) }),
@@ -135,12 +195,12 @@ registerView('deploy', async root => {
                   e.target.disabled = true
                   out.replaceChildren(h('div.spin'))
                   const r = await post(`/deploy/run/${p.id}`).catch(err => ({ ok: false, log: [String(err.message || err)] })).finally(() => (e.target.disabled = false))
-                  out.replaceChildren(h('pre.code-out', { style: { fontSize: '0.72rem', margin: '0.5rem 0 0', whiteSpace: 'pre-wrap', color: r.ok === false ? 'var(--err)' : '' } }, (r.log || []).join('\n')))
+                  out.replaceChildren(h('pre.code-out.deploy-check-out', { style: { color: r.ok === false ? 'var(--err-ink)' : '' } }, (r.log || []).join('\n')))
                   toast(r.ok === false ? 'Deploy failed — see the log' : 'Deployed', r.ok === false ? 'err' : 'ok')
                 },
               }, iconEl('rocket', 12), isProd ? 'Deploy live' : 'Deploy staging')),
             out)
-        }) : [h('p.fnt', { style: { fontSize: '0.8rem' } }, 'No saved targets yet. A target bundles where a build goes (staging or production), how it gets there, and who may press the button. Credentials are stored encrypted.')]),
+        }) : [h('p.fnt.text-s', {}, 'No saved targets yet. A target bundles where a build goes (staging or production), how it gets there, and who may press the button. Credentials are stored encrypted.')]),
         h('button.tree-add', { onclick: () => editProfile(null) }, '＋ New deploy target'))
     }
 
@@ -193,18 +253,18 @@ registerView('deploy', async root => {
     }
 
     paint()
-    return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Deploy targets'),
+    return h('section.mb-5', {},
+      h('h2.text-l.mb-1', {}, 'Deploy targets'),
       holder)
   }
 
   function presetSection() {
     const list = PRESETS[target] || []
-    const out = h('div', { style: { display: 'grid', gap: '0.4rem' } })
-    out.replaceChildren(...list.map(p => h('div.card', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 0.9rem' } },
+    const out = h('div.stack-2', {})
+    out.replaceChildren(...list.map(p => h('div.card.d-flex.items-center.justify-between.p-3-4', {},
       h('div', {},
-        h('div', { style: { fontWeight: 620, fontSize: '0.88rem' } }, p),
-        h('div.fnt', { style: { fontSize: '0.74rem' } }, PRESET_BLURB[p] || '')),
+        h('div.fw-semi.text-m', {}, p),
+        h('div.fnt.text-xs', {}, PRESET_BLURB[p] || '')),
       h('button.btn.ghost.small', {
         onclick: async () => {
           const res = await get(`/deploy/preset/${p}`)
@@ -214,37 +274,37 @@ registerView('deploy', async root => {
             title: `${p} files`,
             body: h('div', {},
               made.length ? h('p', {}, 'Written:') : '',
-              made.length ? h('ul', { style: { margin: '0 0 0.8rem 1.1rem' } }, ...made.map(f => h('li', {}, h('code', {}, f)))) : '',
-              kept.length ? h('p.mut', { style: { fontSize: '0.82rem' } }, 'Left alone (already existed): ', kept.map(f => f).join(', ')) : '',
-              h('p.mut', { style: { fontSize: '0.82rem' } }, 'They are written into the project folder, filled in from this site’s configuration. Review before committing.')),
+              made.length ? h('ul.m-0-0-4-5', {}, ...made.map(f => h('li', {}, h('code', {}, f)))) : '',
+              kept.length ? h('p.mut.text-m', {}, 'Left alone (already existed): ', kept.map(f => f).join(', ')) : '',
+              h('p.mut.text-m', {}, 'They are written into the project folder, filled in from this site’s configuration. Review before committing.')),
             okLabel: 'Done',
           })
-          toast(made.length ? `Wrote ${made.length} file(s)` : 'Nothing to write', 'ok')
+          toast(made.length ? `Wrote ${made.length} file${made.length === 1 ? '' : 's'}` : 'Nothing to write', 'ok')
         },
       }, iconEl('download', 13), 'Write files'))))
-    return h('section', { style: { marginBottom: '1.2rem' } },
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Deployment files'),
+    return h('section.mb-5', {},
+      h('h2.text-l.mb-1', {}, 'Deployment files'),
       list.length ? out : h('p.mut', {}, 'No presets for this target.'))
   }
 
   function weightSection() {
-    const holder = h('div', {}, h('div.spin'))
+    const holder = h('div', {}, skeleton('rows', 4))
     get('/budget').then(({ pages, budget, median, failures }) => {
       const bar = p => {
         const pct = Math.min(100, Math.round((p.total / budget.total) * 100))
-        return h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(8rem, 16rem) 1fr 5rem', gap: '0.7rem', alignItems: 'center', padding: '0.35rem 0' } },
-          h('code', { style: { fontSize: '0.76rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.path),
-          h('div', { style: { height: '7px', borderRadius: '99px', background: 'var(--line-soft)', overflow: 'hidden' } },
-            h('div', { style: { width: `${pct}%`, height: '100%', borderRadius: '99px', background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
-          h('span.fnt', { style: { fontSize: '0.74rem', textAlign: 'right', color: p.over.length ? 'var(--warn)' : 'var(--mut)' } }, fmtKb(p.total)))
+        return h('div.deploy-budget-row', {},
+          h('code.text-s.ovh.tov-ellipsis.nowrap', {}, p.path),
+          h('div.deploy-bar', {},
+            h('div.deploy-budget-fill', { style: { width: `${pct}%`, background: p.over.length ? 'var(--warn)' : 'var(--acc)' } })),
+          h('span.fnt.deploy-budget-size', { class: p.over.length ? 'over' : '' }, fmtKb(p.total)))
       }
       holder.replaceChildren(
-        h('p.fnt', { style: { fontSize: '0.78rem', marginBottom: '0.5rem' } },
-          `Median page ${fmtKb(median)} against a ${fmtKb(budget.total)} budget. ${failures ? `${failures} page(s) over.` : 'Every page inside budget.'} Bars show HTML + CSS + JS; images are counted separately.`),
-        h('div.card', { style: { padding: '0.5rem 1rem' } }, ...pages.map(bar)))
+        h('p.fnt.text-s.mb-2', {},
+          `Median page ${fmtKb(median)} against a ${fmtKb(budget.total)} budget. ${failures ? `${failures} page${failures === 1 ? ' is' : 's are'} over.` : 'Every page inside budget.'} Bars show HTML + CSS + JS; images are counted separately.`),
+        h('div.card.p-2-4', {}, ...pages.map(bar)))
     }).catch(e => holder.replaceChildren(h('p.mut', {}, String(e.message || e))))
     return h('section', {},
-      h('h2', { style: { fontSize: '0.9rem', marginBottom: '0.3rem' } }, 'Page weight'),
+      h('h2.text-l.mb-1', {}, 'Page weight'),
       holder)
   }
 

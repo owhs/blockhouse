@@ -4,6 +4,16 @@
 
 const doc = document
 
+// The studio frames real pages in its Design, Header & footer, Menus and page
+// previews. Those frames are a picture of the site, not a visit to it: nothing
+// that greets a first-time visitor (consent banner, theme-toggle nudge, any
+// timed pop-up) belongs in them, and nothing may drift open on its own.
+// The server sets data-bh-preview on <html> — see src/render/page.ts.
+// The Navigation page's preview is the exception: it is meant to show the
+// panel being edited, already open, so it only gets the banner suppression.
+const PREVIEW = doc.documentElement.getAttribute('data-bh-preview')
+const PREVIEW_MENU = PREVIEW === 'menu'
+
 // ---------- theme ----------
 for (const btn of doc.querySelectorAll('[data-blockhouse="theme"]')) {
   btn.addEventListener('click', () => {
@@ -20,10 +30,18 @@ const mobileNav = () => matchMedia('(max-width: 1000px)').matches
 const burger = doc.querySelector('[data-blockhouse="burger"]')
 const headerNav = doc.querySelector('.site-header .nav')
 
+// A hover-opened panel is held open by :hover and :focus-within, and a
+// full-screen one is always under the pointer — so "close" has to say so
+// explicitly. `nav-shut` overrides both until the pointer leaves the item.
+function shut(item) {
+  item.classList.remove('open', 'drilled')
+  item.classList.add('nav-shut')
+  item.querySelector('.nav-link')?.setAttribute('aria-expanded', 'false')
+  if (item.contains(doc.activeElement)) doc.activeElement.blur()
+}
 function closeAllPanels() {
-  for (const o of doc.querySelectorAll('.nav-item.open, .nav-item.drilled')) {
-    o.classList.remove('open', 'drilled')
-    o.querySelector('.nav-link')?.setAttribute('aria-expanded', 'false')
+  for (const o of doc.querySelectorAll('.nav-item.has-mega, .nav-item.has-drop')) {
+    if (o.matches('.open, .drilled, :hover, :focus-within')) shut(o)
   }
 }
 if (burger) burger.addEventListener('click', () => {
@@ -44,19 +62,32 @@ for (const item of (headerNav || doc).querySelectorAll('.nav-item.has-mega, .nav
       btn.setAttribute('aria-expanded', 'true')
       item.querySelector('.drill-head')?.scrollIntoView({ block: 'nearest' })
     } else {
-      const open = item.classList.toggle('open')
+      // A click pins the panel open — it stays when the pointer wanders off —
+      // and the next click on the same link closes it.
+      const showing = item.classList.contains('open')
+      if (showing) { shut(item); return }
+      item.classList.remove('nav-shut')
+      const open = item.classList.toggle('open', true)
       btn.setAttribute('aria-expanded', String(open))
       for (const other of doc.querySelectorAll('.nav-item.open')) {
         if (other !== item) { other.classList.remove('open'); other.querySelector('.nav-link')?.setAttribute('aria-expanded', 'false') }
       }
     }
   })
+  item.addEventListener('pointerleave', () => { item.classList.remove('nav-shut') })
   // drill back button
   item.querySelector('.drill-back')?.addEventListener('click', () => {
     item.classList.remove('drilled')
     btn.setAttribute('aria-expanded', 'false')
   })
 }
+// a template may add its own close button to a panel after this script runs,
+// so listen for it at the document, ahead of the button's own handler
+doc.addEventListener('click', e => {
+  const x = e.target.closest?.('.mega-close')
+  const item = x?.closest('.nav-item')
+  if (item) shut(item)
+}, true)
 doc.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const drilled = doc.querySelector('.nav-item.drilled')
@@ -147,6 +178,39 @@ for (const cat of doc.querySelectorAll('.mega-catalogue')) {
   if (mobileNav()) {
     tabPanes.forEach((p, i) => (p.hidden = i !== 0))
   }
+}
+
+// ---------- preview: no greetings, nothing hanging open ----------
+if (PREVIEW) {
+  if (!PREVIEW_MENU) {
+    closeAllPanels()
+    doc.body.classList.remove('nav-open', 'mega-open')
+    doc.documentElement.classList.remove('mega-open')
+  }
+  // belt and braces: a banner that slipped through (a cached page, a plugin
+  // that injects its own) is removed rather than left floating over the design
+  for (const el of doc.querySelectorAll('#blockhouse-consent, .blockhouse-consent, [data-bh-popup]')) el.remove()
+}
+
+// The Navigation page's preview is a picture of the draft menu, not a visit to
+// the site: following a link threw the draft away and left the owner on the
+// real page with no way back. Every link and form in that frame is dead; a
+// click on a menu entry instead tells the studio to select that entry, so the
+// preview behaves like part of the editor.
+if (PREVIEW_MENU) {
+  const tellParent = id => {
+    try { parent.postMessage({ blockhouse: 'menuselect', id }, '*') } catch {}
+  }
+  doc.addEventListener('click', e => {
+    const a = e.target.closest?.('a[href]')
+    if (!a) return
+    e.preventDefault()
+    e.stopPropagation()
+    const navId = a.closest('[data-nav-id]')?.getAttribute('data-nav-id')
+    if (navId) tellParent(navId)
+  }, true)
+  doc.addEventListener('submit', e => { e.preventDefault(); e.stopPropagation() }, true)
+  doc.addEventListener('auxclick', e => { if (e.target.closest?.('a[href]')) e.preventDefault() }, true)
 }
 
 // ---------- studio preview hooks (only when framed by the editor) ----------
@@ -245,12 +309,29 @@ if (wants.has('lightbox')) doc.addEventListener('click', e => {
 })
 
 // embed facades — swap in the iframe only on demand
-if (wants.has('embed')) doc.addEventListener('click', e => {
+// The map embed cannot search for an address by itself: it needs the corner
+// coordinates of the area to show. Look the address up first, then frame it.
+async function mapSrc(host) {
+  const q = host.dataset.mapQuery
+  if (!q) return host.dataset.embed
+  try {
+    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q))
+    const hit = (await res.json())[0]
+    if (!hit) return host.dataset.embed
+    const lat = Number(hit.lat), lon = Number(hit.lon)
+    const zoom = Number(host.dataset.mapZoom) || 14
+    const span = 360 / Math.pow(2, zoom) * (host.offsetWidth || 800) / 256 / 2   // half the width, in degrees
+    const tall = span * (host.offsetHeight || 360) / (host.offsetWidth || 800)
+    const bbox = [lon - span, lat - tall, lon + span, lat + tall].map(n => n.toFixed(5)).join(',')
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat.toFixed(5)},${lon.toFixed(5)}`
+  } catch { return host.dataset.embed }
+}
+if (wants.has('embed')) doc.addEventListener('click', async e => {
   const facade = e.target.closest?.('.embed-facade')
   const host = facade?.closest('[data-embed]')
   if (!host) return
   const iframe = doc.createElement('iframe')
-  iframe.src = host.dataset.embed
+  iframe.src = host.matches('.wb-map') ? await mapSrc(host) : host.dataset.embed
   iframe.title = host.dataset.title || 'Embedded content'
   iframe.allow = 'autoplay; encrypted-media; picture-in-picture'
   iframe.allowFullscreen = true
@@ -379,11 +460,16 @@ if (wants.has('share')) doc.addEventListener('click', async e => {
 })
 
 // reveal on view
-if (wants.has('reveal')) {
+// In the studio preview the frame is scaled and scrolled independently, so an
+// on-scroll reveal left blocks permanently faded out. Show them all at once
+// there; on the real site nothing changes.
+if (wants.has('reveal') && !doc.documentElement.hasAttribute('data-bh-preview')) {
   const io = new IntersectionObserver(entries => {
     for (const en of entries) if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target) }
   }, { threshold: 0.2 })
   for (const el of doc.querySelectorAll('.reveal')) io.observe(el)
+} else if (wants.has('reveal')) {
+  for (const el of doc.querySelectorAll('.reveal')) el.classList.add('in')
 }
 
 // ---------- drive (client document portal) ----------

@@ -91,11 +91,35 @@ const P = {
   lock: 'M6.5 10.5h11V20h-11zM8.5 10.5V7a3.5 3.5 0 0 1 7 0v3.5',
   'panel-close': 'M4 4.5h16v15H4zM9.5 4.5v15M17 10l-2.5 2 2.5 2',
   'panel-open': 'M4 4.5h16v15H4zM9.5 4.5v15M13.5 10l2.5 2-2.5 2',
+  // names the studio was already asking for and rendering as text stubs
+  block: 'M4 4.5h16v15H4zM4 10h16M10 10v9.5',
+  doc: 'M7 3h7l4 4v14H7zM14 3v4h4M9.5 12h7M9.5 15.5h5',
+  compare: 'M12 4v16M7.5 8.5L4 13h7zM16.5 8.5L13 13h7zM4 13a3.5 3.5 0 0 0 7 0M13 13a3.5 3.5 0 0 0 7 0',
+  bespoke: 'M6 20l1.5-5 8-8a2 2 0 0 1 3 3l-8 8zM14 6.5l3 3M4.5 4.5l1.6 1.6M9 3.5l-.8 2M3.5 9l2-.8',
+  classic: 'M4 9.5L12 4l8 5.5M5.5 9.5V19M18.5 9.5V19M9.5 9.5V19M14.5 9.5V19M3.5 19h17',
+  electric: 'M13 3L5.5 13.5H11L9.5 21 18 10.5h-5.5z',
+  pin: 'M9.5 3h5l-.7 5.5 3.2 3v1.5H7v-1.5l3.2-3zM12 13v8',
+  unpin: 'M9.5 3h5l-.7 5.5 3.2 3v1.5H7v-1.5l3.2-3zM12 13v8M4 4l16 16',
+  eyeOff: 'M4 4l16 16M10 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.4 3.4M6.4 7.6A11.4 11.4 0 0 0 3 12c0 2.5 4 7 9 7a9.4 9.4 0 0 0 3.3-.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  sidebar: 'M4 4.5h16v15H4zM9.5 4.5v15',
+  // concept icons the sites actually ask for (Lifts, Lift ranges, Systems…)
+  layers: 'M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5',
+  grid: 'M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z',
+  // The Map block asks for 'location' and printed the stub "lo" in the picker.
+  location: 'M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 14.9 12 21 12 21zM12 10.5h.01',
+  map: 'M9 4.5L3.5 6.8v12.7L9 17.2l6 2.3 5.5-2.3V4.5L15 6.8zM9 4.5v12.7M15 6.8v12.7',
 }
+
+// Icons the studio asks for by name. In dev, a missing one is a bug worth
+// hearing about rather than a two-letter text stub nobody notices.
+const warned = new Set()
 
 export function icon(name, size = 16, cls = '') {
   const d = P[name]
-  if (!d) return `<span class="ico-txt">${String(name).slice(0, 2)}</span>`
+  if (!d) {
+    if (!warned.has(name)) { warned.add(name); console.warn(`[studio] no icon named "${name}"`) }
+    return `<span class="ico-txt" aria-hidden="true">${String(name).slice(0, 2)}</span>`
+  }
   return `<svg class="ico ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`
 }
 

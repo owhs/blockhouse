@@ -3,7 +3,7 @@
 // data plugin panel (main.js imports this; views.js looks it up).
 
 import { get, post, put, del } from './api.js'
-import { h, dialog, confirmDialog, toast, emptyState, fmtDate, makeSortable, contextMenu } from './ui.js'
+import { h, dialog, confirmDialog, toast, emptyState, fmtDate, makeSortable, contextMenu, skeleton } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { renderField } from './fields.js'
 import { tryEval } from './expr.js'
@@ -16,8 +16,8 @@ registerDataSection(async () => {
   const { items: tables } = await get('/res/data/tables').catch(() => ({ items: [] }))
   if (!tables.length) return h('div.card', {}, emptyState(icon('db', 26), 'No tables yet', 'Create a table above to build a data app — a quote calculator, inventory or tracker.'))
 
-  const tabBar = h('div.seg', { style: { marginBottom: '0.9rem', flexWrap: 'wrap' } })
-  const viewBar = h('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '0.9rem', flexWrap: 'wrap', alignItems: 'center' } })
+  const tabBar = h('div.seg.mb-4.wrap', {})
+  const viewBar = h('div.row.mb-4.wrap', {})
   const body = h('div')
   wrap.append(tabBar, viewBar, body)
 
@@ -32,7 +32,7 @@ registerDataSection(async () => {
 
   async function load() {
     renderTabs()
-    body.replaceChildren(h('div.spin'))
+    body.replaceChildren(skeleton('rows', 6))
     const { table, items } = await get(`/x/data/rows/${current.id}`)
     current = table
     allItems = items
@@ -42,11 +42,7 @@ registerDataSection(async () => {
     if (table.dateField) views.push(['gantt', 'gantt', 'Timeline'])
     views.push(['dash', 'chart', 'Dashboard'])
 
-    const search = h('input.input', {
-      type: 'search', placeholder: `Search ${items.length} records…`, value: q,
-      style: { width: '13rem', padding: '0.35rem 0.6rem', fontSize: '0.82rem' },
-      oninput: e => { q = e.target.value; render() },
-    })
+    const search = h('input.input.w-13.p-1-3.text-m', { type: 'search', placeholder: `Search ${items.length} records…`, value: q, oninput: e => { q = e.target.value; render() } })
 
     viewBar.replaceChildren(
       h('div.seg', {}, ...views.map(([k, ico, label]) =>
@@ -56,7 +52,7 @@ registerDataSection(async () => {
           render()
         } }, iconEl(ico, 14), label))),
       search,
-      h('div', { style: { flex: 1 } }),
+      h('div.grow', {}),
       h('button.btn.ghost.small', { onclick: () => importCsv(table, load) }, iconEl('upload', 14), 'Import'),
       h('button.btn.ghost.small', { onclick: () => keysDialog() }, iconEl('key', 14), 'API keys'),
       h('a.btn.ghost.small', { href: `/api/x/data/rows/${table.id}/export.csv`, download: `${table.id}.csv` }, iconEl('download', 13), 'CSV'),
@@ -98,7 +94,7 @@ registerDataSection(async () => {
   }
 
   await load()
-  return h('div.card', { style: { padding: '1rem' } }, wrap)
+  return h('div.card.p-4', {}, wrap)
 })
 
 // ---------- grid ----------
@@ -111,7 +107,7 @@ function cellValue(f, row) {
   if (v == null || v === '') return h('span.fnt', {}, '—')
   if (f.type === 'currency') return money(v, f.currency || '£')
   if (f.type === 'boolean') return v ? iconEl('check', 14) : h('span.fnt', {}, '—')
-  if (f.type === 'multiselect' && Array.isArray(v)) return h('span', {}, ...v.map(x => h('span.multi-tag', { style: { marginRight: '0.2rem' } }, x)))
+  if (f.type === 'multiselect' && Array.isArray(v)) return h('span', {}, ...v.map(x => h('span.multi-tag.mr-0', {}, x)))
   if (f.type === 'number') return String(Math.round(v * 100) / 100)
   return String(v).slice(0, 60)
 }
@@ -134,7 +130,7 @@ function gridView(table, items, reload, sorting = {}) {
     h('tbody', {}, ...items.map(row => h('tr', { onclick: () => editRow(table, row, reload) },
       ...cols.map(f => h('td', { class: f.type === 'currency' || f.type === 'number' ? 'num' : '' }, cellValue(f, row))),
       stateField ? h('td', {}, stateChip(table, row._state)) : '',
-      h('td', { style: { textAlign: 'right', whiteSpace: 'nowrap' } },
+      h('td.ta-r.nowrap', {},
         table.report ? h('button.icon-btn', { title: 'Open report', onclick: e => { e.stopPropagation(); window.open(`/x/data/report/${table.id}/${row.id}`) } }, iconEl('doc', 14)) : '',
         h('button.icon-btn', { title: 'Clone', onclick: async e => { e.stopPropagation(); await post(`/x/data/rows/${table.id}/${row.id}/clone`); toast('Cloned', 'ok'); reload() } }, iconEl('copy', 14)),
         h('button.icon-btn', { title: 'Delete', onclick: async e => { e.stopPropagation(); if (await confirmDialog('Delete record', 'Delete this record?')) { await del(`/x/data/rows/${table.id}/${row.id}`); reload() } } }, iconEl('trash', 14))))))))
@@ -152,7 +148,7 @@ async function editRow(table, row, reload) {
   for (const f of table.fields) if (vals[f.key] === undefined && f.default !== undefined) vals[f.key] = f.default
 
   const formHolder = h('div')
-  const totalsBar = h('div', { style: { position: 'sticky', bottom: 0, background: 'var(--bg-panel)', borderTop: '1px solid var(--line)', margin: '0.5rem -1.1rem -0.6rem', padding: '0.6rem 1.1rem', display: 'flex', gap: '1.2rem', flexWrap: 'wrap' } })
+  const totalsBar = h('div.data-totals', {})
 
   const rerender = () => {
     // group fields, honor showIf
@@ -196,13 +192,13 @@ async function editRow(table, row, reload) {
     recompute()
     const computedCurrency = table.fields.filter(f => f.type === 'computed' && /currency|total|vat|grand/i.test(f.key + f.label))
     totalsBar.replaceChildren(...table.fields.filter(f => f.type === 'computed').map(f =>
-      h('div', {}, h('span.fnt', { style: { fontSize: '0.72rem', display: 'block' } }, f.label || f.key),
-        h('strong', { style: { fontSize: '1.05rem' } }, /currenc|total|price|vat|grand|amount/i.test(f.key + (f.label || '')) ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))))
+      h('div', {}, h('span.fnt.text-xs.d-block', {}, f.label || f.key),
+        h('strong.text-xl', {}, /currenc|total|price|vat|grand|amount/i.test(f.key + (f.label || '')) ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))))
   }
   recompute(); rerender()
 
-  const workflowBar = row && table.workflow?.states?.length ? h('div', { style: { display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.7rem', flexWrap: 'wrap' } },
-    h('span.fnt', { style: { fontSize: '0.78rem' } }, 'Status:'), stateChip(table, vals._state),
+  const workflowBar = row && table.workflow?.states?.length ? h('div.row.mb-3.wrap', {},
+    h('span.fnt.text-s', {}, 'Status:'), stateChip(table, vals._state),
     ...nextStates(table, vals._state).map(to => h('button.btn.soft.small', {
       onclick: async () => { try { await post(`/x/data/rows/${table.id}/${row.id}/state`, { to: to.key }); vals._state = to.key; toast(`Moved to ${to.label}`, 'ok'); reload() } catch {} },
     }, `→ ${to.label}`))) : ''
@@ -238,7 +234,7 @@ function fieldControl(table, f, vals, onChange) {
   // computed → read-only display
   if (f.type === 'computed') {
     return h('div.field', {}, h('label', {}, f.label || f.key, h('span.help', {}, 'computed')),
-      h('div', { class: 'input', 'data-computed': f.key, style: { background: 'var(--bg)', fontWeight: 600 } },
+      h('div.bg-app.fw-semi', { class: 'input', 'data-computed': f.key },
         f.type === 'currency' ? money(vals[f.key], f.currency || '£') : String(vals[f.key] ?? 0)))
   }
   if (f.type === 'lineitems') return lineItemsField(f, vals, onChange)
@@ -256,7 +252,7 @@ function fieldControl(table, f, vals, onChange) {
   if (f.type === 'currency') {
     const wrap = h('div.field', { class: f.group ? '' : 'half' }, h('label', {}, f.label || f.key))
     const input = h('input', { type: 'number', step: '0.01', value: vals[f.key] ?? '', oninput: e => { vals[f.key] = e.target.value === '' ? null : Number(e.target.value); onChange(f.key) } })
-    wrap.append(h('div', { style: { position: 'relative' } }, h('span', { style: { position: 'absolute', left: '0.6rem', top: '50%', translate: '0 -50%', color: 'var(--fnt)' } }, f.currency || '£'), input))
+    wrap.append(h('div.pos-rel', {}, h('span.money-prefix', {}, f.currency || '£'), input))
     input.style.paddingLeft = '1.4rem'
     return wrap
   }
@@ -280,23 +276,19 @@ function multiField(f, vals, onChange) {
 function lineItemsField(f, vals, onChange) {
   vals[f.key] = Array.isArray(vals[f.key]) ? vals[f.key] : []
   const cols = f.item || []
-  const table = h('table.data-table', { style: { fontSize: '0.8rem' } })
+  const table = h('table.data-table.text-s', {})
   const render = () => {
     table.replaceChildren(
       h('thead', {}, h('tr', {}, ...cols.map(c => h('th', { class: /number|currency|computed/.test(c.type) ? 'num' : '' }, c.label || c.key)), h('th'))),
-      h('tbody', {}, ...vals[f.key].map((li, i) => h('tr', { style: { cursor: 'default' } },
-        ...cols.map(c => h('td', { class: /number|currency|computed/.test(c.type) ? 'num' : '', style: { padding: 0 } },
+      h('tbody', {}, ...vals[f.key].map((li, i) => h('tr.cursor-default', {},
+        ...cols.map(c => h('td.p-0', { class: /number|currency|computed/.test(c.type) ? 'num' : '' },
           c.computed
-            ? h('div', { style: { padding: '0.4rem 0.6rem', color: 'var(--mut)' } }, c.type === 'currency' ? money(li[c.key]) : String(li[c.key] ?? 0))
+            ? h('div.p-2-3.mut', {}, c.type === 'currency' ? money(li[c.key]) : String(li[c.key] ?? 0))
             : c.type === 'select'
-              ? h('select', { style: { border: 0, background: 'none', width: '100%', padding: '0.35rem 0.5rem' }, onchange: e => { li[c.key] = e.target.value; onChange(f.key) } },
+              ? h('select.bd-0.bg-none.w-full.p-1-2', { onchange: e => { li[c.key] = e.target.value; onChange(f.key) } },
                 ...String(c.options || '').split('|').map(o => h('option', { value: o.trim(), selected: li[c.key] === o.trim() }, o.trim())))
-              : h('input', {
-                type: /number|currency/.test(c.type) ? 'number' : 'text', step: '0.01',
-                value: li[c.key] ?? '', style: { border: 0, background: 'none', width: '100%', padding: '0.35rem 0.5rem' },
-                oninput: e => { li[c.key] = /number|currency/.test(c.type) ? (e.target.value === '' ? 0 : Number(e.target.value)) : e.target.value; onChange(f.key); render() },
-              }))),
-        h('td', { style: { textAlign: 'right', padding: 0 } }, h('button.icon-btn', { onclick: () => { vals[f.key].splice(i, 1); onChange(f.key); render() }, html: icon('trash', 13) }))))))
+              : h('input.bd-0.bg-none.w-full.p-1-2', { type: /number|currency/.test(c.type) ? 'number' : 'text', step: '0.01', value: li[c.key] ?? '', oninput: e => { li[c.key] = /number|currency/.test(c.type) ? (e.target.value === '' ? 0 : Number(e.target.value)) : e.target.value; onChange(f.key); render() } }))),
+        h('td.ta-r.p-0', {}, h('button.icon-btn', { onclick: () => { vals[f.key].splice(i, 1); onChange(f.key); render() }, html: icon('trash', 13) }))))))
   }
   render()
   const add = h('button.tree-add', { onclick: () => { const li = {}; for (const c of cols) li[c.key] = /number|currency/.test(c.type) ? 0 : ''; vals[f.key].push(li); onChange(f.key); render() } }, '＋ line')
@@ -327,8 +319,18 @@ function boardView(table, items, reload) {
     col.addEventListener('drop', async e => {
       e.preventDefault(); col.classList.remove('over')
       const id = e.dataTransfer.getData('text/plain')
-      try { await post(`/x/data/rows/${table.id}/${id}/state`, { to: st.key }); reload() }
-      catch (err) { toast(err.message, 'err') }
+      // Move the card now and reconcile after. Waiting for the server meant the
+      // card snapped back to its old column and the whole board then redrew.
+      const card = board.querySelector(`.kb-card[data-id="${CSS.escape(id)}"]`)
+      const home = card?.parentElement
+      const target = col.querySelector('.kb-cards') || col
+      if (card) target.appendChild(card)
+      try { await post(`/x/data/rows/${table.id}/${id}/state`, { to: st.key }) }
+      catch (err) {
+        if (card && home) home.appendChild(card)
+        toast(`Could not move that card: ${err.message || err}`, 'err')
+      }
+      reload()
     })
     board.appendChild(col)
   }
@@ -412,7 +414,7 @@ function escapeSvg(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;',
 // ---------- import / keys ----------
 
 function importCsv(table, reload) {
-  const ta = h('textarea.input.mono', { rows: 8, placeholder: 'Paste CSV or TSV (first row = headers matching field keys)…', style: { width: '100%' } })
+  const ta = h('textarea.input.mono.w-full', { rows: 8, placeholder: 'Paste CSV or TSV (first row = headers matching field keys)…' })
   dialog({
     title: `Import into ${table.label}`,
     width: 'min(40rem, 94vw)',
@@ -451,25 +453,25 @@ async function keysDialog() {
   const list = h('div')
   const refresh = async () => {
     const { keys } = await get('/x/data/keys')
-    list.replaceChildren(...(keys.length ? keys.map(k => h('div.seo-check', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },
-      h('span', { style: { flex: 1 } }, `${k.name} — `, h('code.pill-perm', {}, (k.scopes || []).join(', '))),
+    list.replaceChildren(...(keys.length ? keys.map(k => h('div.row.seo-check', {},
+      h('span.grow', {}, `${k.name} — `, h('code.pill-perm', {}, (k.scopes || []).join(', '))),
       h('button.icon-btn', { title: 'Revoke', onclick: async () => { if (await confirmDialog('Revoke key', `Revoke “${k.name}”? Integrations using it stop working immediately.`, 'Revoke')) { await del(`/x/data/keys/${k.id}`); refresh() } } }, iconEl('trash', 13))))
       : [h('p.mut', {}, 'No keys yet.')]))
   }
   await refresh()
-  const nameIn = h('input.input', { placeholder: 'Key name (e.g. Zapier)', style: { flex: 1 } })
-  const scopeIn = h('input.input', { placeholder: 'data:quotes:read, data:quotes:write', style: { flex: 1.4 } })
+  const nameIn = h('input.input.grow', { placeholder: 'Key name (e.g. Zapier)' })
+  const scopeIn = h('input.input.grow-14', { placeholder: 'data:quotes:read, data:quotes:write' })
   dialog({
     title: 'Scoped API keys',
     width: 'min(34rem, 94vw)',
     body: h('div', {},
       h('p.dlg-text', {}, 'Keys authorize external integrations. Scopes look like ', h('code', {}, 'data:<table>:read'), ' / ', h('code', {}, ':write'), '.'),
       list, out,
-      h('div', { style: { display: 'flex', gap: '0.5rem', marginTop: '0.7rem' } }, nameIn, scopeIn,
+      h('div.d-flex.gap-2.mt-3', {}, nameIn, scopeIn,
         h('button.btn.soft.small', { onclick: async () => {
           if (!nameIn.value.trim()) { toast('Name the key first', 'err'); return }
           const r = await post('/x/data/keys', { name: nameIn.value.trim(), scopes: scopeIn.value.split(',').map(x => x.trim()).filter(Boolean) })
-          out.replaceChildren(h('p.dlg-text', { style: { marginTop: '0.6rem' } }, 'Copy now — shown once:'), h('div.code-out', {}, r.key))
+          out.replaceChildren(h('p.dlg-text.mt-3', {}, 'Copy now — shown once:'), h('div.code-out', {}, r.key))
           nameIn.value = ''; refresh()
         } }, iconEl('plus', 14), 'Create'))),
   })

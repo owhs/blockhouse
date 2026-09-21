@@ -51,22 +51,28 @@ export function roleAtLeast(user: User | null | undefined, role: Role): boolean 
   return ROLE_ORDER.indexOf(user.role) >= ROLE_ORDER.indexOf(role)
 }
 
-/** All permissions a plugin may request, for the approval UI. */
+/**
+ * All permissions a plugin may request, for the approval UI.
+ *
+ * Each line is what the owner of the site would say the app is allowed to do.
+ * The code itself ("routes.public") is a developer's word and stays out of
+ * sight unless somebody opens "Limit what it may do (advanced)".
+ */
 export const PLUGIN_PERMISSION_INFO: Record<string, string> = {
-  'events.listen': 'Listen to site events',
-  'events.emit': 'Emit custom events',
-  'content.read': 'Read site content',
-  'content.write': 'Create and modify content',
-  'media.read': 'Read media files and metadata',
-  'media.write': 'Upload and modify media',
-  'secure.tables': 'Store private data in the secure database',
-  'mail.send': 'Send email through the configured mail driver',
-  'routes.public': 'Register public site routes under /x/<plugin>',
-  'routes.root': 'Register short root-level routes (e.g. /f/:token)',
-  'routes.api': 'Register authenticated admin API routes',
-  'blocks.register': 'Provide content blocks to the editor',
-  'actions.register': 'Provide automation actions',
-  'settings.own': 'Store its own settings',
-  'net.fetch': 'Make outbound network requests',
-  'files.private': 'Manage the private files area',
+  'events.listen': 'Run things when something happens on the site',
+  'events.emit': 'Tell other apps when something happens',
+  'content.read': 'Read your pages and posts',
+  'content.write': 'Write and change your pages and posts',
+  'media.read': 'Look at your pictures and files',
+  'media.write': 'Add and change pictures and files',
+  'secure.tables': 'Store its own records, kept private',
+  'mail.send': 'Send emails on your behalf',
+  'routes.public': 'Add pages to your website',
+  'routes.root': 'Add short web addresses, like a download link',
+  'routes.api': 'Add its own screens to this studio',
+  'blocks.register': 'Offer extra blocks you can put on a page',
+  'actions.register': 'Offer extra steps for automations',
+  'settings.own': 'Keep its own settings',
+  'net.fetch': 'Talk to other services over the internet',
+  'files.private': 'Look after files that are not public',
 }

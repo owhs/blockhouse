@@ -1,6 +1,7 @@
 // Admin REST API. Session-cookie auth + CSRF; every route permission-checked.
 
 import { Hono } from '../vendor/http.ts'
+import { LAYOUT_WIDTHS } from '../render/layout.ts'
 import type { BlockhouseEnv } from './env.ts'
 import { can, PermissionError, PLUGIN_PERMISSION_INFO } from '../core/permissions.ts'
 import { hashPassword, verifyPassword } from '../auth/hash.ts'
@@ -8,7 +9,7 @@ import { establishSession, destroySession } from '../auth/session.ts'
 import { analyzeSeo } from '../core/seo-analyze.ts'
 import { audit, checkPasswordPolicy, clearLoginFailures, loginBlocked, recordLoginFailure } from './security.ts'
 import type { Doc, User } from '../core/types.ts'
-import { deepClone, id, slugify, stringify, tryJson } from '../core/util.ts'
+import { deepClone, id, randomToken, slugify, stringify, tryJson } from '../core/util.ts'
 import { evaluate } from '../core/expr.ts'
 import { exportFileFor, hrefFor, shortPath } from '../core/urls.ts'
 import { openSecret, sealSecret } from './crypto.ts'
@@ -25,9 +26,35 @@ type C = any
 
 function user(c: C): User | null { return c.get('user') ?? null }
 
+/** The host part of a site's own web address — "strongmanlifts.co.uk". */
+function hostOf(url: unknown): string {
+  const raw = String(url || '').trim()
+  if (!raw) return ''
+  try { return new URL(raw.includes('://') ? raw : `https://${raw}`).host } catch { return '' }
+}
+
+/**
+ * Every audit entry names the person who did it, by id AND by name — the
+ * Activity page must not fall back to "someone" when an account is later
+ * renamed or removed.
+ */
+function actor(c: C): { by: string; byName: string } {
+  const u = user(c)
+  return { by: u?.id || 'unknown', byName: u?.name || u?.email || 'someone' }
+}
+
 function guard(perm: string) {
   return async (c: C, next: any) => {
     if (!can(user(c), perm)) return c.json({ error: `permission required: ${perm}` }, user(c) ? 403 : 401)
+    await next()
+  }
+}
+
+/** Like guard(), but passes if the user holds any one of several permissions
+ *  — for routes a narrower grant should also unlock, not just settings.write. */
+function guardAny(...perms: string[]) {
+  return async (c: C, next: any) => {
+    if (!perms.some(p => can(user(c), p))) return c.json({ error: `permission required: one of ${perms.join(', ')}` }, user(c) ? 403 : 401)
     await next()
   }
 }
@@ -146,6 +173,42 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return c.redirect('/admin/', 302)
   })
 
+  // ---------- AI assistant connections (personal tokens for /mcp) ----------
+  // Each person manages their own. The token itself is shown once, at creation.
+
+  app.get('/me/ai-connections', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const { AI_TOKEN_KIND } = await import('./mcp-http.ts')
+    const rows = (await env.secure.listTokens(AI_TOKEN_KIND)).filter((t: any) => t.userId === u.id)
+    return c.json({
+      connections: rows.map((t: any) => ({ id: t.id, name: t.meta?.name || 'Unnamed', allowPublish: !!t.meta?.allowPublish, createdAt: t.createdAt, uses: t.uses || 0 })),
+      canPublish: can(u, 'content.publish'),
+      canWrite: can(u, 'content.write') || can(u, 'content.write.own'),
+    })
+  })
+  app.post('/me/ai-connections', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const body = await c.req.json().catch(() => ({}))
+    const name = String(body.name || '').trim().slice(0, 60) || 'My AI assistant'
+    const { AI_TOKEN_KIND, issueAiToken } = await import('./mcp-http.ts')
+    const mine = (await env.secure.listTokens(AI_TOKEN_KIND)).filter((t: any) => t.userId === u.id)
+    if (mine.length >= 10) return c.json({ error: 'You already have 10 connections. Remove one you no longer use first.' }, 400)
+    const allowPublish = !!body.allowPublish && can(u, 'content.publish')
+    const made = await issueAiToken(env, u.id, name, allowPublish)
+    await audit(env, 'ai.connection.created', { ...actor(c), name, allowPublish })
+    return c.json({ ok: true, id: made.id, token: made.token })
+  })
+  app.delete('/me/ai-connections/:id', async c => {
+    const u = user(c); if (!u) return c.json({ error: 'sign in first' }, 401)
+    const { AI_TOKEN_KIND } = await import('./mcp-http.ts')
+    const row = (await env.secure.listTokens(AI_TOKEN_KIND)).find((t: any) => t.id === c.req.param('id'))
+    // owners may remove anyone's; everyone else only their own
+    if (!row || (row.userId !== u.id && !can(u, 'users.manage'))) return c.json({ error: 'not found' }, 404)
+    await env.secure.deleteToken(row.id)
+    await audit(env, 'ai.connection.removed', { ...actor(c), name: row.meta?.name })
+    return c.json({ ok: true })
+  })
+
   app.get('/auth/me', async c => {
     const u = user(c)
     return c.json({ user: u, needsBootstrap: (await env.secure.userCount()) === 0 })
@@ -159,15 +222,23 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     const concepts = await env.content.concepts()
     const menus = await env.content.menus()
     return c.json({
-      site: { name: site.name, url: site.url, template: site.template, homeDocId: site.homeDocId, colorScheme: site.theme?.colorScheme || 'auto' },
+      // Two sites can carry the same name (a staging copy of a live site is the
+      // usual case), and then two studio tabs are indistinguishable. `hint` is
+      // the one short thing that always differs: the site's own web address,
+      // host only. The switcher's `ambiguous` flag needs the registry and so
+      // cannot be answered here; the studio decides with it how loudly to show
+      // the hint.
+      site: { name: site.name, url: site.url, hint: hostOf(site.url), template: site.template, homeDocId: site.homeDocId, colorScheme: site.theme?.colorScheme || 'auto' },
       modules: site.modules || { hidden: [], hiddenForRole: {} },
       urls: site.urls || {},
       memberGroups: await listMemberGroups(env),
       concepts: concepts.filter(cc => !cc.hidden),
       menus: menus.map(m => ({ key: m.key, label: m.label })),
       blocks: env.registry.blockCatalogue(p => can(u, p)),
+      layoutWidths: LAYOUT_WIDTHS,
       panels: env.registry.adminPanels.map(p => ({
         plugin: p.plugin, key: p.key, label: p.label, icon: p.icon,
+        section: p.section, settingsOnly: !!p.settingsOnly,
         resources: (p.resources || []).map(r => ({ ...r })),
       })),
       user: u,
@@ -176,6 +247,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
         settings: can(u, 'settings.write'), menus: can(u, 'menus.write'),
         plugins: can(u, 'plugins.manage'), delete: can(u, 'content.delete'),
         seo: can(u, 'seo.tools'), html: can(u, 'content.publish'),
+        audit: can(u, 'users.manage') || can(u, 'audit.read'),
       },
       dev: env.dev,
       settingsSections: env.registry.settingsSections,
@@ -184,13 +256,139 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
   })
 
   // multi-site registry (written by `blockhouse sites add`) — powers the switcher
+  /** Is that studio listening? One second to answer, remembered for thirty. */
+  const aliveCache = new Map<string, { at: number; ok: boolean }>()
+  async function studioAlive(url: string): Promise<boolean> {
+    if (!url) return false
+    const hit = aliveCache.get(url)
+    if (hit && Date.now() - hit.at < 30_000) return hit.ok
+    let ok = false
+    try {
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 1000)
+      try {
+        // Any answer at all means something is listening — a sign-in redirect
+        // or a 404 is still a running studio.
+        const r = await fetch(url + '/admin/', { method: 'HEAD', signal: ctl.signal, redirect: 'manual' })
+        ok = !!r
+      } finally { clearTimeout(t) }
+    } catch { ok = false }
+    aliveCache.set(url, { at: Date.now(), ok })
+    return ok
+  }
+
   app.get('/projects', guard('content.read'), async c => {
     try {
       const { homedir } = await import('node:os')
       const { readFileSync } = await import('node:fs')
+      const { basename, join, resolve } = await import('node:path')
       const reg = JSON.parse(readFileSync(`${homedir()}/.blockhouse-projects.json`, 'utf8'))
-      const current = (env as any).projectDir
-      return c.json({ projects: (reg.projects || []).map((p2: any) => ({ ...p2, current: p2.dir === current })) })
+      // `C:\projects\…` from the registry and `C:/projects/…` from the running
+      // server are the same folder, and a string compare said they were not —
+      // so no row was ever marked as the one you are standing in.
+      const norm = (p3: string) => {
+        let out = resolve(String(p3 || ''))
+        if (process.platform === 'win32') out = out.toLowerCase().split('\\').join('/')
+        return out.replace(/\/+$/, '')
+      }
+      const current = norm((env as any).projectDir || '')
+      // The registry's `url` is where that site's studio is served from; the
+      // public address a visitor types lives in the site's own site.json. The
+      // switcher shows the public address and links to the studio, so a name
+      // that appears twice can still be told apart.
+      const projects = (reg.projects || []).map((p2: any) => {
+        let name = p2.label
+        let url = ''
+        try {
+          const sj = JSON.parse(readFileSync(join(p2.dir, 'site', 'site.json'), 'utf8'))
+          name = sj.name || name
+          url = sj.url || ''
+        } catch {}
+        return {
+          label: name,
+          folder: basename(String(p2.dir || '')),
+          url,
+          // A registry entry may record the port separately; honour it as a
+          // candidate when the full URL has gone stale.
+          port: Number(p2.port) || 0,
+          studioUrl: String(p2.url || '').replace(/\/+$/, ''),
+          current: !!current && norm(p2.dir) === current,
+        }
+      })
+      // A studio may be served from a copy of the folder the registry knows
+      // (a staging checkout, for instance), and then no row is marked at all —
+      // which is the one thing the switcher exists to tell you. Fall back to
+      // the site's own public address, which is unique per site, and then to
+      // the folder name.
+      if (!projects.some((p2: any) => p2.current)) {
+        const me = await env.site()
+        const same = (a: string, b: string) => !!a && !!b && a.replace(/\/+$/, '') === b.replace(/\/+$/, '')
+        const byUrl = projects.filter((p2: any) => same(p2.url, String(me.url || '')))
+        const hit = byUrl.length === 1 ? byUrl[0]
+          : projects.filter((p2: any) => p2.folder === basename(current)).length === 1
+            ? projects.find((p2: any) => p2.folder === basename(current)) : null
+        if (hit) hit.current = true
+      }
+      const seen: Record<string, number> = {}
+      for (const p2 of projects) seen[p2.label] = (seen[p2.label] || 0) + 1
+      for (const p2 of projects) (p2 as any).ambiguous = seen[p2.label] > 1
+      // Each studio runs on its own machine, so half of them are usually not
+      // listening. Offering a link that ends in a browser connection error is
+      // worse than saying so: one quick knock per row, cached, so opening the
+      // switcher is not a round of network requests every time.
+      // The registry's `url` is written once, by `blockhouse sites add`, and
+      // goes stale the moment a studio is started on a different port: the
+      // switcher then says "not running" about a studio that is running, and
+      // can never reach it. When the recorded address does not answer, knock on
+      // a small set of candidates as well, and only accept one that identifies
+      // itself as this same site (`/healthz` reports the site name).
+      const selfOrigin = (() => { try { return new URL(c.req.url).origin } catch { return '' } })()
+      const envList = String(process.env.BLOCKHOUSE_STUDIOS || '')
+        .split(',').map(x => x.trim().replace(/\/+$/, '')).filter(Boolean)
+      const selfPort = Number(new URL(selfOrigin || 'http://localhost').port || 0)
+      const neighbours = selfPort
+        ? [selfPort - 2, selfPort - 1, selfPort + 1, selfPort + 2]
+          .filter(n => n > 0 && n < 65536)
+          .map(n => `${new URL(selfOrigin).protocol}//${new URL(selfOrigin).hostname}:${n}`)
+        : []
+      /** Does this address serve the site we think it does? */
+      const identifies = async (url: string, name: string) => {
+        try {
+          const ctl = new AbortController()
+          const t = setTimeout(() => ctl.abort(), 1000)
+          try {
+            const r = await fetch(url + '/healthz', { signal: ctl.signal })
+            if (!r.ok) return false
+            const j: any = await r.json()
+            return !!j?.ok && String(j.name || '') === name
+          } finally { clearTimeout(t) }
+        } catch { return false }
+      }
+      const taken = new Set<string>([selfOrigin].filter(Boolean))
+      for (const p2 of projects as any[]) {
+        if (p2.current) { p2.alive = true; taken.add(p2.studioUrl); continue }
+        if (await studioAlive(p2.studioUrl)) { p2.alive = true; taken.add(p2.studioUrl); continue }
+        p2.alive = false
+        const host = (() => { try { return new URL(p2.studioUrl).hostname } catch { return 'localhost' } })()
+        const candidates = [
+          p2.port ? `http://${host}:${p2.port}` : '',
+          ...envList,
+          ...neighbours,
+        ].filter(Boolean).filter(u => !taken.has(u) && u !== p2.studioUrl)
+        for (const u of candidates) {
+          if (!(await studioAlive(u))) continue
+          if (!(await identifies(u, p2.label))) continue
+          // Found it somewhere else. Say where, so the row is not silently
+          // pointing at an address nobody typed.
+          p2.alive = true
+          p2.foundAt = u
+          p2.recordedUrl = p2.studioUrl
+          p2.studioUrl = u
+          taken.add(u)
+          break
+        }
+      }
+      return c.json({ projects })
     } catch { return c.json({ projects: [] }) }
   })
 
@@ -199,12 +397,18 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
   app.get('/content', guard('content.read'), async c => {
     const concept = c.req.query('concept') || undefined
     const docs = await env.content.listDocs(concept)
+    const listSite = await env.site()
     const out = []
     for (const d of docs) {
       out.push({
         id: d.id, concept: d.concept, slug: d.slug, title: d.title, status: d.status,
         updatedAt: d.updatedAt, author: d.author, path: await env.content.docPath(d),
         stale: d.status === 'published' && await env.content.hasUnpublishedChanges(d),
+        // the studio list shows type-specific columns, a scheduled state and a
+        // "search-engine problems" count, all of which need these three
+        publishAt: d.publishAt ?? null,
+        fields: d.fields ?? {},
+        seoErrors: analyzeSeo(d, listSite, await seoOpts(env, d)).filter(ch => ch.level === 'error').length,
       })
     }
     return c.json({ docs: out })
@@ -216,6 +420,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     if (!(await env.content.concept(body.concept))) return c.json({ error: 'unknown concept' }, 400)
     const doc = await env.content.createDoc(body, user(c)!.id)
     env.events.emitBg('content.created', { docId: doc.id, concept: doc.concept, user: user(c)!.id })
+    await audit(env, 'content.created', { ...actor(c), docId: doc.id, title: doc.title, concept: doc.concept })
     return c.json({ doc, path: await env.content.docPath(doc) })
   })
 
@@ -251,15 +456,35 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     incoming.status = existing.status
     incoming.author = existing.author
     incoming.createdAt = existing.createdAt
-    const saved = await env.content.saveDoc(incoming, { snapshot: body.snapshot !== false })
+    const result = await env.content.saveDocResult(incoming, { snapshot: body.snapshot !== false })
+    const saved = result.doc
+    // Nothing actually changed: storage left the document alone, so we do too —
+    // no event, no Activity row, no reload ping. (R15-1) `snapshot` still says
+    // whether a restore point was kept — an explicit Save keeps one even when
+    // the text matches the last autosave (R21-2).
+    if (result.unchanged) {
+      const site0 = await env.site()
+      return c.json({ doc: saved, unchanged: true, snapshot: result.snapshot, path: await env.content.docPath(saved), seo: analyzeSeo(saved, site0, await seoOpts(env, saved)), stale: saved.status === 'published' && await env.content.hasUnpublishedChanges(saved) })
+    }
     env.events.emitBg('content.saved', { docId: saved.id, concept: saved.concept, user: u!.id }, env.waitUntil)
+    // The editor autosaves; only a save that actually produced a new version is
+    // worth a line in Activity, or the log becomes a keystroke record.
+    // The editor saves immediately before it publishes. That pair used to read
+    // in Activity as two actions a second apart ("Saved X" under "Published
+    // X"); the publish flow marks its save with ?publishing=1 so only the
+    // publish is logged.
+    if (saved.version !== existing.version && c.req.query('publishing') !== '1') {
+      await audit(env, 'content.saved', { ...actor(c), docId: saved.id, title: saved.title, concept: saved.concept })
+    }
     notifyReload(env)
     const site = await env.site()
     return c.json({ doc: saved, path: await env.content.docPath(saved), seo: analyzeSeo(saved, site, await seoOpts(env, saved)), stale: saved.status === 'published' && await env.content.hasUnpublishedChanges(saved) })
   })
 
   app.delete('/content/:id', guard('content.delete'), async c => {
+    const doomed = await env.content.getDoc(c.req.param('id'))
     const ok = await env.content.deleteDoc(c.req.param('id'))
+    if (ok) await audit(env, 'content.deleted', { ...actor(c), docId: c.req.param('id'), title: doomed?.title, concept: doomed?.concept })
     notifyReload(env)
     return c.json({ ok })
   })
@@ -268,6 +493,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     const doc = await env.content.publish(c.req.param('id'))
     if (!doc) return c.json({ error: 'not found' }, 404)
     env.events.emitBg('content.published', { docId: doc.id, concept: doc.concept, path: await env.content.docPath(doc), user: user(c)!.id }, env.waitUntil)
+    await audit(env, 'content.published', { ...actor(c), docId: doc.id, title: doc.title, concept: doc.concept })
     notifyReload(env)
     return c.json({ doc })
   })
@@ -276,6 +502,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     const doc = await env.content.unpublish(c.req.param('id'))
     if (!doc) return c.json({ error: 'not found' }, 404)
     env.events.emitBg('content.unpublished', { docId: doc.id }, env.waitUntil)
+    await audit(env, 'content.unpublished', { ...actor(c), docId: doc.id, title: doc.title, concept: doc.concept })
     notifyReload(env)
     return c.json({ doc })
   })
@@ -300,7 +527,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     const body = await c.req.json()
     const version = await env.content.getVersion(body.key)
     if (!version || version.id !== existing.id) return c.json({ error: 'bad version' }, 400)
-    const restored = await env.content.saveDoc({ ...version, status: existing.status }, { snapshot: true })
+    const restored = await env.content.saveDoc({ ...version, status: existing.status }, { snapshot: true, action: 'restore' })
     notifyReload(env)
     return c.json({ doc: restored })
   })
@@ -424,6 +651,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     const menu = body.menu
     if (!menu || menu.key !== c.req.param('key')) return c.json({ error: 'bad menu' }, 400)
     await env.content.saveMenu(menu)
+    await audit(env, 'menu.saved', { ...actor(c), key: menu.key, label: menu.label, items: menu.items?.length ?? 0 })
     notifyReload(env)
     return c.json({ menu })
   })
@@ -450,7 +678,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     await env.content.saveConcept(body.concept)
     env.invalidate()
     notifyReload(env)
-    await audit(env, 'concept.saved', { name: body.concept.name, by: user(c)!.id })
+    await audit(env, 'concept.saved', { ...actor(c), name: body.concept.name })
     return c.json({ concept: body.concept })
   })
   app.delete('/concepts/:name', guard('settings.write'), async c => {
@@ -460,7 +688,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     await env.driver.delete(`site/concepts/${safe(name)}.json`)
     env.invalidate()
     notifyReload(env)
-    await audit(env, 'concept.deleted', { name, by: user(c)!.id })
+    await audit(env, 'concept.deleted', { ...actor(c), name })
     return c.json({ ok: true })
   })
 
@@ -488,6 +716,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
       pass: await hashPassword(body.password, site.security?.pbkdf2Iterations),
     })
     env.events.emitBg('user.created', { userId: u.id, role: u.role }, env.waitUntil)
+    await audit(env, 'user.created', { ...actor(c), userId: u.id, userName: u.name, email: u.email, role: u.role })
     return c.json({ user: u })
   })
   app.patch('/users/:id', guard('users.manage'), async c => {
@@ -504,15 +733,29 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     if (target?.role === 'owner' && user(c)!.role !== 'owner') return c.json({ error: 'cannot modify an owner' }, 403)
     const u = await env.secure.updateUser(c.req.param('id'), patch)
     // privilege or credential change → drop that user's other sessions
-    if (u && (patch.role !== undefined || patch.pass || patch.active === false || patch.grants)) {
-      await env.secure.deleteSessionsForUser(u.id)
-      await audit(env, 'user.updated', { by: user(c)!.id, userId: u.id, role: u.role, sessionsRevoked: true })
+    const revoked = !!(u && (patch.role !== undefined || patch.pass || patch.active === false || patch.grants))
+    if (u && revoked) await env.secure.deleteSessionsForUser(u.id)
+    if (u) {
+      // Record WHAT changed. The old log said "its role is now …" for every
+      // patch, including a sign-in toggle that never touched the role.
+      const changed: string[] = []
+      if (patch.name !== undefined && patch.name !== target?.name) changed.push('name')
+      if (patch.active !== undefined && patch.active !== target?.active) changed.push('active')
+      if (patch.role !== undefined && patch.role !== target?.role) changed.push('role')
+      if (patch.grants !== undefined) changed.push('grants')
+      if (patch.pass) changed.push('password')
+      await audit(env, 'user.updated', {
+        ...actor(c), userId: u.id, userName: u.name, changed,
+        ...(changed.includes('role') ? { oldRole: target?.role, newRole: u.role } : {}),
+        ...(changed.includes('active') ? { active: !!u.active } : {}),
+        sessionsRevoked: revoked,
+      })
     }
     return u ? c.json({ user: u }) : c.json({ error: 'not found' }, 404)
   })
 
   // audit trail
-  app.get('/audit', guard('users.manage'), async c => {
+  app.get('/audit', guardAny('users.manage', 'audit.read'), async c => {
     const rows = await env.secure.logsList('audit', 200)
     return c.json({ entries: rows.map((r: any) => ({ id: r.id, at: r.createdAt, ...r.data })) })
   })
@@ -526,7 +769,15 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
   app.put('/settings', guard('settings.write'), async c => {
     const body = await c.req.json()
     await env.content.saveSite(body.patch || {})
+    await audit(env, 'settings.saved', { ...actor(c), keys: Object.keys(body.patch || {}) })
     env.invalidate()
+    // Finish loading a newly chosen template's blocks BEFORE answering, so the
+    // preview the studio reloads next already has them.
+    if (body.patch && 'template' in body.patch) {
+      await env.content.site()
+      const { registerTemplateBlocks } = await import('../render/template-blocks.ts')
+      await registerTemplateBlocks(env).catch(() => {})
+    }
     notifyReload(env)
     return c.json({ settings: tryJson(await env.driver.readText('site/site.json'), {}) })
   })
@@ -537,6 +788,9 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
       plugins: [...env.registry.plugins.values()].map(m => ({
         ...m,
         state: site.plugins?.[m.id] || { enabled: false, approved: [] },
+        // Is it actually running right now? A switch only takes effect on the
+        // next restart, so the studio needs the truth, not the setting. (R15-2)
+        running: env.registry.pluginsRunning?.has(m.id) ?? false,
         permissionInfo: Object.fromEntries(m.permissions.map(p => [p, PLUGIN_PERMISSION_INFO[p] || p])),
       })),
     })
@@ -553,6 +807,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
       settings: plugins[pid]?.settings,
     }
     await env.content.saveSite({ plugins } as any)
+    await audit(env, 'plugin.toggled', { ...actor(c), id: pid, name: env.registry.plugins.get(pid)?.name, enabled: !!body.enabled })
     return c.json({ ok: true, restartRequired: true })
   })
 
@@ -633,7 +888,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
   })
   app.get('/help/tips', guard('content.read'), async c => {
     const { contextTips } = await import('./help.ts')
-    return c.json({ tips: await contextTips(env, c.req.query('panel') || '') })
+    return c.json(await contextTips(env, c.req.query('panel') || ''))
   })
 
   // ---------- seo tools ----------
@@ -809,6 +1064,17 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return c.json({ base, results, ok: exposed.length === 0, advice: exposed.length ? 'Something answered 200 where it must not. If a reverse proxy or object store serves the project folder directly, block these paths (nginx: location ~ /\\.(blockhouse|git) { deny all; } · Cloudflare: a WAF rule matching the paths above).' : 'Nothing sensitive is reachable from that URL.' })
   })
 
+  // Shareable staging bypass link — see security.previewToken in site.ts.
+  // Generates once, rotates on demand; PUT /settings already goes through
+  // env.invalidate() via saveSite, so this takes effect immediately, no
+  // restart needed (unlike a token set by hand-editing site.json on disk).
+  app.post('/security/preview-link', guard('settings.write'), async c => {
+    const token = randomToken(20)
+    await env.content.saveSite({ security: { ...(await env.site()).security, previewToken: token } })
+    env.invalidate()
+    return c.json({ token })
+  })
+
   // send the signed-in admin a test email through the configured driver
   app.post('/mail/test', guard('settings.write'), async c => {
     const u = user(c)!
@@ -840,6 +1106,10 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
       const metaRaw = local.has(name)
         ? await env.driver.readText(`templates/${name}/template.json`)
         : await env.templatesDriver.readText(`${name}/template.json`)
+      // A theme is a directory with a template.json manifest. Loose files that
+      // happen to sit beside the theme directories (LICENSE, README) are not
+      // themes and have no business in the Design page's list.
+      if (metaRaw == null) continue
       const record = await env.secure.kvGet(PKG_META, `template:${name}`, null)
       themes.push({
         name, source: local.has(name) ? 'installed' : 'built-in',
@@ -1002,13 +1272,13 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     await env.content.saveSite({ slots })
     env.invalidate()
     notifyReload(env)
-    await audit(env, 'chrome.saved', { keys: Object.keys(slots), by: user(c)!.id })
+    await audit(env, 'chrome.saved', { ...actor(c), keys: Object.keys(slots) })
     return c.json({ ok: true })
   })
 
   // ---------- ops: diagnostics + page weight ----------
 
-  app.get('/doctor', guard('settings.write'), async c => {
+  app.get('/doctor', guardAny('settings.write', 'deploy.export'), async c => {
     const { doctor } = await import('../cli/doctor.ts')
     const dir = (env as any).projectDir
     if (!dir) return c.json({ error: 'diagnostics need a filesystem project (not available on Workers)' }, 501)
@@ -1023,12 +1293,12 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     })
   })
 
-  app.get('/budget', guard('settings.write'), async c => {
+  app.get('/budget', guardAny('settings.write', 'deploy.export'), async c => {
     const { measureSite } = await import('../export/budget.ts')
     return c.json(await measureSite(env))
   })
 
-  app.get('/deploy/preset/:target', guard('settings.write'), async c => {
+  app.get('/deploy/preset/:target', guardAny('settings.write', 'deploy.export'), async c => {
     const { deployInit, TARGETS } = await import('../cli/deploy-init.ts')
     const target = c.req.param('target') as any
     if (!TARGETS.includes(target)) return c.json({ error: 'unknown target' }, 400)
@@ -1056,7 +1326,7 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return env.secure.kvGet(PROFILE_NS, 'all', [])
   }
 
-  app.get('/deploy/profiles', guard('settings.write'), async c => {
+  app.get('/deploy/profiles', guardAny('settings.write', 'deploy.export'), async c => {
     const profiles = await loadProfiles()
     return c.json({ profiles: profiles.map(maskProfile) })
   })
@@ -1152,9 +1422,10 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
     return c.json({ ok: true, log })
   })
 
-  app.post('/export', guard('settings.write'), async c => {
+  app.post('/export', guardAny('settings.write', 'deploy.export'), async c => {
     const { exportStatic } = await import('../export/static.ts')
     const res = await exportStatic(env, { outDir: 'dist' })
+    await audit(env, 'export.run', { outDir: res.outDir, pages: res.pages, assets: res.assets, by: user(c)!.id })
     return c.json(res)
   })
 

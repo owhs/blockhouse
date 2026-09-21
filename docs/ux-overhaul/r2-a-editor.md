@@ -1,0 +1,13 @@
+# Round 2 — package A: editor
+
+Owner files: `src/assets/admin/editor.js`, `richtext.js`, `ui.js` (`dialog()` only), `docops.js`, `studio.css` (editor rules under your own `/* ==== R2-A ==== */` block at the end). Read `docs/ux-overhaul/01-workplan.md` rules first. Read the critic findings 1, 2, 3, 10, 11, 12, 13 (outline part), 14, 18 in `docs/ux-overhaul/03-critic-round1.md` (grep the numbers), then only the functions named below.
+
+1. **Selecting a block activates the Block tab** (finding 1). In `selectBlock()` (grep) call `setTab('block')` when a block id is given and the current tab is not `block`. Keep the Page tab when `id` is null.
+2. **Preview sizing, one behaviour on every document** (findings 2, 18). Replace the current mixed behaviour with: Desktop mode renders a **1024px virtual width** frame; if the holder is ≥ 1024px the frame is unscaled at its natural width (centred, max 1440); if narrower, scale 1024 → holder. Tablet 834, Phone 390 unchanged. Apply the same path on every document open, on every panel toggle and on resize (the critic saw some documents unscaled at 810–872px — find why `fitForDevice` is skipped and fix it). Move the scale text out of the canvas: render it as a small muted label right of the device segment in the toolbar ("81% · hide a panel for full size", clickable as now); nothing overlays page content.
+3. **Width choices must be visible** (findings 3, 14). With the 1024 frame, narrow (52rem = 832px) vs normal vs wide vs page vs full now differ on both templates — verify by measuring the block's root width for each option on strongman `d-helmsdale` rich text and automatic `d-home` section. If two options still measure the same on a template, say which in your report (that is a template CSS issue for package B). Add a first option "Template default" (value `''`) to the Layout width select that removes `layout.width` (or the block's own width prop) so a block can return to unstyled.
+4. **Rich text toolbar** (finding 10): every button gets an `aria-label` and a `title` in words ("Bold", "Heading 2", "Quote", "Clear formatting", "Improve with AI", "Show markdown source"); replace glyphs `‹›`, `¶`, `❝`, `⌫`, `✦`, `MD` with icons from `icons.js` where one exists, else a short word.
+5. **Outline focus** (finding 11): clicking a tree row focuses that `treeitem` so arrow keys work immediately.
+6. **Dialog focus** (finding 12): `dialog()` focuses the first focusable element in the body, else the primary action, never the close button.
+7. **Outline row type suffix** (finding 13): do not append the type label when it equals the block label ("Section Section"); the type span is `aria-hidden`.
+
+Verify: typecheck 61, tests 48/48. Report under 200 words with the measured widths from item 3.

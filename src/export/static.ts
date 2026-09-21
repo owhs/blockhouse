@@ -9,7 +9,21 @@ import { FsDriver } from '../storage/fs.ts'
 import { fillPattern, normalizePath } from '../core/util.ts'
 import { exportFileFor, shortPath } from '../core/urls.ts'
 
+/** Rotates any previous build to `<outDir>.prev` before a fresh export writes
+ *  into `outDir` — the CLI/API write straight into place otherwise, so the
+ *  only rollback was "hope the last export is still there". One generation
+ *  is enough: this only exists as a quick undo for a bad export, not backup. */
+async function rotatePrevious(outDir: string) {
+  const { rename, rm } = await import('node:fs/promises')
+  const prev = `${outDir}.prev`
+  try {
+    await rm(prev, { recursive: true, force: true })
+    await rename(outDir, prev)
+  } catch { /* first-ever export — nothing to rotate */ }
+}
+
 export async function exportStatic(env: BlockhouseEnv, opts: { outDir: string; stage?: boolean }): Promise<{ pages: number; assets: number; variants: number; outDir: string; skipped: string[] }> {
+  await rotatePrevious(opts.outDir)
   const out = new FsDriver(opts.outDir)
   const site = await env.site()
   const mode = 'export' as const

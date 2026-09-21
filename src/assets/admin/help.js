@@ -1,61 +1,157 @@
-// Help view — renders the server-generated, site-specific documentation.
-// Every fact here is read from the live site, so it can't drift from reality.
+// Help view — task-based guidance for the person who runs the business, with
+// the technical reference kept behind a "For developers" divider.
+//
+// The topic list on the left is grouped and searchable; the URL fragment
+// (#/help/add-page) selects a topic and scrolls to it rather than hiding the
+// rest, so you can always read on.
 
 import { get } from './api.js'
 import { h, emptyState, toast } from './ui.js'
 import { icon, iconEl } from './icons.js'
 import { registerView } from './state.js'
 
-registerView('help', async (root, [topic]) => {
-  const { sections, site } = await get('/help' + (topic ? `?topic=${encodeURIComponent(topic)}` : ''))
-  const nav = h('div.panel-body')
-  const body = h('div.main-pad', { style: { maxWidth: '58rem' } })
+const GROUPS = [
+  ['start', 'Start here'],
+  ['tasks', 'Everyday tasks'],
+  ['reference', 'Reference'],
+  ['developer', 'For developers'],
+]
 
-  const renderSection = s => h('section', { id: `help-${s.id}`, style: { marginBottom: '2rem', scrollMarginTop: '1rem' } },
-    h('h2', { style: { fontSize: '1.05rem', marginBottom: '0.3rem' } }, s.title),
-    s.summary ? h('p.sub', { style: { marginBottom: '0.9rem' } }, s.summary) : '',
-    ...(s.warnings || []).map(w => h('div.wb-warn', { style: { display: 'flex', gap: '0.6rem', padding: '0.7rem 0.9rem', borderRadius: '8px', background: 'color-mix(in oklch, var(--warn) 12%, transparent)', color: 'var(--warn)', marginBottom: '0.7rem', fontSize: '0.85rem' } }, iconEl('warn', 16), h('span', {}, w))),
-    s.facts?.length ? h('div.card', { style: { marginBottom: '0.9rem', padding: '0.3rem 1rem' } },
-      ...s.facts.map(f2 => h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(9rem, 14rem) 1fr', gap: '0.9rem', padding: '0.6rem 0', borderBottom: '1px solid var(--line-soft)' } },
-        h('span', { style: { fontSize: '0.8rem', fontWeight: 650, color: 'var(--mut)' } }, f2.label),
-        h('span', {}, h('span', { style: { fontSize: '0.87rem' } }, f2.value),
-          f2.hint ? h('div.fnt', { style: { fontSize: '0.76rem', marginTop: '0.15rem' } }, f2.hint) : '')))) : '',
-    s.steps?.length ? h('ul', { style: { margin: '0 0 0.9rem 1.1rem', display: 'grid', gap: '0.35rem', fontSize: '0.87rem', color: 'var(--mut)' } },
-      ...s.steps.map(st => h('li', {}, st))) : '',
-    ...(s.code || []).map(cd => h('div', { style: { marginBottom: '0.7rem' } },
-      h('div.fnt', { style: { fontSize: '0.76rem', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' } },
+const groupOf = s => s.group || (s.audience === 'developer' ? 'developer' : 'reference')
+
+registerView('help', async (root, [topic]) => {
+  const { sections } = await get('/help')
+
+  const nav = h('div.panel-body.help-nav')
+  const body = h('div.main-pad.help-main')
+  const search = h('input.input.help-search', { type: 'search', placeholder: 'Search help…', 'aria-label': 'Search help' })
+
+  const haystack = s => [s.title, s.summary, ...(s.paras || []), ...(s.steps || []), ...(s.facts || []).flatMap(f => [f.label, f.value, f.hint])]
+    .filter(Boolean).join(' ').toLowerCase()
+
+  const select = id => {
+    for (const b of nav.querySelectorAll('.row-item')) b.classList.toggle('active', b.dataset.help === id)
+    document.getElementById(`help-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const renderSection = s => h('section.help-sec', { id: `help-${s.id}` },
+    h('h2.help-sec-title', {}, s.title),
+    s.summary ? h('p.help-sec-sum', {}, s.summary) : '',
+    ...(s.paras || []).map(p => h('p.help-para', {}, p)),
+    ...(s.warnings || []).map(w => h('div.help-warn', {}, iconEl('warn', 16), h('span', {}, w))),
+    s.steps?.length ? h('ol.help-steps', {}, ...s.steps.map(st => h('li.help-step', {}, h('span.help-step-n', {}), h('span', {}, st)))) : '',
+    s.facts?.length ? h('dl.help-facts', {}, ...s.facts.flatMap(f => [
+      h('dt.help-fact-k', {}, f.label),
+      h('dd.help-fact-v', {}, h('span', {}, f.value), f.hint ? h('div.help-fact-hint', {}, f.hint) : ''),
+    ])) : '',
+    ...(s.audience === 'developer' ? (s.code || []) : []).map(cd => h('div.help-code', {},
+      h('div.help-code-head', {},
         h('span', {}, cd.label),
         h('button.btn.ghost.small', { onclick: () => { navigator.clipboard?.writeText(cd.body); toast('Copied', 'ok') } }, 'Copy')),
-      h('pre.code-out', { style: { whiteSpace: 'pre-wrap' } }, cd.body))),
-    s.links?.length ? h('p', {}, ...s.links.map(l => h('a.btn.ghost.small', { href: l.href, target: l.external ? '_blank' : undefined, style: { marginRight: '0.4rem' } }, l.label, l.external ? iconEl('external', 12) : ''))) : '')
+      h('pre.code-out', {}, cd.body))),
+    s.links?.length ? h('p', {}, ...s.links.map(l => h('a.btn.ghost.small.help-link', { href: l.href, target: l.external ? '_blank' : undefined }, l.label, l.external ? iconEl('external', 12) : ''))) : '')
 
-  nav.replaceChildren(...sections.map(s =>
-    h('button.row-item', { onclick: () => document.getElementById(`help-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-      h('span.row-ico', { html: icon(sectionIcon(s.id), 14) }), h('span.row-label', {}, s.title))))
+  const drawNav = q => {
+    const term = (q || '').trim().toLowerCase()
+    const hits = term ? sections.filter(s => haystack(s).includes(term)) : sections
+    const out = []
+    for (const [key, label] of GROUPS) {
+      const rows = hits.filter(s => groupOf(s) === key)
+      if (!rows.length) continue
+      // A bare <div> caption left 27 undifferentiated buttons in the tab order,
+      // so nothing told a screen-reader user that "Navigation internals" was
+      // the developer set (R11-4). The caption is a heading and the buttons it
+      // heads are a group that points back at it.
+      const capId = `help-group-${key}`
+      out.push(h('h2.help-group', { id: capId }, label))
+      out.push(h('div.help-group-rows', { role: 'group', 'aria-labelledby': capId },
+        ...rows.map(s => h('button.row-item', { 'data-help': s.id, onclick: () => select(s.id) },
+          h('span.row-ico', { html: icon(sectionIcon(s.id), 14) }), h('span.row-label', {}, s.title)))))
+    }
+    if (!out.length) out.push(h('p.mut.help-none', {}, 'Nothing matches that.'))
+    nav.replaceChildren(...out)
+  }
+
+  search.addEventListener('input', () => drawNav(search.value))
+  drawNav('')
+
+  const ordered = GROUPS.flatMap(([key]) => sections.filter(s => groupOf(s) === key))
+  const rendered = []
+  let dividerDone = false
+  for (const s of ordered) {
+    if (groupOf(s) === 'developer' && !dividerDone) {
+      dividerDone = true
+      rendered.push(h('div.help-divider', { id: 'help-developers' },
+        h('h2', {}, 'For developers'),
+        h('p.sub', {}, 'Technical reference for whoever builds and hosts the site. You do not need any of this to run yours.')))
+    }
+    rendered.push(renderSection(s))
+  }
 
   body.replaceChildren(
-    h('div.page-head', {}, h('div', {},
-      h('h1', {}, 'Help'),
-      h('p.sub', {}, `Written from this site’s live configuration — ${site.name} on the ${site.template} template.`))),
-    ...(sections.length ? sections.map(renderSection) : [emptyState(icon('book', 26), 'No help yet', '')]))
+    h('div.page-head', {}, h('div', {}, h('h1', {}, 'Help'), h('p.sub', {}, 'How to do the everyday jobs on your website.'))),
+    ...(sections.length ? rendered : [emptyState(icon('book', 26), 'No help yet', '')]))
 
   root.replaceChildren(h('div.split', {},
-    h('div.panel', {}, h('div.panel-head', {}, h('span.panel-title', {}, 'Topics')), nav),
+    h('div.panel', {},
+      h('div.panel-head', {}, h('span.panel-title', {}, 'Topics')),
+      h('div.help-search-wrap', {}, search),
+      nav),
     h('div.main', {}, body)))
+
+  if (topic) requestAnimationFrame(() => select(topic))
 })
 
 function sectionIcon(id) {
   if (id.startsWith('plugin-')) return 'plug'
-  return { overview: 'home', content: 'page', menus: 'menu', blocks: 'layout', brand: 'palette', deploy: 'rocket', security: 'key', health: 'check' }[id] || 'book'
+  return {
+    'start-here': 'compass', 'add-page': 'plus', 'edit-text': 'pen', photos: 'image', 'add-block': 'layout',
+    'move-block': 'grip', publish: 'rocket', unpublish: 'eye', navigation: 'menu', 'header-footer': 'columns',
+    design: 'palette', audit: 'clock', users: 'users', glossary: 'book', overview: 'home', content: 'page',
+    brand: 'tag', health: 'check', 'dev-blocks': 'code', 'dev-menus': 'code', 'dev-deploy': 'server', 'dev-security': 'shield',
+  }[id] || 'book'
 }
 
-/** Small contextual tips block other views can drop in. */
-export async function tipsFor(panel) {
-  const { tips } = await get(`/help/tips?panel=${panel}`).catch(() => ({ tips: [] }))
-  if (!tips.length) return h('span')
-  return h('details.card', { style: { marginBottom: '1rem', padding: '0.7rem 0.9rem' } },
-    h('summary', { style: { cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: 'var(--mut)', display: 'flex', gap: '0.45rem', alignItems: 'center' } },
-      iconEl('info', 14), 'Tips for this screen'),
-    h('ul', { style: { margin: '0.5rem 0 0 1.1rem', display: 'grid', gap: '0.3rem', fontSize: '0.83rem', color: 'var(--mut)' } },
-      ...tips.map(t => h('li', {}, t))))
+/**
+ * A "?" for the current screen: what you can do here, and the how-tos that go
+ * with it, opened beside the work instead of routing you away.
+ */
+/**
+ * Screens whose "?" must be named after the rail entry, whatever the caller
+ * passes. Settings used to say "Help with Site" — the name of the open section,
+ * not of the screen — while the rail, the topbar and the address all say
+ * Settings.
+ */
+const PANEL_TITLES = { settings: 'Settings', media: 'Assets' }
+
+export function helpButton(panelSpec, title) {
+  // `panel` may carry the type being shown, e.g. `content:page`, so the tips
+  // can count that type instead of every document on the site.
+  const [panel, concept = ''] = String(panelSpec).split(':')
+  const name = PANEL_TITLES[panel] || title || panel
+  return h('button.icon-btn', {
+    title: `Help with ${name}`, 'aria-label': `Help with ${name}`,
+    onclick: async () => {
+      const { openSheet, closeSheet } = await import('./sheet.js')
+      openSheet({
+        title: `Help with ${name}`,
+        sub: 'What you can do here',
+        body: async () => {
+          const { tips = [], tasks = [] } = await get(`/help/tips?panel=${encodeURIComponent(concept ? `${panel}:${concept}` : panel)}`).catch(() => ({}))
+          return h('div', {},
+            tips.length
+              ? h('ul.help-tips', {}, ...tips.map(t => h('li', {}, t)))
+              : h('p.mut.help-tips-none', {}, 'No tips for this screen yet.'),
+            tasks.length
+              ? h('div.help-related', {},
+                h('h3.help-related-title', {}, 'Related how-tos'),
+                ...tasks.map(t => h('a.help-related-row', { href: `#/help/${t.help}`, onclick: () => closeSheet() },
+                  h('span', {}, t.label), iconEl('fwd', 13))))
+              : '',
+            h('a.btn.ghost.small.help-open', { href: '#/help', onclick: () => closeSheet() },
+              iconEl('book', 13), 'Open the help guide'))
+        },
+      })
+    },
+  }, iconEl('help', 15))
 }

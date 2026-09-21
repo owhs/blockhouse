@@ -23,6 +23,7 @@ const HELP = `
     sites          multi-site registry: sites add|list|remove   --dir <site> --port
     user:add       create a user                        --dir --email --password --name --role
     user:reset     reset a studio password safely       --dir --email [--password]
+    security:preview-link   print/rotate the staging bypass link   --dir <site> [--rotate]
     publish:due    publish docs whose publishAt has passed
 
   environment
@@ -46,6 +47,7 @@ async function main() {
       target: { type: 'string' }, deep: { type: 'boolean', default: false },
       json: { type: 'boolean', default: false }, fail: { type: 'boolean', default: false },
       force: { type: 'boolean', default: false }, env: { type: 'string' },
+      rotate: { type: 'boolean', default: false },
     },
   })
   const dir = resolve(values.dir!)
@@ -112,6 +114,23 @@ async function main() {
       await env.secure.log('audit', { event: 'auth.reset.cli', userId: u!.id }).catch(() => {})
       console.log(`  ✓ password reset for ${u!.email}`)
       if (!values.password) console.log(`    temporary password: ${pw}\n    (sign in and change it — or use the studio's Forgot password flow)`)
+      process.exit(0)
+    }
+    case 'security:preview-link': {
+      requireSite(dir)
+      const { readFileSync, writeFileSync } = await import('node:fs')
+      const { randomToken } = await import('../core/util.ts')
+      const siteJsonPath = resolve(dir, 'site/site.json')
+      const site = JSON.parse(readFileSync(siteJsonPath, 'utf8'))
+      const existing = site.security?.previewToken
+      if (existing && !values.rotate) {
+        console.log(`  existing preview link — add this to any URL on the site:\n    ?preview=${existing}`)
+      } else {
+        const token = randomToken(20)
+        site.security = { ...(site.security || {}), previewToken: token }
+        writeFileSync(siteJsonPath, JSON.stringify(site, null, 2) + '\n')
+        console.log(`  ✓ ${existing ? 'rotated' : 'created'} preview link — add this to any URL on the site:\n    ?preview=${token}\n    (works once, then remembers via cookie — the site must be restarted to pick this up)`)
+      }
       process.exit(0)
     }
     case 'check': {

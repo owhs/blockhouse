@@ -4,14 +4,16 @@
 
 import { Hono } from '../vendor/http.ts'
 import type { BlockhouseEnv } from './env.ts'
-import { escapeHtml, normalizePath } from '../core/util.ts'
+import { escapeHtml, normalizePath, timingSafeEqual } from '../core/util.ts'
 import { canonicalizeRequestPath, hrefFor } from '../core/urls.ts'
 import { renderDocPage, renderListPage, render404, renderSystemPage } from '../render/page.ts'
 import { robotsTxt, rssXml, sitemapXml } from '../render/seo.ts'
 import { mimeOf } from '../images/exif.ts'
+import { getCookie, setCookie } from '../vendor/http.ts'
 
 const LONG_CACHE = 'public, max-age=31536000, immutable'
 const PAGE_CACHE = 'public, max-age=0, must-revalidate'
+const PREVIEW_COOKIE = 'blockhouse_preview'
 
 export function siteRoutes(env: BlockhouseEnv): Hono {
   const app = new Hono()
@@ -41,9 +43,19 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
     const mode = site.security?.private || 'off'
     if (mode !== 'staging' && mode !== 'members') return next()
     if (c.get('user' as never)) return next()
+    const token = site.security?.previewToken
+    if (token) {
+      const supplied = c.req.query('preview') || getCookie(c, PREVIEW_COOKIE)
+      if (supplied && timingSafeEqual(supplied, token)) {
+        if (c.req.query('preview')) {
+          setCookie(c, PREVIEW_COOKIE, token, { httpOnly: true, sameSite: 'Lax', path: '/', maxAge: 30 * 86400 })
+        }
+        return next()
+      }
+    }
     const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
     const ap = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
-    if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path.startsWith('/x/members/')) return next()
+    if (path === `/${ap}` || path.startsWith(`/${ap}/`) || path.startsWith('/api/') || path === '/healthz' || path === '/robots.txt' || path.startsWith('/x/members/')) return next()
     if (mode === 'members') {
       const gate = (env as any).memberGate
       const member = gate ? await gate.resolve(c).catch(() => null) : null
@@ -158,6 +170,9 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
   app.get('/*', async c => {
     const user = c.get('user' as never) as any
     const site = await env.site()
+    // The studio's Design and "Header & footer" pages frame the real site.
+    // Signed-in only, so a visitor can't ask for the banner-free version.
+    const studioPreview = !!user && c.req.query('__blockhousepreview') === '1'
     const path = canonicalizeRequestPath(new URL(c.req.url).pathname)
     if (path.startsWith('/admin') || path.startsWith('/api')) return c.notFound()
 
@@ -202,7 +217,7 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
           return c.body(await rssXml(env, concept), 200, { 'content-type': 'application/rss+xml' })
         }
         const page = path.includes('/page/') ? parseInt(path.split('/page/')[1], 10) || 1 : 1
-        const res = await renderListPage(env, concept, page, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft: user ? c.req.query('__menudraft') || undefined : undefined })
+        const res = await renderListPage(env, concept, page, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft: user ? c.req.query('__menudraft') || undefined : undefined, studioPreview })
         if (!res) return c.notFound()
         return c.html(res.html, 200, { 'cache-control': PAGE_CACHE })
       }
@@ -216,7 +231,7 @@ export function siteRoutes(env: BlockhouseEnv): Hono {
       const gated = await gateCheck(c, env, doc, path)
       if (gated) return gated
       const menuDraft = user ? c.req.query('__menudraft') || undefined : undefined
-      const html = await renderDocPage(env, doc, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft })
+      const html = await renderDocPage(env, doc, { mode: 'live', path, user, member: await currentMember(c, env), menuDraft, studioPreview })
       return c.html(html, 200, { 'cache-control': doc.access?.mode && doc.access.mode !== 'public' ? 'private, no-store' : PAGE_CACHE })
     }
 

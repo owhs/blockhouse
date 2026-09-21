@@ -3,15 +3,19 @@
 
 import type { BlockNode, RenderCtx } from '../core/types.ts'
 import { escapeHtml } from '../core/util.ts'
+import { LAYOUT_WIDTHS, normalizeWidth, isCanonicalWidthField } from './layout.ts'
 
-export async function renderBlocks(ctx: RenderCtx, blocks: BlockNode[] | undefined): Promise<string> {
+export { LAYOUT_WIDTHS, normalizeWidth, isCanonicalWidthField }
+export type { LayoutWidth } from './layout.ts'
+
+export async function renderBlocks(ctx: RenderCtx, blocks: BlockNode[] | undefined, depth = 0): Promise<string> {
   if (!blocks?.length) return ''
   const parts: string[] = []
-  for (const node of blocks) parts.push(await renderBlock(ctx, node))
+  for (const node of blocks) parts.push(await renderBlock(ctx, node, depth))
   return parts.join('\n')
 }
 
-export async function renderBlock(ctx: RenderCtx, node: BlockNode): Promise<string> {
+export async function renderBlock(ctx: RenderCtx, node: BlockNode, depth = 0): Promise<string> {
   const def = ctx.env.registry.block(node.type)
   if (!def) {
     return ctx.mode === 'preview'
@@ -24,7 +28,7 @@ export async function renderBlock(ctx: RenderCtx, node: BlockNode): Promise<stri
     ;(node.children || []).forEach((child, i) => { map[child.id] = { parent: node.id, index: i } })
   }
   let inner = ''
-  if (def.container && node.children?.length) inner = await renderBlocks(ctx, node.children)
+  if (def.container && node.children?.length) inner = await renderBlocks(ctx, node.children, depth + 1)
   let html: string
   try {
     const props = interpolateVars({ ...(def.defaults || {}), ...node.props }, ctx.site.vars || {})
@@ -37,7 +41,38 @@ export async function renderBlock(ctx: RenderCtx, node: BlockNode): Promise<stri
     const ld = def.jsonld(ctx, node)
     if (ld) ctx.collect.jsonld.push(ld)
   }
-  return annotate(html, node, ctx.annotate)
+  // Width is only meaningful for a block sitting directly on the page: inside a
+  // Section or Columns the container owns the measure, and a block claiming a
+  // grid column it is not a child of would land nowhere.
+  // A container that already renders its own width wrapper (Section: `.container
+  // w-<width>`) must not also be squeezed at its root, or its background stops
+  // bleeding. Everything else gets the class.
+  const own = def.fields?.find((fd: any) => isCanonicalWidthField(fd))
+  if (depth === 0 && !(own && def.container)) {
+    const w = normalizeWidth(node.layout?.width ?? (own ? node.props?.width : undefined))
+    if (w) html = addRootClass(html, `bh-w-${w}`)
+  }
+  return annotate(html, node, ctx.annotate, !!def.container, def.label)
+}
+
+/** Add a class to the opening tag of an HTML fragment's root element. */
+function addRootClass(html: string, cls: string): string {
+  const trimmed = html.trimStart()
+  const m = /^<([a-zA-Z][a-zA-Z0-9-]*)([\s>])/.exec(trimmed)
+  if (!m) return html
+  const end = trimmed.indexOf('>')
+  if (end < 0) return html
+  const open = trimmed.slice(0, end + 1)
+  const rest = trimmed.slice(end + 1)
+  // The class attribute may be one of several written back-to-back, so rewrite
+  // just its quoted value in place rather than the whole tag.
+  const attr = /\sclass\s*=\s*"([^"]*)"|\sclass\s*=\s*'([^']*)'/.exec(open)
+  if (attr) {
+    const q = attr[1] != null ? '"' : "'"
+    const value = attr[1] != null ? attr[1] : attr[2]
+    return open.slice(0, attr.index) + ` class=${q}${value} ${cls}${q}` + open.slice(attr.index + attr[0].length) + rest
+  }
+  return `<${m[1]} class="${cls}"${m[2] === '>' ? '>' : ' '}${trimmed.slice(m[0].length)}`
 }
 
 /**
@@ -68,14 +103,21 @@ export function interpolateVars<T>(value: T, vars: Record<string, any>): T {
   return walk(value)
 }
 
-function annotate(html: string, node: BlockNode, on: boolean): string {
+function annotate(html: string, node: BlockNode, on: boolean, container = false, label?: string): string {
   if (!on || !html) return html
+  // draggable + a container marker so the preview can offer drag-and-drop on the
+  // page itself, not only in the studio's outline rail.
+  // data-wb-label carries the block's human name ("Hero slider") so the canvas
+  // chip can say the same thing the outline and the inspector say, instead of
+  // printing the developer's key.
+  const human = label ? ` data-wb-label="${escapeHtml(label)}"` : ''
+  const attrs = `data-wb="${node.id}" data-wb-type="${node.type}"${human}${container ? ' data-wb-container="1"' : ''} draggable="true"`
   const trimmed = html.trimStart()
   const m = /^<([a-zA-Z][a-zA-Z0-9-]*)([\s>])/.exec(trimmed)
   if (m) {
     const rest = trimmed.slice(m[0].length)
     // only annotate if this looks like a single root element (heuristic is fine for editor UX)
-    return `<${m[1]} data-wb="${node.id}" data-wb-type="${node.type}"${m[2] === '>' ? '>' : ' '}${rest}`
+    return `<${m[1]} ${attrs}${m[2] === '>' ? '>' : ' '}${rest}`
   }
-  return `<div data-wb="${node.id}" data-wb-type="${node.type}" style="display:contents">${html}</div>`
+  return `<div ${attrs} style="display:contents">${html}</div>`
 }

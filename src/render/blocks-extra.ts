@@ -28,10 +28,10 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'stats', label: 'Stats row', group: 'Marketing', icon: 'chart',
-      description: 'Big numbers with labels — proof at a glance',
+      description: 'A row of headline numbers — years in business, jobs completed, tonnes lifted.',
       fields: [
-        f('items', 'list', 'Stats', { item: [f('value', 'text', 'Value'), f('label', 'text', 'Label'), f('note', 'text', 'Note')] }),
-        f('style', 'select', 'Style', { options: [{ value: 'plain' }, { value: 'cards' }, { value: 'ruled' }], default: 'ruled' }),
+        f('items', 'list', 'Stats', { item: [f('value', 'text', 'Number'), f('label', 'text', 'What it counts'), f('note', 'text', 'Small note')] }),
+        f('style', 'select', 'Style', { options: [{ value: 'plain', label: 'Plain' }, { value: 'cards', label: 'Cards' }, { value: 'ruled', label: 'Divided by lines' }], default: 'ruled' }),
       ],
       defaults: { items: [], style: 'ruled' },
       render: (_c, n) => {
@@ -43,13 +43,14 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'testimonial', label: 'Testimonial', group: 'Marketing', icon: 'quote',
+      description: 'What a customer said about you, with their name and company.',
       fields: [
         f('quote', 'textarea', 'Quote', { rows: 3, required: true }),
         f('name', 'text', 'Name', { width: 'half' }),
         f('role', 'text', 'Role / company', { width: 'half' }),
-        f('avatar', 'image', 'Avatar'),
+        f('avatar', 'image', 'Photo of them'),
         f('logo', 'image', 'Company logo'),
-        f('rating', 'select', 'Rating', { options: [{ value: '' }, { value: '5' }, { value: '4' }, { value: '3' }], width: 'half' }),
+        f('rating', 'select', 'Rating', { options: [{ value: '', label: 'No stars' }, { value: '5', label: '5 stars' }, { value: '4', label: '4 stars' }, { value: '3', label: '3 stars' }], width: 'half' }),
       ],
       render: async (c, n) => {
         const av = n.props.avatar ? await pictureHtml(c, n.props.avatar, { width: 96, sizes: '64px', alt: n.props.name }) : ''
@@ -66,11 +67,11 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'logos', label: 'Logo cloud', group: 'Marketing', icon: 'building',
-      description: 'Client or partner logos, evenly spaced and muted',
+      description: 'A row of customer or supplier logos, evenly spaced.',
       fields: [
         f('title', 'text', 'Title'),
         f('items', 'list', 'Logos', { item: [f('image', 'image', 'Logo'), f('name', 'text', 'Name'), f('link', 'link', 'Link')] }),
-        f('grayscale', 'boolean', 'Mute to greyscale', { default: true }),
+        f('grayscale', 'boolean', 'Show in grey', { default: true, help: 'Drops the colour out of each logo so the row looks tidy.' }),
       ],
       defaults: { items: [], grayscale: true },
       render: async (c, n) => {
@@ -88,6 +89,7 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'timeline', label: 'Timeline', group: 'Editorial', icon: 'gantt',
+      description: 'Dated entries down the page — company history, or the stages of a job.',
       fields: [f('items', 'list', 'Entries', { item: [f('when', 'text', 'When'), f('title', 'text', 'Title'), f('text', 'textarea', 'Text', { rows: 2 })] })],
       defaults: { items: [] },
       render: (_c, n) => {
@@ -99,11 +101,11 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'steps', label: 'Steps', group: 'Editorial', icon: 'list',
-      description: 'A numbered how-it-works sequence (emits HowTo data)',
+      description: 'Numbered steps that explain how something works. Search engines understand it too.',
       fields: [
         f('title', 'text', 'Title'),
         f('items', 'list', 'Steps', { item: [f('title', 'text', 'Step title'), f('text', 'textarea', 'Text', { rows: 2 })] }),
-        f('layout', 'select', 'Layout', { options: [{ value: 'stack' }, { value: 'row' }], default: 'stack' }),
+        f('layout', 'select', 'Layout', { options: [{ value: 'stack', label: 'One under another' }, { value: 'row', label: 'Across the page' }], default: 'stack' }),
       ],
       defaults: { items: [], layout: 'stack' },
       render: (_c, n) => {
@@ -119,15 +121,15 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'feature-split', label: 'Feature split', group: 'Marketing', icon: 'columns',
-      description: 'Image beside copy — alternating sections build a page fast',
+      description: 'A picture beside some writing. Alternate the side to build a page quickly.',
       fields: [
         f('eyebrow', 'text', 'Eyebrow'),
         f('title', 'text', 'Title', { required: true }),
         f('text', 'richtext', 'Text'),
         f('image', 'image', 'Image'),
-        f('side', 'select', 'Image side', { options: [{ value: 'right' }, { value: 'left' }], default: 'right', width: 'half' }),
-        f('align', 'select', 'Vertical align', { options: [{ value: 'center' }, { value: 'top' }], default: 'center', width: 'half' }),
-        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary' }, { value: 'ghost' }] })] }),
+        f('side', 'select', 'Picture side', { options: [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }], default: 'right', width: 'half' }),
+        f('align', 'select', 'Vertical align', { options: [{ value: 'center', label: 'Middle' }, { value: 'top', label: 'Top' }], default: 'center', width: 'half' }),
+        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary', label: 'Solid (main action)' }, { value: 'ghost', label: 'Outlined' }] })] }),
       ],
       defaults: { side: 'right', align: 'center', buttons: [] },
       render: async (c, n) => {
@@ -143,9 +145,9 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'callout', label: 'Callout', group: 'Editorial', icon: 'info',
-      description: 'Note / tip / warning box',
+      description: 'A boxed note, tip or warning that stands out from the text around it.',
       fields: [
-        f('tone', 'select', 'Tone', { options: [{ value: 'note' }, { value: 'tip' }, { value: 'warning' }, { value: 'danger' }], default: 'note', width: 'half' }),
+        f('tone', 'select', 'Kind', { options: [{ value: 'note', label: 'Note' }, { value: 'tip', label: 'Tip' }, { value: 'warning', label: 'Warning' }, { value: 'danger', label: 'Important — safety' }], default: 'note', width: 'half' }),
         f('title', 'text', 'Title', { width: 'half' }),
         f('text', 'richtext', 'Text'),
       ],
@@ -159,13 +161,15 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'accordion', label: 'Accordion', group: 'Interactive', icon: 'tabs', container: true, childTypes: ['accordion-item'],
-      fields: [f('single', 'boolean', 'Open one at a time', { default: true })],
+      description: 'Headings that open to reveal what is under them — good for long pages.',
+      fields: [f('single', 'boolean', 'Open one at a time', { default: true, help: 'Opening one closes the one before it.' })],
       defaults: { single: true },
       enhance: 'faq',
       render: (_c, n, inner) => `<div class="wb-faq wb-accordion"${n.props.single ? ' data-single="1"' : ''}>${inner}</div>`,
     },
     {
       type: 'accordion-item', label: 'Accordion item', group: 'Interactive', icon: 'tabs', container: true,
+      description: 'One heading in an accordion. Put its content inside.',
       fields: [f('label', 'text', 'Label', { required: true }), f('open', 'boolean', 'Open by default')],
       render: (_c, n, inner) =>
         `<details class="wb-faq-item"${n.props.open ? ' open' : ''}><summary><span>${eh(n.props.label)}</span><svg class="faq-caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary><div class="faq-body">${inner}</div></details>`,
@@ -173,12 +177,12 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'related', label: 'Related content', group: 'Editorial', icon: 'link',
-      description: 'Auto-list the latest items of a concept, or hand-pick documents',
+      description: 'Cards linking to other pages — picked by you, or filled in automatically.',
       fields: [
         f('title', 'text', 'Title', { default: 'Read next' }),
-        f('concept', 'text', 'Concept', { help: 'e.g. post — leave blank to hand-pick', width: 'half' }),
+        f('concept', 'text', 'Fill automatically from', { help: 'The kind of page to list, e.g. product. Leave blank and pick pages yourself below.', width: 'half' }),
         f('limit', 'number', 'How many', { default: 3, width: 'half' }),
-        f('picks', 'list', 'Hand-picked', { item: [f('link', 'link', 'Document')] }),
+        f('picks', 'list', 'Pages you choose', { item: [f('link', 'link', 'Page')] }),
       ],
       defaults: { title: 'Read next', limit: 3, picks: [] },
       render: async (c, n) => {
@@ -203,8 +207,8 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'share', label: 'Share buttons', group: 'Editorial', icon: 'send',
-      description: 'Privacy-friendly share links (no third-party scripts)',
-      fields: [f('networks', 'text', 'Networks', { default: 'x,linkedin,facebook,email,copy', help: 'comma separated: x · linkedin · facebook · email · copy' })],
+      description: 'Buttons for sharing the page. Nothing is tracked until someone presses one.',
+      fields: [f('networks', 'text', 'Which buttons', { default: 'x,linkedin,facebook,email,copy', help: 'Separate with commas. Choose from: x, linkedin, facebook, email, copy.' })],
       defaults: { networks: 'x,linkedin,facebook,email,copy' },
       enhance: 'share',
       render: (c, n) => {
@@ -227,7 +231,8 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'breadcrumbs', label: 'Breadcrumbs', group: 'Editorial', icon: 'chevR',
-      fields: [f('home', 'text', 'Home label', { default: 'Home' })],
+      description: 'The trail of links back to the home page, shown along the top.',
+      fields: [f('home', 'text', 'Name for the home page', { default: 'Home' })],
       defaults: { home: 'Home' },
       render: async (c, n) => {
         const parts = c.path.split('/').filter(Boolean)
@@ -256,29 +261,35 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'map', label: 'Map', group: 'Media', icon: 'location',
-      description: 'Static-first map with a click-to-load interactive embed',
+      description: 'A map of an address that only loads when someone clicks it.',
       fields: [
-        f('query', 'text', 'Place or address', { required: true }),
-        f('zoom', 'number', 'Zoom', { default: 14, width: 'half' }),
-        f('height', 'number', 'Height (px)', { default: 360, width: 'half' }),
+        f('query', 'text', 'Place or address', { help: 'A postcode or a full address.' }),
+        f('embedUrl', 'text', 'Or a map link from Google', { help: 'In Google Maps choose Share, then Embed a map, and paste the web address that starts https://www.google.com/maps/embed' }),
+        f('zoom', 'number', 'How close in', { default: 14, width: 'half', help: 'Higher means closer. 14 shows a town, 18 a street.' }),
+        f('height', 'number', 'Height (pixels)', { default: 360, width: 'half' }),
       ],
       defaults: { zoom: 14, height: 360 },
       enhance: 'embed',
       render: (_c, n) => {
         const q = encodeURIComponent(String(n.props.query || ''))
-        const src = `https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${q}`
-        return `<div class="wb-map" style="height:${Math.max(160, Number(n.props.height) || 360)}px" data-embed="${ea(src)}" data-title="Map of ${ea(n.props.query)}">` +
-          `<button class="embed-facade map-facade" aria-label="Load map for ${ea(n.props.query)}"><span class="map-pin">${siteIcon('location', 26)}</span><span class="map-label">${eh(n.props.query)}</span><span class="map-hint">Click to load the map</span></button></div>`
+        // A map pasted from Google's or OpenStreetMap's "embed" box is used as it
+        // is — it already points at the right place. Anything else is refused.
+        const pasted = String(n.props.embedUrl || '')
+        const ok = /^https:\/\/(www\.google\.com\/maps\/embed\?|www\.openstreetmap\.org\/export\/embed\.html\?)/.test(pasted)
+        const src = ok ? pasted : `https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${q}`
+        return `<div class="wb-map" style="height:${Math.max(160, Number(n.props.height) || 360)}px" data-embed="${ea(src)}" data-map-query="${ok ? '' : ea(n.props.query || '')}" data-map-zoom="${Number(n.props.zoom) || 14}" data-title="Map${n.props.query ? ' of ' + ea(n.props.query) : ''}">` +
+          `<button class="embed-facade map-facade" aria-label="Load the map"><span class="map-pin">${siteIcon('location', 26)}</span><span class="map-label">${eh(n.props.query || 'Map')}</span><span class="map-hint">Click to load the map</span></button></div>`
       },
     },
 
     {
       type: 'download', label: 'Download', group: 'Actions', icon: 'download',
+      description: 'A link people click to save a file — a brochure, a data sheet.',
       fields: [
         f('label', 'text', 'Label', { required: true }),
-        f('file', 'text', 'File URL', { help: '/media/… or a delivery link from the Files panel' }),
-        f('meta', 'text', 'Meta', { help: 'e.g. PDF · 2.4 MB', width: 'half' }),
-        f('icon', 'text', 'Icon name', { default: 'doc', width: 'half' }),
+        f('file', 'text', 'The file', { help: 'The web address of the file. Copy it from the Files panel after you upload.' }),
+        f('meta', 'text', 'Small print', { help: 'Tells people what they are getting, e.g. PDF · 2.4 MB', width: 'half' }),
+        f('icon', 'text', 'Icon', { default: 'doc', width: 'half', help: 'A name from the site icon set, e.g. doc, chart, gear. Leave as doc if unsure.' }),
       ],
       defaults: { icon: 'doc' },
       render: (_c, n) =>
@@ -289,16 +300,16 @@ export function registerExtraBlocks(registry: Registry) {
 
     {
       type: 'spotlight', label: 'Spotlight', group: 'Layout', icon: 'star',
-      description: 'Full-bleed image with an overlaid headline — for landing pages',
+      description: 'A picture filling the full width with a headline written over it.',
       fields: [
         f('image', 'image', 'Background image', { required: true }),
         f('eyebrow', 'text', 'Eyebrow'),
         f('title', 'text', 'Title', { required: true }),
         f('text', 'textarea', 'Text', { rows: 2 }),
-        f('align', 'select', 'Text position', { options: [{ value: 'center' }, { value: 'left' }, { value: 'bottom-left' }], default: 'center', width: 'half' }),
-        f('height', 'select', 'Height', { options: [{ value: 'medium' }, { value: 'tall' }, { value: 'full' }], default: 'medium', width: 'half' }),
-        f('overlay', 'number', 'Overlay strength (0–100)', { default: 45, width: 'half' }),
-        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary' }, { value: 'ghost' }] })] }),
+        f('align', 'select', 'Text position', { options: [{ value: 'center', label: 'Centred' }, { value: 'left', label: 'Left' }, { value: 'bottom-left', label: 'Bottom left' }], default: 'center', width: 'half' }),
+        f('height', 'select', 'Height', { options: [{ value: 'medium', label: 'Medium' }, { value: 'tall', label: 'Tall' }, { value: 'full', label: 'Fills the screen' }], default: 'medium', width: 'half' }),
+        f('overlay', 'number', 'How much to darken the picture (0–100)', { default: 45, width: 'half', help: 'Higher makes the words easier to read.' }),
+        f('buttons', 'list', 'Buttons', { item: [f('label', 'text', 'Label'), f('link', 'link', 'Link'), f('style', 'select', 'Style', { options: [{ value: 'primary', label: 'Solid (main action)' }, { value: 'ghost', label: 'Outlined' }] })] }),
       ],
       defaults: { align: 'center', height: 'medium', overlay: 45, buttons: [] },
       render: async (c, n) => {

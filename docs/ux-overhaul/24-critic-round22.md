@@ -1,0 +1,54 @@
+# Critic — round 22
+
+Average: 96
+
+Method: my own tab (`tab-22`), `localStorage.clear()` per origin after sign-in, signed into both studios as `critic@local.test`. Full 1440×900 rail sweep on both sites (strongman 23 hashes, automatic 20, including `#/c/nope`, `#/plugins/nope`, `#/nowhere`), each probed for controls with no accessible name, nested interactive elements, leftover `.spin`, elements past either edge and `documentElement.scrollWidth`, plus a 22-term jargon regex. 390×844, 768×900, 1024×768 and 1920×1080, every width change followed by `dispatchEvent(new Event('resize'))` **and a reload**; at each size I counted only elements that are genuinely visible (walking ancestors for `visibility`, `display` and `inert`) and counted off-screen tab stops. Documents opened: strongman `d-about`; automatic `d-home`, `d-planning`, `p-shuttle-parking-system`, `p-tower-parking-system`. Twelve `?` sheets across both sites, ⌘K with a real query, the block picker, restore-point dialogs on both sites, the settings guard with real typing and a real rail click, Settings search landing on a real field, the three preview device modes, both studio themes on three pages per site, real `Tab` / `Shift+Tab` / `Ctrl+K` / `Ctrl+B` / `Escape` / `Return` key presses throughout.
+
+**Data-changing flows completed on real data:** on strongman `d-about`, title edit → 3.5 s pause → **Save** → toast and restore point verified; second edit → pause → Save → toast captured through a MutationObserver; Save with nothing dirty → verified; title restored to "About" and the document now reads plain **"Published"** again (the studio correctly recognises it is byte-identical to live). Publish dialog read and cancelled on automatic `p-shuttle-parking-system`. Settings dirtied on automatic (empty X handle) and **Discard**ed, confirmed against `/api/settings`. No probe account created this round — the invite path needed no new data. Leftover: two extra, correctly named restore points on strongman `d-about`.
+
+Harness caveats: `getBoundingClientRect()` on the drawer still reports the closed offset while it is visibly open, so drawer position was judged from screenshots; the pane's screenshot frame drifts from the emulated viewport, so clicks used `ref`s; a synthetic `Escape` dispatched on `document` does not close the block picker — only real key presses were trusted for verdicts.
+
+| # | Category | Score | Blocking issues (must fix to pass 90) |
+|---|----------|------:|---------------------------------------|
+| 1 | Information architecture & navigation | 97 | — |
+| 2 | Settings organisation | 97 | — |
+| 3 | Help & guidance | 97 | — |
+| 4 | Editor: layout, outline, inspector | 96 | — |
+| 5 | Editor: block model & width | 97 | — |
+| 6 | Dashboard & content lists | 96 | — |
+| 7 | Site tools | 96 | — |
+| 8 | Studio admin | 93 | — |
+| 9 | Feedback, errors, resilience | 96 | — |
+| 10 | Visual consistency & polish | 96 | — |
+| 11 | Preview fidelity & responsiveness | 94 | — |
+| 12 | Accessibility & keyboard | 94 | — |
+
+Blockers 0 · majors 0 · minors 3.
+
+## Round-21 re-test
+
+**R21-1 — fixed.** At 390×844 on strongman, a real click on **Menu** sets `aria-expanded="true"`, clears `inert` on `nav.side` and **moves focus into the drawer** (the "Content" section button). Real `Tab` presses stay inside: Content → Dashboard → Pages, and three `Shift+Tab` wrap round to the drawer's last control — focus is trapped, so nobody tabs through the topbar hidden behind the scrim. A real **Escape** closes it: `aria-expanded="false"`, `inert` restored, focus back on **Menu**. Closed, the drawer sits at `left: -240` and contributes **zero** focusable stops; at 768 the same holds and the editor at 768 shows 0 visible elements past either edge and 0 off-screen tab stops.
+
+**R21-2 — fixed.** On strongman `d-about` I appended " X" to the title, waited 3.5 s (chip read "Saved at 11:00:50 · press Ctrl+S to make a restore point"), then pressed **Save**: toast **"Saved — restore point kept"**, and Restore points immediately showed **"Latest · Saved · About X — Saved at 11:00"** above the pre-existing 31 Oct entry. Repeated with a second edit and the same pause — same result. Pressing **Save** again with nothing dirty gives **"Nothing to save — already up to date"** and writes no restore point. Both halves are now right, and the Save button's own name says what it does: "Save and create a restore point · Ctrl+S".
+
+**R21-3 — fixed.** Automatic `p-tower-parking-system` → Restore points no longer lists twelve near-identical legacy rows. They are folded into **"6 saves at 03:28 · newest first"** and **"6 saves at 03:27 · newest first"**, with the real entries ("Latest · Saved · Tower Parking System X", "Saved on 12 Aug at 22:00") named and dated around them.
+
+**R21-4 — half fixed.** The visitor-facing **Tagline** on automatic is back to "Automatic parking systems, parking lifts and car elevators" in `/api/settings` and in the Settings form — the stray "ZQ" is gone. The People list is not cleaned: see R22-3.
+
+**Round-21 "verified working" re-check: holds, with one thing better.** 43 rail hashes across both sites at 1440: zero controls without an accessible name, zero nested interactive elements, zero `.spin`, `scrollWidth === 1440` everywhere, nothing visible past either edge. The jargon regex returns nothing outside `#/tpl` and the developer chapters of `#/help`; I chased the eight `#/tpl` elements that exceed 1440 and they are the syntax-highlight overlay inside `.ide-surface` (`overflow-x: hidden`), kept in step with the textarea's own `overflow-x: auto` by a `translate(-scrollLeft)` that I verified by scrolling — correct, not clipped content. Unknown routes remain excellent (`#/c/nope`: "There is no content type called "nope"" plus the real list; `#/plugins/nope`: "An app that adds this page may have been switched off…"; `#/nowhere`: "Nothing lives at #/nowhere"). Twelve `?` sheets are plain and count-aware. ⌘K on "tower" gives 5 described results with exactly one active row, and Escape returns focus to the outline item it came from. The block picker now offers **49 entries, 49 of them described** — round 21's one undescribed entry is gone. The Publish dialog is content-aware ("already live at /systems/shuttle-parking-system with these exact contents. Publishing again changes nothing for visitors."). The settings guard fires on a real rail click, lands focus on Cancel, and **Discard** left `/api/settings` byte-identical. Settings search for "robots" returns plain wording ("Give search engines a page list") and clicking it routes to `#/settings/advanced`, focuses the switch and flashes its row. Content lists carry type-aware columns (Series, Category, Type code), counted filters, and import/export under a plain **More actions** menu. Deploy shows an owner view with "Technical details (for developers)" folded away. The three preview device modes report honest widths — I checked the iframe's own `innerWidth` (390 / 834 / 1270), so media queries fire at the width the caption claims — with no sideways scroll and no consent banner inside the preview. Light↔dark on three pages per site leaves no element holding the old ground (the only dark box in light mode is a `.design-dot` colour swatch, which is the point of it). 1024 and 1920 are clean on both sites.
+
+## Findings
+
+**R22-1 · 11, 12 · minor · both sites · every screen at ≤860, drawer open.** The rail's foot control ("Collapse" / "Expand", ⌘B) is still rendered inside the off-canvas drawer, where it cannot work: `@media (max-width: 860px)` sets `.app.side-collapsed { --side-w: 15rem }`, so the collapsed state is deliberately neutralised. Tapping **Collapse** at 390 flips `.app` to `side-collapsed` and relabels the button to "Expand", and **nothing else changes** — same drawer, same width, same labels. Worse, the relabelled button then measures at y≈920 in an 844-px window, below the fold, so the way back is off screen until you scroll. `Ctrl+B` undoes it, which no phone user has. Hide `.side-foot` in the ≤860 block. `src/assets/admin/studio.css` (the `@media (max-width: 860px)` rail block) and `src/assets/admin/main.js` — `paintNav`'s `.side-foot`.
+
+**R22-2 · 8 · minor · both sites · `#/users`.** There is no way to remove a person from the studio. Each row offers a role select, a "Can sign in / Cannot sign in" switch, **Reset password** and **Extra access** — nothing else, no overflow menu, and `src/server/api.ts` has `GET`, `POST` and `PATCH /users` but no `DELETE`. Disabling is a complete, safe flow and the `?` sheet's "Remove access the moment someone leaves" fairly describes the switch, so nothing is broken — but the list only ever grows. Automatic's People page is the proof: nine rows, of which **seven** are dead `r15…r21probe@local.test` accounts, so the two real people are outnumbered three to one. Either add a guarded "Remove from this studio" (with the audit trail kept) or let the list fold disabled people away behind a "Show people who cannot sign in" toggle.
+
+**R22-3 · 12 · minor · both sites · `#/e/<any document>`, block picker.** Pressing `Ctrl+K` while the block picker is open swaps the picker for the command palette in place rather than stacking — reasonable — but a real **Escape** then closes it and leaves `document.activeElement` on `<body>`, so a keyboard user is dumped to the top of the page with no focus ring. The ordinary path is correct: opening the picker from **Add block** and pressing Escape returns focus to that button, and Escape from a plain ⌘K returns focus to the outline item. Only the swap path loses the return target. `src/assets/admin/editor.js` / `search.js` — whichever palette replaces the open picker should inherit the picker's stored return element.
+
+**R22-4 · 8 · minor · automatic · housekeeping (data, not code).** Seven critic probe accounts (`r15probe` … `r21probe@local.test`) sit in the live People list. Nothing in this round added to them. They need one deliberate clean-up by a maintainer, which today means editing the store directly — see R22-2.
+
+## What each sub-95 category needs
+
+**8 → 95.** People, Apps (plain capability wording, and "takes effect after the site is next restarted — ask whoever hosts your site" is proper guidance, not a bare instruction), Deploy's owner-first view, the readable Activity log and the app-panel empty state are all right. R22-2, with R22-4 behind it.
+
+**11 and 12 → 95.** The closed drawer and closed inspector are properly removed from the tab order, the open drawer takes and traps focus and Escape returns it, no nested interactives, every icon button named, one tabbable and one selected outline item, one active ⌘K row, previews honest at all three device widths and free of consent banners, and 768 / 1024 / 1920 clean on both sites. R22-1 for both; R22-3 for 12 alone.

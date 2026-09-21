@@ -20,6 +20,9 @@ export interface RenderOpts {
    *  whether member-only documents appear in listings. */
   member?: { id: string; groups?: string[] } | null
   annotate?: boolean
+  /** Rendered inside a studio preview frame (Design, Header & footer, Menus).
+   *  Live content, but none of the first-visit furniture. */
+  studioPreview?: boolean
   path: string
 }
 
@@ -33,6 +36,7 @@ function makeCtx(env: BlockhouseEnv, site: SiteConfig, opts: RenderOpts, doc?: D
   return {
     site, doc, mode: opts.mode, annotate: !!opts.annotate, user: opts.user ?? null, member: opts.member ?? null,
     canonicalPath: opts.canonicalPath, menuDraft: opts.menuDraft, bare: !!opts.bare,
+    studioPreview: opts.mode === 'preview' || !!opts.annotate || !!opts.menuDraft || !!opts.studioPreview,
     collect: { jsonld: [], variants: new Set(), enhancers: new Set(), headExtra: [] },
     path: opts.path, baseUrl: '', env,
   }
@@ -152,6 +156,36 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   const scheme = site.theme?.colorScheme || 'auto'
   const locked = scheme === 'light' || scheme === 'dark'
   const bareCss = ctx.bare ? `<style id="blockhouse-bare">.site-header,.site-footer{display:none!important}</style>` : ''
+  // A studio preview is a picture of the page, not a visit to it. Anything a
+  // template hides with opacity alone (some navigation panels animate open that
+  // way) would otherwise hang translucent over the page inside the frame, so
+  // every closed panel is held properly shut here.
+  // The Navigation page is the exception: its whole job is to show the panel
+  // you are editing, already open — so it never gets the closing rule.
+  // Scroll-reveal animations hide a block until it scrolls into view. The
+  // preview frame is scaled and often taller than the canvas, so half the page
+  // sat faded or invisible in the editor. In the preview everything is shown
+  // as it ends up; the visitor's page is untouched.
+  const revealOff = ctx.studioPreview
+    ? `html[data-bh-preview] .anim-hidden,html[data-bh-preview] .reveal,` +
+      `html[data-bh-preview] [data-reveal]{opacity:1!important;transform:none!important;translate:none!important;visibility:visible!important}`
+    : ''
+  const closedPanels = ctx.studioPreview && !ctx.menuDraft
+    ? `html[data-bh-preview="1"] .nav-item:not(.open):not(.drilled) > .drop-panel,` +
+      `html[data-bh-preview="1"] .nav-item:not(.open):not(.drilled) > .mega-panel{` +
+      `opacity:0!important;visibility:hidden!important;pointer-events:none!important}`
+    : ''
+  // Visitor overlays (an enlarged-image viewer, the search overlay, a popup)
+  // belong to a visit, not to editing. Opened inside the editor canvas one of
+  // them covers the whole page, swallows every click and cannot be closed from
+  // the studio chrome. Held shut at the source so no site script can raise one.
+  const overlaysOff = ctx.studioPreview && !ctx.menuDraft
+    ? `html[data-bh-preview="1"] .sm-lb,html[data-bh-preview="1"] .lightbox-overlay,` +
+      `html[data-bh-preview="1"] .search-overlay,html[data-bh-preview="1"] [data-bh-overlay]{display:none!important}`
+    : ''
+  const previewCss = revealOff || closedPanels || overlaysOff
+    ? `<style id="blockhouse-preview">${closedPanels}${overlaysOff}${revealOff}</style>`
+    : ''
   const vtOff = (site.features?.viewTransitions === false) ? `<style id="blockhouse-vt-off">@view-transition{navigation:none}</style>` : ''
   const schemeCss = locked
     ? `<style id="blockhouse-scheme">:root{color-scheme:${scheme}}</style>`
@@ -166,7 +200,7 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   const enhancers = [...ctx.collect.enhancers]
   const consentOn = !!site.plugins?.consent?.enabled
   let consentBanner = ''
-  if (consentOn && ctx.mode === 'live' && !ctx.annotate && !ctx.menuDraft && !ctx.bare) {
+  if (consentOn && ctx.mode === 'live' && !ctx.studioPreview && !ctx.bare) {
     const { consentHtml } = await import('../../../plugins/consent/index.ts')
     consentBanner = consentHtml(site.plugins!.consent!.settings || {}, {
       beacon: !!site.plugins?.analytics?.enabled && feats.analyticsBeacon !== false,
@@ -191,10 +225,13 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   })
 
   // late head injections (kept out of template authors' way)
-  const headInject = `${fontCss}\n${schemeCss}\n${bareCss}\n${vtOff}\n${tokenCss}\n${globalCss}\n${pageCss}\n${themeBoot}\n${spec}\n${runtime}\n${bridge}\n${devReload}`
+  const headInject = `${fontCss}\n${schemeCss}\n${bareCss}\n${previewCss}\n${vtOff}\n${tokenCss}\n${globalCss}\n${pageCss}\n${themeBoot}\n${spec}\n${runtime}\n${bridge}\n${devReload}`
   let out = html
     .replace('</head>', `${headInject}\n</head>`)
-    .replace('</body>', `${globalJs}\n${pageJs}\n${consentBanner}\n</body>`)
+  // The marker goes on <html> so the CSS above and runtime.js can both see it
+  // before anything paints — a body class would be too late for the banner.
+  if (ctx.studioPreview) out = out.replace(/<html\b/i, `<html data-bh-preview="${ctx.menuDraft ? 'menu' : '1'}"`)
+  out = out.replace('</body>', `${globalJs}\n${pageJs}\n${consentBanner}\n</body>`)
   // Off means off: with RSS disabled, no template or content may leave a dead
   // feed link behind — head alternates are removed, body anchors unwrap to text
   // (menus already drop feed items at the source). Same for the sitemap.
