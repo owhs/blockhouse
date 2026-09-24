@@ -805,6 +805,29 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
    Must sit BEFORE the breakpoints, or it wins at every width. */
 .nav-toggle, .panel-toggle { display: none; }
 
+/* ==== Ahrefs panel (ahrefs.js) ==== */
+.ahx-tabs, .ahx-seg { flex-wrap: wrap; max-width: 100%; }
+.ahx-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+.ahx-bar > .ahx-fresh { margin-right: auto; margin-bottom: 0; }
+.ahx-fresh { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+.ahx-grid { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+.ahx-chart { margin-top: var(--s2); }
+.ahx-table td { vertical-align: top; }
+.ahx-table th.ta-r { text-align: right; }
+.ahx-url { overflow-wrap: anywhere; }
+.ahx-up { color: var(--ok-ink); font-weight: var(--fw-semi); }
+.ahx-down { color: var(--err-ink); font-weight: var(--fw-semi); }
+.ahx-kw { all: unset; cursor: pointer; color: light-dark(var(--acc-strong), var(--acc-bright)); text-decoration: underline; text-decoration-color: color-mix(in oklch, currentColor 35%, transparent); text-underline-offset: 2px; }
+.ahx-kw:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 2px; }
+.ahx-filter { width: min(100%, 16rem); }
+.ahx-q { flex: 1 1 16rem; min-width: 0; }
+.ahx-country { width: auto; }
+.ahx-error { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3); border: 1px solid color-mix(in oklch, var(--err) 40%, transparent); border-radius: var(--r-s); background: color-mix(in oklch, var(--err) 6%, transparent); color: var(--ink); }
+.ahx-error p { margin: 0 0 var(--s2); }
+.ahx-kv { display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s3); font-size: var(--t-s); }
+.ahx-kv > span { color: var(--mut); }
+.ahx-kv > strong { text-align: right; }
+
 /* ==========================================================================
    Responsive — LAST in the sheet on purpose.
    One block per breakpoint, widest first, so a narrower rule always wins and

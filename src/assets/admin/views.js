@@ -1061,6 +1061,9 @@ async function resourceSection(panel, res) {
 
 // custom per-plugin sections that go beyond generic CRUD
 const CUSTOM_SECTIONS = {
+  // Ahrefs brings its own tabbed screen; loaded only when opened.
+  ahrefs: Object.assign(async () => (await import('./ahrefs.js')).ahrefsPanel(), { replaces: true }),
+
   drive: Object.assign(async () => {
     const wrap = h('div')
     const draw = async () => {

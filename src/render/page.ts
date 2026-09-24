@@ -209,6 +209,15 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   const beacon = ctx.mode === 'live' && site.plugins?.analytics?.enabled && feats.analyticsBeacon !== false
     ? `<script>(function(){try{if(location.pathname.startsWith('/admin'))return;${consentOn ? "var c=(document.cookie.match(/(?:^|; )blockhouse_consent=([^;]*)/)||[])[1];if(!c||c.indexOf('analytics')<0)return;" : ''}var b=function(){navigator.sendBeacon('/x/analytics/hit',JSON.stringify({p:location.pathname,r:document.referrer}))};if(document.readyState!=='loading')b();else addEventListener('DOMContentLoaded',b)}catch(e){}})()</script>`
     : ''
+  // Ahrefs: the site-verification tag and (when switched on) Web Analytics.
+  let ahrefsHead = ''
+  if (site.plugins?.ahrefs?.enabled && !ctx.studioPreview && !ctx.bare) {
+    const { headHtml } = await import('../../../plugins/ahrefs/index.ts')
+    // The verification tag must be on every rendering Ahrefs might fetch; the
+    // analytics script only on live pages, so the studio never counts itself.
+    const s = (site.plugins.ahrefs as any).settings || {}
+    ahrefsHead = headHtml(ctx.mode === 'live' ? s : { ...s, loadAnalytics: false }, { consentGate: consentOn })
+  }
   const runtime = `<script type="module" src="/assets/blockhouse/runtime.js?v=${(env as any).assetVersion || '1'}"></script>${beacon}`
   const adminP = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'
   const bridge = ctx.annotate ? `<script src="/${adminP}/assets/bridge.js"></script>` : ''
@@ -225,7 +234,7 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
   })
 
   // late head injections (kept out of template authors' way)
-  const headInject = `${fontCss}\n${schemeCss}\n${bareCss}\n${previewCss}\n${vtOff}\n${tokenCss}\n${globalCss}\n${pageCss}\n${themeBoot}\n${spec}\n${runtime}\n${bridge}\n${devReload}`
+  const headInject = `${fontCss}\n${schemeCss}\n${bareCss}\n${previewCss}\n${vtOff}\n${tokenCss}\n${globalCss}\n${pageCss}\n${themeBoot}\n${spec}\n${ahrefsHead}\n${runtime}\n${bridge}\n${devReload}`
   let out = html
     .replace('</head>', `${headInject}\n</head>`)
   // The marker goes on <html> so the CSS above and runtime.js can both see it

@@ -1281,10 +1281,20 @@ registerView('editor', async (root, [docId, tabParam], query) => {
           b.disabled = false; b.classList.remove('busy')
         },
       }, '✦ Draft description with AI'),
+      meta.panels?.some(p => p.plugin === 'ahrefs') ? ahrefsSeoSection() : '',
       h('div.insp-section-title', {}, 'Checks'),
       h('div', {}, ...seo.map(chk => h('div.seo-check', { class: chk.level },
         h('span.seo-ico', { html: icon(chk.level === 'error' ? 'warn' : chk.level === 'warn' ? 'info' : 'check', 13), 'aria-hidden': 'true' }),
         h('span', {}, h('span.sr-only', {}, `${chk.level}: `), chk.label, chk.detail ? h('span.detail', {}, chk.detail) : '')))))
+  }
+
+  // Ahrefs on this page: loaded on request, since each lookup spends API units.
+  function ahrefsSeoSection() {
+    const holder = h('div')
+    import('./ahrefs.js')
+      .then(m => holder.replaceChildren(m.ahrefsPageCard(path, doc.seo?.keyword || '')))
+      .catch(() => {})
+    return h('div', {}, h('div.insp-section-title', {}, 'Ahrefs'), holder)
   }
 
   function routingPanel() {

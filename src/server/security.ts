@@ -37,6 +37,12 @@ export function buildCsp(site: SiteConfig, opts: { nonce?: string; admin?: boole
   }
   // the studio previews the site in an iframe, so admin pages allow self-framing
   if (opts.admin) directives['frame-src'] = "'self'"
+  // Ahrefs Web Analytics loads its script from, and reports to, its own host.
+  const ahrefs = site.plugins?.ahrefs as any
+  if (ahrefs?.enabled && ahrefs.settings?.analyticsKey && ahrefs.settings?.loadAnalytics && !opts.admin) {
+    directives['script-src'] += ' https://analytics.ahrefs.com'
+    directives['connect-src'] += ' https://analytics.ahrefs.com'
+  }
 
   for (const [k, v] of Object.entries(sec.cspExtra || {})) directives[k] = v
   return Object.entries(directives).map(([k, v]) => `${k} ${v}`).join('; ')

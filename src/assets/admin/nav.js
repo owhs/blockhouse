@@ -16,7 +16,7 @@ import { state, prefs, setPref, conceptIcon } from './state.js'
 const PLUGIN_ICONS = {
   forms: 'form', files: 'download', newsletter: 'mail', automations: 'bolt', data: 'db',
   ai: 'sparkle', search: 'search', analytics: 'chart', integrations: 'plug', members: 'users',
-  commerce: 'cart', ops: 'server', backups: 'cloud',
+  commerce: 'cart', ops: 'server', backups: 'cloud', ahrefs: 'link',
 }
 
 // Where each app's panel goes when it does not say for itself. An app that
@@ -28,7 +28,7 @@ const PLUGIN_ICONS = {
 const PLUGIN_SECTION = {
   forms: 'content', newsletter: 'content', members: 'content', commerce: 'content',
   data: 'content', drive: 'content', files: 'content',
-  search: 'site', analytics: 'site', seo: 'site',
+  search: 'site', analytics: 'site', seo: 'site', ahrefs: 'site',
 }
 const PLUGIN_FALLBACK_SECTION = 'manage'
 const SECTION_KEYS = new Set(['content', 'site', 'manage'])
