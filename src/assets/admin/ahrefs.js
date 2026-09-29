@@ -10,7 +10,7 @@
 import { api, get, put, post, del } from './api.js'
 import { h, toast, emptyState, skeleton, promptDialog, confirmDialog } from './ui.js'
 import { icon, iconEl } from './icons.js'
-import { prefs, setPref, hooks } from './state.js'
+import { prefs, setPref, hooks, state } from './state.js'
 
 const X = '/x/ahrefs'
 const quiet = path => api(path, { quiet: true })
@@ -270,23 +270,106 @@ function brokenReport() {
       ], list)
       : emptyState(icon('check', 24), 'No broken backlinks', 'Every link Ahrefs knows about lands on a working page.'))
     const addRedirect = async from => {
-      const to = await promptDialog({
-        title: `Redirect ${from}`, label: 'Send visitors to', placeholder: '/new-page', datalist: d.pages,
-        help: 'A permanent (301) redirect — search engines pass the old link’s value on to the new page.',
-        confirmLabel: 'Add redirect',
-      })
-      if (!to?.trim()) return
-      const target = to.trim()
-      if (!target.startsWith('/') && !/^https?:\/\//.test(target)) return toast('Start with / for a page on this site, or https:// for another site', 'err')
-      const fresh = (await get('/redirects')).redirects || []
-      if (fresh.some(r => r.from === from)) return toast(`${from} already redirects somewhere — see SEO → Redirects`, 'err')
-      fresh.push({ from, to: target, code: 301 })
-      await put('/redirects', { redirects: fresh })
-      redirects.push({ from, to: target, code: 301 })
-      toast(`Redirected ${from} → ${target}`, 'ok'); paintList()
+      const to = await askRedirect(from, d.pages)
+      if (to) { redirects.push({ from, to, code: 301 }); paintList() }
     }
     paintList()
     return h('div', {}, h('div.ahx-bar', {}, freshness(d, reload), csvLink('backlinks', '?kind=broken')), holder)
+  })
+}
+
+/**
+ * The new page an old address most likely became: the one sharing the most
+ * words with it, the last word counting double (/contact-us → /contact,
+ * /products/two-post-lifts/donnington.html → /lifts/donnington). Empty when
+ * nothing shares a word — better a blank box than a wrong guess.
+ */
+function guessTarget(from, pages) {
+  const words = p => String(p).toLowerCase().split(/[\/_.?=&-]+/).filter(w => w.length > 1 && !/^(html?|php|aspx?|index|page|us|the|and)$/.test(w))
+  const old = words(from)
+  if (!old.length) return ''
+  const last = old[old.length - 1]
+  let best = '', bestScore = 0
+  for (const p of pages) {
+    const w = words(p)
+    const score = w.filter(x => old.includes(x)).length + (w[w.length - 1] === last ? 1 : 0)
+    if (score > bestScore) { best = p; bestScore = score }
+  }
+  return best
+}
+
+/** "/index.php?page=pricing" — the address as people knew it; redirects match on the part before "?". */
+const fullPath = u => { try { const x = new URL(u); return x.pathname + x.search } catch { return '' } }
+
+/**
+ * Ask where an old address should go, then add a permanent redirect to the
+ * same list SEO → Redirects manages. Resolves to the destination, or null.
+ */
+async function askRedirect(from, pages) {
+  const to = await promptDialog({
+    title: `Redirect ${from}`, label: 'Send visitors to', placeholder: '/new-page', datalist: pages,
+    value: guessTarget(from, pages),
+    help: 'A permanent (301) redirect — search engines pass the old page’s value on to the new one.',
+    confirmLabel: 'Add redirect',
+  })
+  if (!to?.trim()) return null
+  const target = to.trim()
+  if (!target.startsWith('/') && !/^https?:\/\//.test(target)) { toast('Start with / for a page on this site, or https:// for another site', 'err'); return null }
+  const current = (await get('/redirects')).redirects || []
+  if (current.some(r => r.from === from)) { toast(`${from} already redirects somewhere — see SEO → Redirects`, 'err'); return null }
+  current.push({ from, to: target, code: 301 })
+  await put('/redirects', { redirects: current })
+  toast(`Redirected ${from} → ${target}`, 'ok')
+  return target
+}
+
+/**
+ * Launch check. Before the real domain points here it still shows the old
+ * site, so Ahrefs describes the OLD site's addresses — this lists every one
+ * that earns search visits or links and that the new site would answer with
+ * "not found", so each can be redirected before the switch.
+ */
+function launchTab(cfg) {
+  return report(async f => {
+    const [d, pages] = await Promise.all([
+      quiet(`${X}/launch${f ? '?fresh=1' : ''}`),
+      api('/seo/audit', { quiet: true }).then(a => a.docs.map(x => x.path)).catch(() => []),
+    ])
+    return { ...d, pages }
+  }, (d, reload) => {
+    const holder = h('div')
+    let showAll = false
+    const paint = () => {
+      const rows = showAll ? d.rows : d.rows.filter(r => r.state !== 'exists')
+      holder.replaceChildren(rows.length
+        ? table([
+          { label: 'Address on ' + d.target, cell: r => h('div', {}, h('code.text-s.break-all', {}, fullPath(r.url) || r.path), h('div.row-sub', {}, extLink(r.url, 'open the live page'))) },
+          { label: 'Search visits', num: true, cell: r => num(r.visits) },
+          { label: 'Linking sites', num: true, cell: r => r.linkingSites ? h('span', { title: r.bestLinkDR != null ? `Strongest linking site: DR ${r.bestLinkDR}` : '' }, num(r.linkingSites)) : '—' },
+          { label: 'On the new site', cell: r => r.state === 'exists'
+            ? h('span.badge.badge-ok', {}, 'same address')
+            : r.state === 'redirected'
+              ? h('span.badge.badge-ok', { title: 'Redirect already set up' }, `→ ${r.redirectTo}`)
+              : h('span', {}, h('span.badge.badge-err', {}, 'not found'), ' ',
+                h('button.btn.soft.small', { onclick: async () => {
+                  const to = await askRedirect(r.path, d.pages)
+                  if (to) { r.state = 'redirected'; r.redirectTo = to; d.missing--; paint(); summary() }
+                } }, 'Redirect…')) },
+        ], rows)
+        : emptyState(icon('check', 24), 'Nothing will break', `Every address on ${d.target} that gets visits or links has a home on the new site.`))
+    }
+    const summaryEl = h('p.sub.mt-0')
+    const summary = () => summaryEl.replaceChildren(d.missing
+      ? h('span', {}, h('strong', {}, `${d.missing} ${d.missing === 1 ? 'address' : 'addresses'}`), ` on ${d.target} get visitors or links but don’t exist on this site. Redirect each to its new page before the domain switches over, and nothing is lost.`)
+      : `Every address on ${d.target} that Ahrefs knows gets visits or links is covered — by the same address here, or by a redirect.`)
+    summary(); paint()
+    return h('div', {},
+      h('div.ahx-bar', {}, freshness(d, reload),
+        h('label.field-check', {}, h('input', { type: 'checkbox', onchange: e => { showAll = e.target.checked; paint() } }), h('span', {}, 'Also show addresses that already work')),
+        csvLink('launch')),
+      summaryEl,
+      h('p.fnt.text-s', {}, `Checks the ${cfg.rows} busiest and ${cfg.rows} most-linked addresses Ahrefs knows for ${d.target}. Missing pictures and PDFs matter less; pages matter most.`),
+      holder)
   })
 }
 
@@ -486,6 +569,26 @@ function projectsTab(cfg) {
   return h('div', {}, seg([['audit', 'Site Audit'], ['ranks', 'Rank Tracker'], ['visits', 'Web Analytics']], sub, k => { sub = k; setPref('ahrefsProject', k); paint() }, 'Ahrefs tool'), body)
 }
 
+/**
+ * The studio is usually reached on a staging address (strongman.owhs.uk)
+ * while the real domain still shows the old site. Say what that means for
+ * Ahrefs in one place, so nobody has to work it out.
+ */
+function stagingNote() {
+  const real = (() => { try { return new URL(state.meta?.site?.url || '').hostname.replace(/^www\./, '') } catch { return '' } })()
+  const here = location.hostname.replace(/^www\./, '')
+  if (!real || real === here) return ''
+  return h('div.card.mb-4', {},
+    h('strong', {}, 'Before the site goes live on ' + real),
+    h('ul.ops-how-list', {},
+      h('li', {}, 'Reports are about ', h('strong', {}, real), ' — right now that’s the old site. That’s what you want: ',
+        h('button.ahx-kw', { onclick: () => hooks.ahrefsTab?.('launch') }, 'Launch check'),
+        ' lists its pages that people visit or link to, so each can be redirected before the switch.'),
+      h('li', {}, 'Web Analytics only counts visits on ', h('strong', {}, real), '. Views here on ', h('strong', {}, here), ' are never counted, and counting starts by itself the day ', real, ' points at this site.'),
+      h('li', {}, 'To verify ', real, ' in Ahrefs before then, choose the ', h('strong', {}, 'DNS record'), ' method in Ahrefs and add it in Cloudflare — the tag below only works once the new site is live on ', real, '.'),
+      h('li', {}, 'The address used for all of this is the site’s own, set under ', h('a', { href: '#/settings' }, 'Settings'), '. Nothing here needs changing at launch.')))
+}
+
 function setupTab(cfg, reloadPanel) {
   const v = { ...cfg, apiKey: '' }
   // Each control is named by its label (not its placeholder) for screen readers.
@@ -559,6 +662,7 @@ function setupTab(cfg, reloadPanel) {
           if (!(await confirmDialog('Remove the API key?', 'Reports stop until a new key is added. Nothing on the live site changes.', 'Remove'))) return
           await del(`${X}/config/key`); toast('Key removed', 'ok'); reloadPanel('setup')
         } }, 'Remove key')) : ''),
+    stagingNote(),
     h('div.card.mb-4', {},
       h('strong', {}, 'What to report on'),
       field('Site', bind('target', { placeholder: cfg.resolvedTarget || 'example.com' }), `Leave empty to use this site’s own address${cfg.resolvedTarget ? ` (${cfg.resolvedTarget})` : ''}.`),
@@ -589,7 +693,7 @@ function setupTab(cfg, reloadPanel) {
 
 export async function ahrefsPanel() {
   const root = h('div.ahx')
-  const TABS = [['overview', 'Overview'], ['links', 'Backlinks'], ['keywords', 'Keywords'], ['pages', 'Pages'], ['research', 'Research'], ['projects', 'Projects'], ['setup', 'Setup']]
+  const TABS = [['overview', 'Overview'], ['launch', 'Launch check'], ['links', 'Backlinks'], ['keywords', 'Keywords'], ['pages', 'Pages'], ['research', 'Research'], ['projects', 'Projects'], ['setup', 'Setup']]
 
   const build = async tab => {
     let cfg
@@ -605,6 +709,7 @@ export async function ahrefsPanel() {
           : k === 'links' ? backlinksTab()
           : k === 'keywords' ? keywordsTab()
           : k === 'pages' ? pagesTab()
+          : k === 'launch' ? launchTab(cfg)
           : k === 'research' ? researchTab(cfg, arg ?? prefs().ahrefsLastKeyword ?? '')
           : k === 'projects' ? projectsTab(cfg)
           : setupTab(cfg, build))

@@ -312,6 +312,12 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
           // candidate when the full URL has gone stale.
           port: Number(p2.port) || 0,
           studioUrl: String(p2.url || '').replace(/\/+$/, ''),
+          // Where a person's browser should go. On a server the registry `url`
+          // is the studio's internal address (http://localhost:8801) — right
+          // for the liveness knock below, useless as a link from anyone else's
+          // computer. `publicUrl` (`blockhouse sites add --public-url`) is the
+          // address the studio is published on, e.g. https://automatic.owhs.uk.
+          publicUrl: String(p2.publicUrl || '').replace(/\/+$/, ''),
           current: !!current && norm(p2.dir) === current,
         }
       })
@@ -387,6 +393,18 @@ export function apiRoutes(env: BlockhouseEnv): Hono {
           taken.add(u)
           break
         }
+      }
+      // The link itself. A viewer on this machine can follow a localhost
+      // address; anyone else gets the public one or, when there is none, no
+      // link at all — a link to "localhost" on someone else's computer opens
+      // nothing, or worse, whatever they happen to be running.
+      const isLocal = (u: string) => { try { return /^(localhost|127\.|\[::1\])/.test(new URL(u).hostname) } catch { return false } }
+      // Behind a tunnel or proxy the request can look local even though the
+      // person is miles away; anything that came through one isn't.
+      const viewerLocal = isLocal(selfOrigin) && !c.req.header('cf-ray') && !c.req.header('x-forwarded-for')
+      for (const p2 of projects as any[]) {
+        const internal = p2.studioUrl
+        p2.openUrl = p2.publicUrl || (!isLocal(internal) || viewerLocal ? internal : '')
       }
       return c.json({ projects })
     } catch { return c.json({ projects: [] }) }

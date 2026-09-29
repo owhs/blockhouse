@@ -805,6 +805,11 @@ button.preview-scale:hover { border-color: var(--acc); color: var(--ink); opacit
    Must sit BEFORE the breakpoints, or it wins at every width. */
 .nav-toggle, .panel-toggle { display: none; }
 
+/* ==== Sync & Backups: the "how this page works" explainer ==== */
+.ops-how > summary { cursor: pointer; list-style-position: inside; }
+.ops-how-list { margin: var(--s3) 0 0; padding-left: 1.2rem; display: grid; gap: var(--s2); color: var(--mut); }
+.ops-how-list strong { color: var(--ink); }
+
 /* ==== Ahrefs panel (ahrefs.js) ==== */
 .ahx-tabs, .ahx-seg { flex-wrap: wrap; max-width: 100%; }
 .ahx-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }

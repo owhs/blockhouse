@@ -676,12 +676,14 @@ async function openSiteSwitcher() {
   // R10-6 — a port number is developer text. What a person can act on is
   // whether the other studio is on this computer or on someone else's.
   const onThisComputer = p => {
-    const hn = hostOf(p.foundAt || p.studioUrl)
+    const hn = hostOf(p.openUrl)
     return !!hn && hn === location.hostname
   }
+  // p.openUrl is where this browser can actually go (the server leaves it
+  // empty rather than hand out someone else's "localhost").
   const where = p => p.current ? 'This studio'
     : onThisComputer(p) ? 'the other studio on this computer'
-      : `the studio at ${hostOf(p.studioUrl) || pretty(p.studioUrl)}`
+      : pretty(p.openUrl)
   // Two sites can share a name — both of these are called "Strongman Lifts".
   // The web address tells them apart, and when even that is close, the folder
   // each one lives in does, said as a plain label rather than a path.
@@ -697,20 +699,27 @@ async function openSiteSwitcher() {
           h('span.row-ico', { html: icon('check', 15) }),
           h('span.row-label', {}, ...label(p)),
           h('span.fnt.text-xs.ml-auto', {}, 'You are here'))
+        : !p.openUrl
+          // Runs on the server, but nobody has said what web address its
+          // studio is published at — so there is nothing this browser can open.
+          ? h('div.row-item.site-sw-off', {},
+            h('span.row-ico', { html: icon('globe', 15) }),
+            h('span.row-label', {}, ...label(p)),
+            h('span.fnt.text-xs.ml-auto', {}, 'Its studio has no web address set yet, so it can’t be opened from here. Whoever looks after the server can add one.'))
         : p.alive === false
           // A link to a studio that is not listening ends in a browser
           // connection error with nothing from us in it. Say it plainly
           // instead, and say where it would have been, so it can be started
           // by hand. The registry can be out of date, and only the person
           // knows where it moved to, so the row stays clickable.
-          ? h('a.row-item.site-sw-off.no-underline', { href: (p.studioUrl || '') + '/admin/' },
+          ? h('a.row-item.site-sw-off.no-underline', { href: p.openUrl + '/admin/' },
             h('span.row-ico', { html: icon('globe', 15) }),
             h('span.row-label', {}, ...label(p)),
             h('span.fnt.text-xs.ml-auto', {},
               onThisComputer(p)
                 ? 'Its studio is not running on this computer. Start it, then try again.'
-                : `Its studio is not answering at ${hostOf(p.studioUrl) || pretty(p.studioUrl)}. Open it from wherever that site's studio is running.`))
-          : h('a.row-item.no-underline', { href: (p.studioUrl || '') + '/admin/' },
+                : `Its studio is not answering at ${pretty(p.openUrl)}. It may be restarting — try again in a minute.`))
+          : h('a.row-item.no-underline', { href: p.openUrl + '/admin/' },
             h('span.row-ico', { html: icon('globe', 15) }),
             h('span.row-label', {}, ...label(p)),
             h('span.fnt.text-xs.ml-auto', {},

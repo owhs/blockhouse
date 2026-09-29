@@ -12,11 +12,21 @@ The Ahrefs app (`plugins/ahrefs`) puts a site's Ahrefs data in the studio, under
    - **Verification tag**: paste the whole `<meta name="ahrefs-site-verification" …>` tag from Ahrefs Webmaster Tools. It goes into every page's `<head>`.
    - **Count visitors with Ahrefs Web Analytics**: loads Ahrefs' cookieless script on live pages and adds `analytics.ahrefs.com` to the CSP. When the consent banner is on, the script waits until the visitor accepts analytics.
 
+## Staging first, real domain later
+
+The usual path: the new site is built on a staging address (`strongman.owhs.uk`) while the real domain (`strongmanlifts.co.uk`) still shows the old site. Set the site's address in **Settings** to the real domain from day one; everything Ahrefs does keys off that, and nothing needs changing at launch.
+
+- **Reports** describe the real domain, which before launch means the old site. **Launch check** turns that into a to-do list: every old address with search visits or links from other sites that the new site doesn't have, each with a **Redirect…** button (the destination is pre-filled with a best guess). Work through it before the domain switches and nothing is lost.
+- **Web Analytics** decides in the visitor's browser: it only loads when the page is being viewed on the real domain (with or without `www.`). Staging views are never counted, and counting starts by itself on launch day.
+- **Verification**: before launch, verify the domain in Ahrefs with the **DNS record** method (add it in Cloudflare). The meta tag only works once the new site is live on the domain.
+- Setup shows a short version of this whenever the studio is opened on an address other than the site's own.
+
 ## What's in it
 
 | Tab | Shows | Ahrefs endpoint(s) |
 | --- | --- | --- |
 | Overview | DR, referring domains, backlinks, search traffic, a year of history, the site's own daily record | `site-explorer/domain-rating`, `backlinks-stats`, `metrics`, `*-history` |
+| Launch check | Addresses on the real domain with visits or links that this site would answer with "not found", with one-click redirects | `top-pages` (shared with Pages), `pages-by-backlinks` |
 | Backlinks | New / lost (30 days), best links, referring domains, anchor text, **broken backlinks** | `all-backlinks`, `refdomains`, `anchors`, `broken-backlinks` |
 | Keywords | What the site ranks for, with 30-day movement | `organic-keywords` |
 | Pages | Top pages by search traffic, linked to their studio page; competing sites | `top-pages`, `organic-competitors` |

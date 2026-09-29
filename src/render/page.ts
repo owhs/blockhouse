@@ -216,7 +216,9 @@ async function assemble(env: BlockhouseEnv, ctx: RenderCtx, main: string, meta: 
     // The verification tag must be on every rendering Ahrefs might fetch; the
     // analytics script only on live pages, so the studio never counts itself.
     const s = (site.plugins.ahrefs as any).settings || {}
-    ahrefsHead = headHtml(ctx.mode === 'live' ? s : { ...s, loadAnalytics: false }, { consentGate: consentOn })
+    // productionHost: analytics only ever counts on the site's real address,
+    // never on a staging hostname serving the same pages.
+    ahrefsHead = headHtml(ctx.mode === 'live' ? s : { ...s, loadAnalytics: false }, { consentGate: consentOn, productionHost: site.url || '' })
   }
   const runtime = `<script type="module" src="/assets/blockhouse/runtime.js?v=${(env as any).assetVersion || '1'}"></script>${beacon}`
   const adminP = String(site.security?.adminPath || 'admin').replace(/[^a-zA-Z0-9_-]/g, '') || 'admin'

@@ -47,6 +47,7 @@ async function main() {
       target: { type: 'string' }, deep: { type: 'boolean', default: false },
       json: { type: 'boolean', default: false }, fail: { type: 'boolean', default: false },
       force: { type: 'boolean', default: false }, env: { type: 'string' },
+      'public-url': { type: 'string' },
       rotate: { type: 'boolean', default: false },
     },
   })
@@ -205,8 +206,13 @@ async function main() {
       if (sub === 'add') {
         requireSite(dir)
         const site = JSON.parse(readFileSync(resolve(dir, 'site/site.json'), 'utf8'))
+        // Re-adding a site (weft-site-ctl does it on every `add`) keeps the
+        // public studio address it already had unless a new one is given.
+        const prev = reg.projects.find((p: any) => p.dir === dir) || {}
+        const publicUrl = String(values['public-url'] || prev.publicUrl || '').replace(/\/+$/, '')
+        if (publicUrl && !/^https?:\/\//.test(publicUrl)) fail('--public-url must start with https:// (e.g. https://automatic.owhs.uk)')
         reg.projects = reg.projects.filter((p: any) => p.dir !== dir)
-        reg.projects.push({ dir, label: values.name || site.name || dir, url: `http://localhost:${values.port || 8787}` })
+        reg.projects.push({ dir, label: values.name || site.name || dir, url: `http://localhost:${values.port || prev.url?.split(':').pop() || 8787}`, ...(publicUrl ? { publicUrl } : {}) })
         saveReg(reg)
         console.log(`  ✓ registered ${dir} (${reg.projects.length} site(s) in ~/.blockhouse-projects.json)`)
       } else if (sub === 'remove') {
@@ -214,7 +220,7 @@ async function main() {
         saveReg(reg)
         console.log('  ✓ removed')
       } else {
-        for (const p of reg.projects) console.log(`  ${p.label.padEnd(24)} ${p.dir}  ${p.url || ''}`)
+        for (const p of reg.projects) console.log(`  ${p.label.padEnd(24)} ${p.dir}  ${p.url || ''}${p.publicUrl ? `  → ${p.publicUrl}` : ''}`)
         if (!reg.projects.length) console.log('  no sites registered — blockhouse sites add --dir <site> --port 8787')
       }
       process.exit(0)

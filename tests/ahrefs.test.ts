@@ -3,7 +3,7 @@
 import { test, expect } from 'bun:test'
 import { Hono } from '../src/vendor/http.ts'
 import {
-  register, normaliseTarget, explainError, toCsv, diffSnapshots, headHtml,
+  register, normaliseTarget, explainError, toCsv, diffSnapshots, headHtml, bareHost,
 } from '../../plugins/ahrefs/index.ts'
 
 type Call = { path: string; params: URLSearchParams; auth: string | null }
@@ -32,6 +32,12 @@ function harness(opts: { units?: number; usage?: number; fail?: number } = {}) {
       '/site-explorer/metrics-history': { metrics: [{ date: '2026-01-01', org_traffic: 90 }] },
       '/site-explorer/organic-keywords': { keywords: [{ keyword: 'two post lift', best_position: 3, volume: 1000 }] },
       '/site-explorer/top-pages': { pages: [{ url: 'https://www.strongman.test/lifts/tongland/', sum_traffic: 50 }, { url: 'https://www.strongman.test/gone', sum_traffic: 5 }] },
+      '/site-explorer/pages-by-backlinks': { pages: [
+        { url_to: 'https://www.strongman.test/products/donnington.html', refdomains_target: 12, top_domain_rating_source: 61 },
+        { url_to: 'https://www.strongman.test/old-brochure', refdomains_target: 3, top_domain_rating_source: 20 },
+        { url_to: 'https://www.strongman.test/gone', refdomains_target: 1, top_domain_rating_source: 5 },
+        { url_to: 'https://www.strongman.test/', refdomains_target: 40, top_domain_rating_source: 80 },
+      ] },
       '/site-explorer/all-backlinks': { backlinks: [{ url_from: 'https://a.test/x', url_to: 'https://www.strongman.test/' }] },
       '/keywords-explorer/overview': { keywords: [{ keyword: u.searchParams.get('keywords'), volume: 4400, difficulty: 23 }] },
     }
@@ -52,6 +58,8 @@ function harness(opts: { units?: number; usage?: number; fail?: number } = {}) {
       site: async () => site,
       content: {
         docPath: async (d: any) => d.path,
+        concepts: async () => [{ name: 'lift', indexPath: '/lifts' }],
+        redirects: async () => [{ from: '/old-brochure', to: '/brochure', code: 301 }],
         saveSite: async (patch: any) => { site = { ...site, ...patch } },
       },
     },
@@ -97,13 +105,38 @@ test('ahrefs: snapshot diff reports only meaningful moves', () => {
 })
 
 test('ahrefs: head tags are sanitised and consent-aware', () => {
+  const prod = { productionHost: 'https://www.strongmanlifts.co.uk' }
   expect(headHtml({})).toBe('')
   expect(headHtml({ verification: 'abc"><script>' })).toBe('<meta name="ahrefs-site-verification" content="abcscript">')
-  expect(headHtml({ analyticsKey: 'K1', loadAnalytics: false })).toBe('')
-  expect(headHtml({ analyticsKey: 'K1', loadAnalytics: true })).toContain('data-key="K1" async')
-  const gated = headHtml({ analyticsKey: 'K1', loadAnalytics: true }, { consentGate: true })
+  expect(headHtml({ analyticsKey: 'K1', loadAnalytics: false }, prod)).toBe('')
+  expect(headHtml({ analyticsKey: 'K1', loadAnalytics: true })).toBe('')          // no real address known → never count
+  const on = headHtml({ analyticsKey: 'K1', loadAnalytics: true }, prod)
+  expect(on).toContain('"strongmanlifts.co.uk"')                                  // www. stripped
+  expect(on).toContain("setAttribute('data-key',\"K1\")")
+  expect(on).not.toContain('<script src=')
+  const gated = headHtml({ analyticsKey: 'K1', loadAnalytics: true }, { ...prod, consentGate: true })
   expect(gated).toContain("indexOf('analytics')<0")
-  expect(gated).not.toContain('<script src=')
+})
+
+test('ahrefs: analytics only loads on the real domain, never on staging', () => {
+  const html = headHtml({ analyticsKey: 'K1', loadAnalytics: true }, { productionHost: 'https://strongmanlifts.co.uk' })
+  const code = /<script>([\s\S]*)<\/script>/.exec(html)![1]
+  const run = (hostname: string) => {
+    const appended: any[] = []
+    const doc = { cookie: '', createElement: () => ({ setAttribute() {} }), head: { appendChild: (x: any) => appended.push(x) } }
+    new Function('location', 'document', code)({ hostname }, doc)
+    return appended.length
+  }
+  expect(run('strongmanlifts.co.uk')).toBe(1)
+  expect(run('www.strongmanlifts.co.uk')).toBe(1)
+  expect(run('strongman.owhs.uk')).toBe(0)
+  expect(run('localhost')).toBe(0)
+})
+
+test('ahrefs: bareHost', () => {
+  expect(bareHost('https://WWW.Example.co.uk/path')).toBe('example.co.uk')
+  expect(bareHost('example.com')).toBe('example.com')
+  expect(bareHost('')).toBe('')
 })
 
 // ---------- client + routes ----------
@@ -230,4 +263,24 @@ test('ahrefs: csv export reuses the on-screen answer', async () => {
   expect(res.headers.get('content-type')).toContain('text/csv')
   expect((await res.text()).split('\n')[0]).toBe('keyword,best_position,volume')
   expect(t.calls.length).toBe(1)          // served from cache
+})
+
+test('ahrefs: launch check finds the old addresses the new site would 404', async () => {
+  const t = harness()
+  t.secure.set('apiKey', 'k')
+  const r = await t.req('GET', '/launch')
+  expect(r.status).toBe(200)
+  const by = Object.fromEntries(r.json.rows.map((x: any) => [x.path, x]))
+  expect(by['/lifts/tongland'].state).toBe('exists')            // a studio page (trailing slash ignored)
+  expect(by['/'].state).toBe('exists')
+  expect(by['/old-brochure']).toMatchObject({ state: 'redirected', redirectTo: '/brochure' })
+  expect(by['/products/donnington.html']).toMatchObject({ state: 'missing', linkingSites: 12, bestLinkDR: 61 })
+  expect(by['/gone']).toMatchObject({ state: 'missing', visits: 5, linkingSites: 1 })  // merged from both reports
+  expect(r.json.missing).toBe(2)
+  expect(r.json.rows[0].path).toBe('/products/donnington.html')  // missing first, most valuable first
+  const pbb = t.calls.find(c => c.path === '/site-explorer/pages-by-backlinks')!
+  expect(pbb.params.get('select')).toBe('url_to,refdomains_target,top_domain_rating_source,http_code_target')
+  // the Pages report's answer is reused, not fetched again
+  await t.req('GET', '/pages')
+  expect(t.calls.filter(c => c.path === '/site-explorer/top-pages').length).toBe(1)
 })
