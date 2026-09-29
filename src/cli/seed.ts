@@ -444,11 +444,10 @@ export async function seedDemo(dir: string) {
 
 async function seedRows(dir: string) {
   const { join } = await import('node:path')
-  const { existsSync, mkdirSync } = await import('node:fs')
-  const { openSqlite, jsonFallback } = await import('../secure/sql.ts')
+  const { openSqlite, jsonFallback, privateStateDir } = await import('../secure/sql.ts')
   const { SecureStore } = await import('../secure/store.ts')
   const stateDir = join(dir, '.blockhouse')
-  if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true })
+  await privateStateDir(stateDir)
   const sql = (await openSqlite(join(stateDir, 'secure.db'))) ?? jsonFallback(new FsDriver(dir))
   const secure = new SecureStore(sql)
   await secure.migrate()

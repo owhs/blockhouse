@@ -146,6 +146,15 @@ async function secrets({ dir, env }: Ctx): Promise<Check[]> {
   } else {
     out.push({ group: 'Secrets', label: 'Cookie secret', level: 'warn', detail: 'not generated yet', fix: 'Starts on first boot. In containers set BLOCKHOUSE_SECRET so sessions survive a restart.' })
   }
+  const stateDir = join(dir, '.blockhouse')
+  if (process.platform !== 'win32' && existsSync(stateDir)) {
+    const mode = statSync(stateDir).mode & 0o777
+    out.push({
+      group: 'Secrets', label: 'State directory', level: mode & 0o077 ? 'fail' : 'ok',
+      detail: `.blockhouse/ (mode ${mode.toString(8).padStart(3, '0')}) — users, sessions, tokens, sealed secrets`,
+      fix: mode & 0o077 ? `chmod 700 ${stateDir} — other users on this machine can currently read secure.db` : undefined,
+    })
+  }
   if (env.secret === 'change-me') {
     out.push({ group: 'Secrets', label: 'Default secret in use', level: 'fail', detail: 'sessions can be forged', fix: 'Set BLOCKHOUSE_SECRET (Workers: wrangler secret put BLOCKHOUSE_SECRET)' })
   }

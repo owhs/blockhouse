@@ -39,6 +39,22 @@ export async function openSqlite(path: string): Promise<SqlAdapter | null> {
   return null
 }
 
+// .blockhouse/ holds password hashes, sessions, AI tokens and sealed secrets,
+// so only the owning user may enter it. Creates it 0700, and tightens an
+// existing directory and secure.db (+ -wal/-shm) left group/world-readable by
+// older versions. POSIX only; a failed chmod (not the owner) is left to doctor.
+export async function privateStateDir(stateDir: string): Promise<void> {
+  const { existsSync, mkdirSync, statSync, chmodSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true, mode: 0o700 })
+  if (process.platform === 'win32') return
+  const lock = (p: string, mode: number) => {
+    try { if (existsSync(p) && statSync(p).mode & 0o077) chmodSync(p, mode) } catch {}
+  }
+  lock(stateDir, 0o700)
+  for (const f of ['secure.db', 'secure.db-wal', 'secure.db-shm', 'secure.json']) lock(join(stateDir, f), 0o600)
+}
+
 export function d1Adapter(d1: any): SqlAdapter {
   return {
     kind: 'd1',

@@ -2,11 +2,11 @@
 // serves via Bun.serve or the vendored node:http adapter.
 
 import { join } from 'node:path'
-import { watch, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { watch, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { FsDriver } from '../storage/fs.ts'
 import { SecureStore } from '../secure/store.ts'
-import { openSqlite, jsonFallback } from '../secure/sql.ts'
+import { openSqlite, jsonFallback, privateStateDir } from '../secure/sql.ts'
 import { buildEnv, type BlockhouseEnv } from './env.ts'
 import { buildApp } from './app.ts'
 import { notifyReload } from './api.ts'
@@ -21,7 +21,7 @@ const SHARED_ROOT = join(PKG_ROOT, '..')
 
 export async function createNodeEnv(projectDir: string, opts: { dev?: boolean; envName?: string } = {}): Promise<BlockhouseEnv> {
   const stateDir = join(projectDir, '.blockhouse')
-  if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true })
+  await privateStateDir(stateDir)
 
   // secret for cookie signing — generated once per project
   const secretFile = join(stateDir, 'secret')
