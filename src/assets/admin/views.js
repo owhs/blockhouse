@@ -1837,124 +1837,84 @@ const CUSTOM_SECTIONS = {
       holder)
   },
 
-  // Sync & Backups, in the words of the person running the site rather than
-  // the tools underneath. Git is how it works, never what it says: a commit is
-  // "a saved version", a branch is "a checkpoint", master/main is "the main
-  // version", and every error the server reports in git's words is turned
-  // into what to do next.
+  // Versions & backups, in the words of the person running the site rather
+  // than the tools underneath. Git is how it works, never what it says: a
+  // commit is "a saved version", a tag is "a named version", and going back
+  // to a version is itself a new saved version — one timeline, nothing lost.
   ops: Object.assign(async () => {
-    const statusHolder = h('div', {}, skeleton('rows', 3))
-    const branchesHolder = h('div', {}, skeleton('rows', 3))
+    const versionsHolder = h('div', {}, skeleton('rows', 4))
     const backupsHolder = h('div', {}, skeleton('rows', 4))
     const canRestore = state.user.role === 'admin' || state.user.role === 'owner' || (state.user.grants || []).includes('settings.write')
-    const note = h('input.input.w-full', { placeholder: 'What did you change? (optional) — e.g. new prices on the lifts pages', 'aria-label': 'What did you change?' })
+    const when = at => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    const said = m => (/^Saved from the studio/.test(m || '') ? 'saved from the studio' : m)
 
-    const MAIN = new Set(['master', 'main'])
-    const nameOf = br => (MAIN.has(br) ? 'the main version' : `“${br}”`)
-    const said = m => (/^sync from Studio/.test(m || '') ? 'saved from the studio' : `“${m}”`)
     /** Server messages are written for developers; say what they mean here. */
     const plain = msg => {
       const m = String(msg || '')
-      if (/uncommitted changes/.test(m)) return 'There are changes that aren’t saved as a version yet. Save a version first, then try again.'
       if (/not a git repository|no filesystem/.test(m)) return 'Saving versions isn’t set up for this site. Whoever looks after the server can turn it on.'
-      if (/already exists/.test(m)) return 'There’s already a checkpoint with that name — pick another.'
-      if (/invalid branch name/.test(m)) return 'Use letters, numbers and dashes for the name.'
+      if (/invalid version name/.test(m)) return 'Use lowercase letters, numbers and dashes for the name.'
       if (/backups are disabled/.test(m)) return 'Backups are turned off — turn them on under Settings → Apps → Backups.'
-      if (/permission required/.test(m)) return 'Only an owner or admin can restore a backup.'
+      if (/permission required/.test(m)) return 'Only an owner or admin can do that.'
+      if (/Permission denied|EACCES|unable to (write|create)/i.test(m)) return `The server would not let the studio write to the version history. Tell whoever looks after the server; the exact message was: ${m}`
       return m
     }
     const call = (path, body) => api(path, { method: 'POST', body: body || {}, quiet: true }).catch(e => ({ error: plain(e.data?.error || e.message) }))
 
-    const refreshStatus = async () => {
-      const s = await api('/x/ops/status', { quiet: true }).catch(() => ({ git: false }))
-      if (!s.git) {
-        statusHolder.replaceChildren(emptyState(icon('warn', 22), 'Saving versions isn’t set up here',
+    // A failure in a safety control must stay on screen, not flash past in a toast.
+    const problem = h('div.notice.notice-err.mb-3', { hidden: true })
+    const showProblem = text => { problem.textContent = text; problem.hidden = !text }
+
+    const nameInput = h('input.input.w-full', { placeholder: 'Name it (optional) — e.g. before-price-changes', 'aria-label': 'Version name', maxlength: 40 })
+
+    const refreshVersions = async () => {
+      const v = await api('/x/ops/versions', { quiet: true }).catch(e => ({ git: false, why: e.data?.error || e.message }))
+      if (!v.git) {
+        versionsHolder.replaceChildren(emptyState(icon('warn', 22), 'Saving versions isn’t set up here',
           'This site’s files aren’t being kept in version history. Whoever looks after the server can turn it on — backups below still work.'))
         return
       }
-      const saveBtn = h('button.btn.primary', { onclick: async e => {
-        const b = e.currentTarget; b.disabled = true
-        const message = note.value.trim()
-        const res = await call('/x/ops/sync', message ? { message } : {})
+      const save = h('button.btn.primary', { onclick: async e => {
+        const b = e.currentTarget; b.disabled = true; showProblem('')
+        const name = nameInput.value.trim().toLowerCase().replace(/\s+/g, '-')
+        const res = await call('/x/ops/sync', name ? { name } : {})
         b.disabled = false
-        if (res.error) return toast(res.error, 'err', 6000)
-        toast(res.synced ? 'Saved — this is now a version you can come back to' : 'Nothing has changed since the last saved version', res.synced ? 'ok' : undefined, 4000)
-        note.value = ''
-        refreshStatus(); refreshBranches()
+        if (res.error) return showProblem(`Could not save: ${res.error}`)
+        if (res.synced) toast(res.named ? `Saved as “${res.named}”` : 'Saved — this is now a version you can come back to', 'ok', 4000)
+        else if (res.named) toast(`Nothing had changed, so the current version is now called “${res.named}”`, 'ok', 5000)
+        else toast('Nothing has changed since the last saved version', undefined, 4000)
+        nameInput.value = ''
+        refreshVersions()
       } }, iconEl('save', 14), 'Save a version now')
-      statusHolder.replaceChildren(
+
+      const goBack = async ver => {
+        const label = ver.names[0] ? `“${ver.names[0]}”` : `the version from ${when(ver.at)}`
+        const extra = v.dirty ? ' Your unsaved changes are saved as a version first, so they are not lost.' : ''
+        if (!(await confirmDialog(`Go back to ${label}?`,
+          `Every page, menu, setting and design choice goes back to how it was then.${extra} This is recorded as a new version, so you can return to today at any time.`, 'Go back'))) return
+        showProblem('')
+        const res = await call(`/x/ops/versions/${ver.hash}/restore`)
+        if (res.error) return showProblem(`Could not go back: ${res.error}`)
+        toast(`Done — the site is now as it was in ${label}`, 'ok', 6000)
+        refreshVersions()
+      }
+
+      const rows = v.versions.map((ver, idx) => h('tr.cursor-default', {},
+        h('td', { 'data-label': '' },
+          ver.names.length ? h('strong', {}, ver.names.join(', ')) : h('span.mut', {}, said(ver.message)),
+          idx === 0 ? h('span.badge.badge-ok.ml-2', {}, 'current') : ''),
+        h('td.mut.text-s', { 'data-label': 'Saved' }, h('span', { title: when(ver.at) }, ver.date)),
+        h('td.ta-r', { 'data-label': '' }, idx === 0 || !canRestore ? '' : h('button.btn.ghost.small', { onclick: () => goBack(ver) }, 'Go back to this'))))
+
+      versionsHolder.replaceChildren(
         h('p.sub.mt-0', {},
-          s.lastCommit ? `Last saved ${s.lastCommit.date}: ${said(s.lastCommit.message)}.` : 'Nothing has been saved as a version yet.',
-          ' ',
-          s.dirty
-            ? h('strong', {}, `${s.dirty} ${s.dirty === 1 ? 'change' : 'changes'} since then, not saved as a version yet.`)
+          v.versions[0] ? `Last saved ${v.versions[0].date}. ` : 'Nothing has been saved as a version yet. ',
+          v.dirty
+            ? h('strong', {}, `${v.dirty} ${v.dirty === 1 ? 'change' : 'changes'} since then, not saved yet.`)
             : 'Everything is saved.'),
-        h('div.d-flex.gap-2.wrap.mt-2', {}, note, saveBtn))
-    }
-
-    // ----- checkpoints: "undo without losing it" keeps the work, never deletes -----
-    const refreshBranches = async () => {
-      const b = await api('/x/ops/branches', { quiet: true }).catch(() => ({ git: false, branches: [] }))
-      if (!b.git) { branchesHolder.replaceChildren(''); return }
-      const mainName = b.branches.map(x => x.name).find(n => MAIN.has(n)) || 'master'
-
-      const saveCheckpoint = () => {
-        const nameInput = h('input.input', { placeholder: 'e.g. new-homepage, summer-prices', autofocus: true })
-        dialog({
-          title: 'Save a checkpoint',
-          body: h('div', {},
-            h('p.dlg-text', {}, 'Saves the site exactly as it is now under a name, so you can try something and still get back here. Visitors see no change.'),
-            h('div.field', {}, h('label', {}, 'Name it'), nameInput)),
-          actions: [{ label: 'Save checkpoint', kind: 'primary', onClick: async () => {
-            const name = nameInput.value.trim()
-            if (!name) { nameInput.focus(); return false }
-            const res = await call('/x/ops/branches', { name })
-            if (res.error) { toast(res.error, 'err', 6000); return false }
-            toast(`Checkpoint “${res.branch}” saved — you’re now working on it`, 'ok', 5000)
-            refreshBranches(); refreshStatus(); return true
-          } }],
-        })
-      }
-
-      const undoWork = async () => {
-        const onCheckpoint = current && !MAIN.has(current.name)
-        const kept = b.dirty
-          ? ' Nothing is deleted: the changes you haven’t saved yet are kept as a checkpoint you can switch back to from this page.'
-          : onCheckpoint ? ` The checkpoint ${nameOf(current.name)} stays in the list, so you can come back to it.` : ''
-        const msg = `The site goes back to ${nameOf(mainName)} as it was last saved.${kept}`
-        if (!(await confirmDialog(onCheckpoint ? `Go back to ${nameOf(mainName)}?` : 'Undo unsaved changes?', msg, onCheckpoint ? 'Go back' : 'Undo changes'))) return
-        const res = await call('/x/ops/branches/cancel', { revertTo: mainName })
-        if (res.error) return toast(res.error, 'err', 6000)
-        toast(res.savedBranch ? `Undone. Your changes are kept as the checkpoint “${res.savedBranch}”.` : `Back to ${nameOf(res.revertedTo)}`, 'ok', 6000)
-        refreshBranches(); refreshStatus()
-      }
-
-      const useCheckpoint = async br => {
-        if (!(await confirmDialog(`Switch to ${nameOf(br.name)}?`,
-          `The site — pages, settings and design — will show ${nameOf(br.name)} as it was last saved (${br.date}). You can switch back at any time.`, 'Switch'))) return
-        const res = await call(`/x/ops/branches/${encodeURIComponent(br.name)}/checkout`)
-        if (res.error) return toast(res.error, 'err', 6000)
-        toast(`Now showing ${nameOf(res.branch)}`, 'ok'); refreshBranches(); refreshStatus()
-      }
-
-      const current = b.branches.find(x => x.current)
-      branchesHolder.replaceChildren(
-        h('p.sub.mt-0', {}, current ? `You’re working on ${nameOf(current.name)}.` : ''),
-        b.branches.length > 1 ? h('div.table-wrap', {}, h('table.data-table.cards-sm', {},
-          h('thead', {}, h('tr', {}, h('th', {}, 'Checkpoint'), h('th', {}, 'Last saved'), h('th', {}, ''))),
-          h('tbody', {}, ...b.branches.map(br => h('tr.cursor-default', {},
-            h('td', { 'data-label': '' }, MAIN.has(br.name) ? h('strong', {}, 'Main version') : br.name,
-              br.current ? h('span.badge.badge-ok.ml-2', {}, 'in use') : ''),
-            h('td.mut.text-s', { 'data-label': 'Last saved' }, `${br.date} — ${said(br.message)}`),
-            h('td.ta-r', { 'data-label': '' },
-              br.current ? '' : h('button.btn.ghost.small', { onclick: () => useCheckpoint(br) }, 'Switch to this')))))))
-          : h('p.fnt.text-s', {}, 'No checkpoints yet. Save one before trying something you might want to take back.'),
-        h('div.mt-3.d-flex.gap-2.wrap', {},
-          h('button.btn.ghost.small', { onclick: saveCheckpoint }, iconEl('plus', 13), 'Save a checkpoint'),
-          b.dirty || (current && !MAIN.has(current.name))
-            ? h('button.btn.ghost.small', { onclick: undoWork }, iconEl('undo', 13),
-              current && !MAIN.has(current.name) ? `Go back to ${nameOf(mainName)}` : 'Undo changes since the last saved version')
-            : ''))
+        h('div.d-flex.gap-2.wrap.mt-2.mb-3', {}, nameInput, save),
+        rows.length ? h('div.table-wrap', {}, h('table.data-table.cards-sm', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'Version'), h('th', {}, 'Saved'), h('th', {}, ''))),
+          h('tbody', {}, ...rows))) : '')
     }
 
     const size = n => (n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
@@ -1967,11 +1927,11 @@ const CUSTOM_SECTIONS = {
         h('div.mb-3.d-flex.gap-2.wrap', {},
           backupLabel,
           h('button.btn.ghost', { onclick: async e => {
-            const btn = e.currentTarget; btn.disabled = true
+            const btn = e.currentTarget; btn.disabled = true; showProblem('')
             const label = backupLabel.value.trim().toLowerCase().replace(/\s+/g, '-')
             const res = await call('/x/ops/backups/run', label ? { label } : {})
             btn.disabled = false
-            if (res.error) toast(res.error, 'err', 6000)
+            if (res.error) showProblem(`Could not back up: ${res.error}`)
             else if (res.skipped) toast('Nothing has changed since the last backup, so no new one was needed', undefined, 5000)
             else { toast('Backup made', 'ok'); backupLabel.value = ''; refreshBackups() }
           } }, iconEl('download', 14), 'Back up now')),
@@ -1981,30 +1941,32 @@ const CUSTOM_SECTIONS = {
             h('td', { 'data-label': '' }, b.kind === 'prerestore'
               ? h('span', { title: 'Made automatically just before a restore, so the restore itself can be undone' }, h('span.badge.badge-warn', {}, 'safety copy'), ' before a restore')
               : (b.name.replace(/\.tar\.gz$/, '').replace(/^\d{8}-\d{6}-?/, '') || 'Backup')),
-            h('td.mut', { 'data-label': 'Made' }, new Date(b.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })),
+            h('td.mut', { 'data-label': 'Made' }, when(b.at)),
             h('td.mut', { 'data-label': 'Size' }, size(b.sizeBytes)),
             h('td.ta-r', { 'data-label': '' },
               canRestore
                 ? h('button.btn.soft.small', { onclick: async () => {
                     if (!(await confirmDialog('Restore this backup?',
-                      `Pictures, files and studio accounts go back to how they were on ${new Date(b.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}. Anyone signed in will need to sign in again. A safety copy of how things are right now is made first, so this can be undone.`, 'Restore'))) return
+                      `Pictures, files and studio accounts go back to how they were on ${when(b.at)}. Anyone signed in will need to sign in again. A safety copy of how things are now is made first.`, 'Restore'))) return
+                    showProblem('')
                     const res = await call('/x/ops/backups/restore', { name: b.name })
-                    if (res.error) toast(res.error, 'err', 6000); else { toast('Restored — a safety copy of the previous state is in the list', 'ok', 6000); refreshStatus(); refreshBranches(); refreshBackups() }
+                    if (res.error) showProblem(`Could not restore: ${res.error}`)
+                    else { toast('Restored — a safety copy of the previous state is in the list', 'ok', 6000); refreshVersions(); refreshBackups() }
                   } }, 'Restore')
                 : ''))))))
           : emptyState(icon('db', 22), 'No backups yet', settings.enabled === false ? 'Backups are turned off.' : 'Press “Back up now” to make the first one.'))
     }
 
-    refreshStatus(); refreshBranches(); refreshBackups()
+    refreshVersions(); refreshBackups()
     return h('div', {},
-      h('details.card.mb-4.ops-how', {},
-        h('summary', {}, h('strong', {}, 'How this page works')),
-        h('ul.ops-how-list', {},
-          h('li', {}, h('strong', {}, 'Save a version'), ' after a batch of changes you’re happy with. Every page, setting and design choice is kept as it is now, and your developer can pick it up from there.'),
-          h('li', {}, h('strong', {}, 'Checkpoints'), ' are for trying something out. Save one first; if you don’t like the result, undo back to it — nothing you did is thrown away.'),
-          h('li', {}, h('strong', {}, 'Backups'), ' cover what versions don’t: uploaded pictures and files, and who can sign in to the studio.'))),
-      h('div.card.mb-4', {}, h('strong', {}, 'Save a version'), statusHolder),
-      h('div.card.mb-4', {}, h('strong', {}, 'Checkpoints'), branchesHolder),
-      h('div.card', {}, h('strong', {}, 'Backups'), h('p.sub.mt-0', {}, 'Copies of your pictures, files and studio accounts.'), backupsHolder))
+      problem,
+      h('div.card.mb-4', {},
+        h('strong', {}, 'Versions'),
+        h('p.sub.mt-0', {}, 'Your pages, menus, settings and design. Save a version after changes you’re happy with; go back to any earlier one at any time. Going back never deletes anything — it is just another saved version.'),
+        versionsHolder),
+      h('div.card', {},
+        h('strong', {}, 'Backups'),
+        h('p.sub.mt-0', {}, 'Your uploaded pictures and files, and who can sign in to the studio — the things versions don’t cover.'),
+        backupsHolder))
   }, { replaces: true }),
 }

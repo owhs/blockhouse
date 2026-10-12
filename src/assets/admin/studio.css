@@ -2348,3 +2348,7 @@ h2.help-group { margin: 0; }
 .ai-copy-row { display: flex; gap: var(--s2); }
 .ai-copy-row .input { flex: 1; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 0.8rem; }
 .ai-json { margin: 0; padding: var(--s3); overflow: auto; max-height: 12rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r2, 6px); user-select: all; }
+
+/* ==== page-level problem notice (stays until the next attempt) ==== */
+.notice { padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r2, 6px); }
+.notice-err { border-color: var(--err, #c0392b); color: var(--err, #c0392b); }
