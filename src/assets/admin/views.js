@@ -137,9 +137,11 @@ function cellNode(d, f) {
 
 registerView('dashboard', async root => {
   const meta = state.meta
-  const [content, mediaRes] = await Promise.all([
+  const [content, mediaRes, versions] = await Promise.all([
     get('/content'),
     get('/media').catch(() => ({ media: [] })),
+    // the Versions & backups page, when this site runs it and this person may use it
+    api('/x/ops/status', { quiet: true }).catch(() => null),
   ])
   const docs = content.docs
   const media = mediaRes.media || []
@@ -176,6 +178,9 @@ registerView('dashboard', async root => {
   if (seoBad.length) attn.push(attnRow('search',
     `${typeCounts(seoBad)} ${seoBad.length === 1 ? 'has' : 'have'} search-engine problems`,
     '#/seo', 'Fix them'))
+  if (versions?.git && versions.dirty) attn.push(attnRow('save',
+    `${versions.dirty} ${versions.dirty === 1 ? 'change is' : 'changes are'} not saved as a version yet${versions.lastCommit ? ` (last saved ${versions.lastCommit.date})` : ''}`,
+    '#/p/ops', 'Save a version'))
   if (!attn.length) attn.push(h('div.attn-row.attn-clear', {},
     h('span.attn-ico', { html: icon('check', 16) }),
     h('span.attn-text', {}, 'Everything is published and up to date.')))
